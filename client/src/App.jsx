@@ -192,7 +192,7 @@ export default function App() {
           {/* Search Box */}
           <form onSubmit={handleFetchInfo} className="input-wrapper">
             <div className="search-box">
-              <LinkIcon size={20} color="#6b7280" style={{ marginRight: '4px' }} />
+              <LinkIcon size={22} className="search-icon" style={{ marginRight: '6px', flexShrink: 0 }} />
               <input
                 type="text"
                 className="search-input"
