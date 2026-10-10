@@ -156,7 +156,7 @@ export default function App() {
     },
     {
       q: 'Is this a free Save from video downloader alternative?',
-      a: 'Yes, VDR is 100% free with unlimited downloads, zero-disk direct streaming speed, and no annoying popups, making it the premier Save from video downloader alternative.'
+      a: 'Yes, VidSave is 100% free with unlimited downloads, zero-disk direct streaming speed, and no annoying popups, making it the premier Save from video downloader alternative.'
     }
   ];
 
@@ -173,11 +173,11 @@ export default function App() {
         <Link to="/" className="logo">
           <img 
             src="/videoDownloader.jpg" 
-            alt="VDR Logo" 
+            alt="VidSave Logo" 
             className="logo-img" 
           />
           <div className="logo-text">
-            VDR<span>Downloader</span>
+            Vid<span>Save</span>
           </div>
         </Link>
         <div className="nav-actions">
@@ -510,7 +510,7 @@ export default function App() {
           ))}
         </div>
         <p style={{ marginTop: '1.5rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
-          © 2026 VDR (Video DownloadeR). Free universal high-speed media extraction service.
+          © 2026 VidSave Media Downloader. Free universal high-speed video extraction service.
         </p>
       </footer>
     </div>
