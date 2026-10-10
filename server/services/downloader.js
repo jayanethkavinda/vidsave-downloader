@@ -39,7 +39,7 @@ function buildYtdlpArgs() {
     '--impersonate', 'chrome', // Impersonates real Chrome TLS fingerprint (bypasses Cloudflare & 410 Gone errors)
     '--retries', '3',
     '--fragment-retries', '3',
-    '--extractor-args', 'youtube:player_client=android,web;po_token=web+dummy',
+    '--extractor-args', 'youtube:player_client=ios,android,web_creator,mweb',
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
     '--add-header', 'Sec-Fetch-Mode:navigate',
   ];
@@ -88,12 +88,14 @@ export async function getVideoInfo(url) {
     child.on('close', (code) => {
       if (code !== 0) {
         let cleanErr = stderrData || `Failed with exit code ${code}`;
-        if (cleanErr.includes('HTTP Error 410')) {
-          cleanErr = 'This video is unavailable or removed by the host platform.';
+        if (cleanErr.includes('HTTP Error 410') || cleanErr.includes('This video is unavailable')) {
+          cleanErr = 'This video is unavailable, deleted, or removed by the host platform.';
         } else if (cleanErr.includes('HTTP Error 404')) {
           cleanErr = 'Video not found. Please verify the URL.';
         } else if (cleanErr.includes('Sign in to confirm your age') || cleanErr.includes('Private video')) {
           cleanErr = 'This video is age-restricted or private.';
+        } else if (cleanErr.includes('Sign in to confirm you\'re not a bot')) {
+          cleanErr = 'YouTube security check triggered. Please try again or try another video.';
         }
         return reject(new Error(cleanErr));
       }
