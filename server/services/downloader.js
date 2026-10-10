@@ -28,20 +28,16 @@ try {
 }
 
 /**
- * Common yt-dlp arguments for browser TLS fingerprint impersonation & anti-bot bypass
+ * Common yt-dlp arguments for anti-bot bypass & headers
  */
 function buildYtdlpArgs() {
   const args = [
     '--no-warnings',
     '--no-check-certificates',
     '--geo-bypass',
-    '--no-playlist',
-    '--impersonate', 'chrome', // Impersonates real Chrome TLS fingerprint (bypasses Cloudflare & 410 Gone errors)
-    '--retries', '3',
-    '--fragment-retries', '3',
-    '--extractor-args', 'youtube:player_client=ios,android,web_creator,mweb',
+    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    '--extractor-args', 'youtube:player_client=android,web;po_token=web+dummy',
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
-    '--add-header', 'Sec-Fetch-Mode:navigate',
   ];
 
   if (ffmpegPath) {
