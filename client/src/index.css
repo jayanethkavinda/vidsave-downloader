@@ -866,6 +866,10 @@ button {
     padding: 0 1rem;
   }
 
+  .nav-badge {
+    display: none;
+  }
+
   .search-box {
     flex-direction: column;
     padding: 0.75rem;
