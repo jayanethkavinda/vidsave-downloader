@@ -33,8 +33,20 @@ try {
 // Auto-initialize cookies from environment variable if provided (for Cloud/Render deployments)
 if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
   try {
-    fs.writeFileSync(path.resolve('cookies.txt'), process.env.YTDLP_COOKIES.trim(), 'utf8');
-    console.log('[Downloader Engine] Initialized cookies.txt from YTDLP_COOKIES environment variable.');
+    const raw = process.env.YTDLP_COOKIES.trim();
+    // Normalize literal \n, \r\n, and convert multiple spaces to tabs for Netscape format
+    const unescaped = raw.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+    const lines = unescaped.split(/\r?\n/).map(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return line;
+      const parts = trimmed.split(/\s+/);
+      if (parts.length >= 7) {
+        return parts.slice(0, 6).concat(parts.slice(6).join(' ')).join('\t');
+      }
+      return line;
+    });
+    fs.writeFileSync(path.resolve('cookies.txt'), lines.join('\n'), 'utf8');
+    console.log('[Downloader Engine] Initialized and normalized cookies.txt from YTDLP_COOKIES.');
   } catch (e) {
     console.error('[Downloader Engine] Failed to write cookies from env:', e.message);
   }
@@ -43,12 +55,13 @@ if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
  */
-function buildYtdlpArgs() {
+function buildYtdlpArgs(useCookies = true) {
   const args = [
     '--ignore-config',
     '--no-warnings',
     '--no-playlist',
     '--no-check-formats',
+    '--js-runtimes', 'node',
     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
     '--retries', '2',
@@ -60,33 +73,36 @@ function buildYtdlpArgs() {
     args.push('--ffmpeg-location', ffmpegPath);
   }
 
-  // Check for cookies in environment path, local file, or secret file
-  const cookiePath = process.env.YTDLP_COOKIES_PATH
-    ? path.resolve(process.env.YTDLP_COOKIES_PATH)
-    : path.resolve('cookies.txt');
+  if (useCookies) {
+    // Check for cookies in environment path, local file, or secret file
+    const cookiePath = process.env.YTDLP_COOKIES_PATH
+      ? path.resolve(process.env.YTDLP_COOKIES_PATH)
+      : path.resolve('cookies.txt');
 
-  if (fs.existsSync(cookiePath)) {
-    args.push('--cookies', cookiePath);
+    if (fs.existsSync(cookiePath)) {
+      args.push('--cookies', cookiePath);
+    }
   }
 
   return args;
 }
 
 /**
- * Get video metadata (title, thumbnail, available formats/qualities) for ANY website
+ * Helper to run yt-dlp metadata extraction
  */
-export async function getVideoInfo(url) {
+function execYtdlpJson(url, extraArgs = [], useCookies = true) {
   return new Promise((resolve, reject) => {
     const args = [
       '-m', 'yt_dlp',
       '--dump-single-json',
-      ...buildYtdlpArgs(),
+      ...buildYtdlpArgs(useCookies),
+      ...extraArgs,
       url,
     ];
 
     const child = spawn(PYTHON_BIN, args, {
       windowsHide: true,
-      maxBuffer: 1024 * 1024 * 35, // 35MB buffer for rich metadata
+      maxBuffer: 1024 * 1024 * 35,
     });
 
     let stdoutData = '';
@@ -102,24 +118,44 @@ export async function getVideoInfo(url) {
 
     child.on('close', (code) => {
       if (code !== 0) {
-        console.error('[yt-dlp] Exit code:', code);
-        console.error('[yt-dlp] Error output:', stderrData);
-
-        let cleanErr = stderrData || `Failed with exit code ${code}`;
-        if (cleanErr.includes('HTTP Error 410') || cleanErr.includes('This video is unavailable')) {
-          cleanErr = 'This video is unavailable, deleted, or removed by the host platform.';
-        } else if (cleanErr.includes('HTTP Error 404')) {
-          cleanErr = 'Video not found. Please verify the URL.';
-        } else if (cleanErr.includes('Sign in to confirm your age') || cleanErr.includes('Private video')) {
-          cleanErr = 'This video is age-restricted or private.';
-        } else if (cleanErr.includes('Sign in to confirm you\'re not a bot')) {
-          cleanErr = 'YouTube security check triggered. Please try again or try another video.';
-        }
-        return reject(new Error(cleanErr));
+        return reject({ code, stderr: stderrData });
       }
-
       try {
-        const rawInfo = JSON.parse(stdoutData);
+        resolve(JSON.parse(stdoutData));
+      } catch (err) {
+        reject({ code: -1, stderr: `JSON parse error: ${err.message}` });
+      }
+    });
+
+    child.on('error', (err) => {
+      reject({ code: -1, stderr: err.message });
+    });
+  });
+}
+
+/**
+ * Get video metadata with automatic multi-tier fallback
+ */
+export async function getVideoInfo(url) {
+  let rawInfo = null;
+
+  // Attempt 1: Standard extraction (with normalized cookies + node JS runtime)
+  try {
+    rawInfo = await execYtdlpJson(url, [], true);
+  } catch (err1) {
+    console.warn('[Downloader Engine] Primary extraction attempt failed, trying fallback client...', err1.stderr || err1);
+
+    // Attempt 2: Fallback extraction (multi-client bypass without session conflict)
+    try {
+      rawInfo = await execYtdlpJson(url, ['--extractor-args', 'youtube:player_client=ios,android,tv,web'], false);
+    } catch (err2) {
+      console.error('[Downloader Engine] Fallback extraction failed:', err2.stderr || err2);
+      const cleanErr = (err2.stderr || err1.stderr || 'Failed to extract video information').trim();
+      throw new Error(cleanErr);
+    }
+  }
+
+  try {
         
         // Formats with sound prioritized
         const formats = [];
@@ -179,16 +215,10 @@ export async function getVideoInfo(url) {
           formats: formats.slice(0, 15),
         };
 
-        resolve(cleanInfo);
-      } catch (err) {
-        reject(new Error(`Failed to parse video info: ${err.message}`));
-      }
-    });
-
-    child.on('error', (err) => {
-      reject(err);
-    });
-  });
+    return cleanInfo;
+  } catch (err) {
+    throw new Error(`Failed to parse video info: ${err.message}`);
+  }
 }
 
 /**
