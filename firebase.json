@@ -1,6 +1,21 @@
 {
   "hosting": [
     {
+      "site": "vidsave-downloader",
+      "public": "client/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
       "site": "videsave",
       "public": "client/dist",
       "ignore": [
@@ -16,7 +31,7 @@
       ]
     },
     {
-      "site": "vidsave-downloader",
+      "site": "vidsave-hd",
       "public": "client/dist",
       "ignore": [
         "firebase.json",
