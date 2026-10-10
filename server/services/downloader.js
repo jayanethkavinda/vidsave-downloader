@@ -73,10 +73,16 @@ if (fs.existsSync(COOKIE_FILE)) {
   console.log('[Downloader Engine] Cookie file NOT found');
 }
 
+// Helper to detect if URL belongs to YouTube
+function isYouTubeUrl(rawUrl) {
+  if (!rawUrl) return false;
+  return /(?:youtube\.com|youtu\.be)/i.test(rawUrl);
+}
+
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
  */
-function buildYtdlpArgs(useCookies = true) {
+function buildYtdlpArgs(url = '', useCookies = true) {
   const args = [
     '--ignore-config',
     '--no-warnings',
@@ -105,7 +111,9 @@ function buildYtdlpArgs(useCookies = true) {
     }
   }
 
-  if (process.env.YTDLP_PROXY) {
+  // Optimize proxy bandwidth: Apply proxy ONLY for YouTube to protect proxy data limits!
+  // TikTok, Instagram, Facebook, Twitter, Pinterest download directly on unlimited server network.
+  if (process.env.YTDLP_PROXY && (!url || isYouTubeUrl(url))) {
     args.push('--proxy', process.env.YTDLP_PROXY);
   }
 
@@ -120,7 +128,7 @@ function execYtdlpJson(url, extraArgs = [], useCookies = true) {
     const args = [
       '-m', 'yt_dlp',
       '--dump-single-json',
-      ...buildYtdlpArgs(useCookies),
+      ...buildYtdlpArgs(url, useCookies),
       ...extraArgs,
       url,
     ];
@@ -269,7 +277,7 @@ export function streamVideoDownload(url, formatPreset, res) {
     '-m', 'yt_dlp',
     '-f', formatArg,
     '-o', '-', // Pipe directly to client browser via stdout
-    ...buildYtdlpArgs(),
+    ...buildYtdlpArgs(url),
     url,
   ];
 
