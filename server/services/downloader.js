@@ -40,12 +40,11 @@ try {
   }
 } catch (e) {}
 
-// Auto-initialize cookies from environment variable if provided (for Cloud/Render deployments)
 if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
   try {
     const raw = process.env.YTDLP_COOKIES.trim();
     const unescaped = raw.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
-    const lines = unescaped.split(/\r?\n/).map(line => {
+    let lines = unescaped.split(/\r?\n/).map(line => {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) return line;
       const parts = trimmed.split(/\s+/);
@@ -54,11 +53,24 @@ if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
       }
       return line;
     });
+    if (!lines[0] || !lines[0].includes('Netscape')) {
+      lines.unshift('# Netscape HTTP Cookie File');
+    }
     fs.writeFileSync(COOKIE_FILE, lines.join('\n'), 'utf8');
     console.log('[Downloader Engine] Initialized and normalized session cookies.');
   } catch (e) {
     console.error('[Downloader Engine] Failed to write cookies from env:', e.message);
   }
+}
+
+if (fs.existsSync(COOKIE_FILE)) {
+  const content = fs.readFileSync(COOKIE_FILE, 'utf8');
+  const cookieLines = content.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+  console.log(`[Downloader Engine] Cookie file lines: ${cookieLines.length}`);
+  console.log(`[Downloader Engine] Has tabs: ${content.includes('\t')}`);
+  console.log(`[Downloader Engine] First line starts with: ${content.split('\n')[0]}`);
+} else {
+  console.log('[Downloader Engine] Cookie file NOT found');
 }
 
 /**
