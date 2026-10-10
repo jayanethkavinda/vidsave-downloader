@@ -2,10 +2,27 @@ import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
+// Automatically detect Python command (python3 on Linux/Render, python on Windows)
+function getPythonCommand() {
+  const candidates = ['python3', 'python', 'py'];
+  for (const cmd of candidates) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'ignore' });
+      return cmd;
+    } catch (e) {
+      // continue to next candidate
+    }
+  }
+  return 'python3';
+}
+
+const PYTHON_BIN = getPythonCommand();
+console.log(`[Downloader Engine] Using Python binary: "${PYTHON_BIN}"`);
+
 // Automatically detect ffmpeg path from imageio_ffmpeg or system
 let ffmpegPath = '';
 try {
-  ffmpegPath = execSync('python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"', { encoding: 'utf8' }).trim();
+  ffmpegPath = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { encoding: 'utf8' }).trim();
 } catch (e) {
   ffmpegPath = 'ffmpeg';
 }
@@ -52,7 +69,7 @@ export async function getVideoInfo(url) {
       url,
     ];
 
-    const child = spawn('python', args, {
+    const child = spawn(PYTHON_BIN, args, {
       windowsHide: true,
       maxBuffer: 1024 * 1024 * 35, // 35MB buffer for rich metadata
     });
@@ -183,7 +200,7 @@ export function streamVideoDownload(url, formatPreset, res) {
 
   console.log(`[Download Stream] Starting universal download for: ${url}`);
 
-  const child = spawn('python', args, {
+  const child = spawn(PYTHON_BIN, args, {
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe']
   });
