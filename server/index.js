@@ -17,6 +17,32 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', engine: 'yt-dlp + python3', timestamp: new Date() });
 });
 
+// Diagnostic Endpoint
+app.get('/api/diagnose', async (req, res) => {
+  try {
+    const { execSync } = await import('child_process');
+    const pyVer = execSync('python3 --version || python --version', { encoding: 'utf8' }).trim();
+    const ytdlpVer = execSync('python3 -m yt_dlp --version || python -m yt_dlp --version', { encoding: 'utf8' }).trim();
+    const fs = await import('fs');
+    const path = await import('path');
+    const hasCookieFile = fs.existsSync(path.resolve('ytdlp_session_cookies.txt'));
+    const hasLegacy = fs.existsSync(path.resolve('cookies.txt'));
+    const cookieSize = hasCookieFile ? fs.statSync(path.resolve('ytdlp_session_cookies.txt')).size : 0;
+    
+    res.json({
+      pyVer,
+      ytdlpVer,
+      hasCookieFile,
+      cookieSize,
+      hasLegacy,
+      hasEnvCookie: !!process.env.YTDLP_COOKIES,
+      envCookieLen: process.env.YTDLP_COOKIES ? process.env.YTDLP_COOKIES.length : 0
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Video Metadata Endpoint
 app.get('/api/info', async (req, res) => {
   const { url } = req.query;
