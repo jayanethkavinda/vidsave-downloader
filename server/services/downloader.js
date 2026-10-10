@@ -47,6 +47,8 @@ function buildYtdlpArgs() {
   const args = [
     '--ignore-config',
     '--no-warnings',
+    '--no-playlist',
+    '--no-check-formats',
     '--retries', '2',
     '--socket-timeout', '20',
     '--force-ipv4',
