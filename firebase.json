@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "vidsave-downloader",
     "public": "client/dist",
     "ignore": [
       "firebase.json",
