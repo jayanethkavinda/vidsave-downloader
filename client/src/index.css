@@ -160,6 +160,16 @@ button {
   flex-shrink: 0;
 }
 
+.logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+  flex-shrink: 0;
+  border: 1px solid var(--border-glass);
+}
+
 .logo-text span {
   background: var(--cyan-gradient);
   -webkit-background-clip: text;

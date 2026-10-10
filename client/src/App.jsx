@@ -153,11 +153,13 @@ export default function App() {
       {/* Navigation */}
       <header className="navbar container">
         <div className="logo">
-          <div className="logo-icon">
-            <Download size={22} />
-          </div>
+          <img 
+            src="/videoDownloader.jpg" 
+            alt="VDR Logo" 
+            className="logo-img" 
+          />
           <div className="logo-text">
-            Vid<span>Save</span>
+            VDR<span>Downloader</span>
           </div>
         </div>
         <div className="nav-actions">
