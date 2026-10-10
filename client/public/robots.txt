@@ -1,0 +1,35 @@
+# robots.txt for VidSave - Video Downloader
+# https://videodownloader-37389.web.app
+
+User-agent: *
+Allow: /
+Allow: /llms.txt
+Allow: /sitemap.xml
+Disallow: /api/
+
+# Explicit Permissions for AI Search Engines & LLM Crawlers
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+
+User-agent: Applebot-Extended
+Allow: /
+Allow: /llms.txt
+
+User-agent: CCBot
+Allow: /
+Allow: /llms.txt
+
+Sitemap: https://videodownloader-37389.web.app/sitemap.xml
