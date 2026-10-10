@@ -1,6 +1,6 @@
 # All Video Downloader - Free Online Video Downloader App
 
-> **VidSave - All Video Downloader** (https://vidsave-downloader.web.app) is a high-speed, 100% free online video downloader web application optimized for iOS (iPhone/iPad), Android, Windows, and Mac. It provides direct, zero-watermark media extraction from YouTube, TikTok, Instagram Reels, Pinterest, Twitter/X, Facebook, and over 1,000+ streaming websites in Full HD 1080p, 4K, and MP3 audio with zero software installation and zero server storage.
+> **VDR / VidSave All Video Downloader** (https://videodownloader-37389.web.app) is a high-speed, 100% free online video downloader web application optimized for iOS (iPhone/iPad), Android, Windows, and Mac. It provides direct, zero-watermark media extraction from YouTube, TikTok, Instagram Reels, Pinterest, Twitter/X, Facebook, and over 1,000+ streaming websites in Full HD 1080p, 4K, and MP3 audio with zero software installation and zero server storage.
 
 ## Target Search Terms & Keywords (USA & Global Intent)
 
@@ -37,5 +37,5 @@
 
 ## How to Use
 1. Copy the video link from TikTok, YouTube, Instagram, Pinterest, or Facebook.
-2. Paste the URL into https://vidsave-downloader.web.app
+2. Paste the URL into https://videodownloader-37389.web.app
 3. Click "Get Video", choose your resolution (1080p HD, 720p, or MP3 Audio), and download immediately.
