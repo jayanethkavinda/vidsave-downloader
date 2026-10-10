@@ -23,7 +23,7 @@ import {
   Flame
 } from 'lucide-react';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? '' : 'https://vidsave-downloader.onrender.com');
+const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
 
 export default function App() {
   const [theme, setTheme] = useState(() => {
