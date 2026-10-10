@@ -30,11 +30,12 @@ try {
   ffmpegPath = 'ffmpeg';
 }
 
+const COOKIE_FILE = path.resolve('ytdlp_session_cookies.txt');
+
 // Auto-initialize cookies from environment variable if provided (for Cloud/Render deployments)
 if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
   try {
     const raw = process.env.YTDLP_COOKIES.trim();
-    // Normalize literal \n, \r\n, and convert multiple spaces to tabs for Netscape format
     const unescaped = raw.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
     const lines = unescaped.split(/\r?\n/).map(line => {
       const trimmed = line.trim();
@@ -45,8 +46,8 @@ if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
       }
       return line;
     });
-    fs.writeFileSync(path.resolve('cookies.txt'), lines.join('\n'), 'utf8');
-    console.log('[Downloader Engine] Initialized and normalized cookies.txt from YTDLP_COOKIES.');
+    fs.writeFileSync(COOKIE_FILE, lines.join('\n'), 'utf8');
+    console.log('[Downloader Engine] Initialized and normalized session cookies.');
   } catch (e) {
     console.error('[Downloader Engine] Failed to write cookies from env:', e.message);
   }
@@ -74,12 +75,11 @@ function buildYtdlpArgs(useCookies = true) {
   }
 
   if (useCookies) {
-    // Check for cookies in environment path, local file, or secret file
     const cookiePath = process.env.YTDLP_COOKIES_PATH
       ? path.resolve(process.env.YTDLP_COOKIES_PATH)
-      : path.resolve('cookies.txt');
+      : (fs.existsSync(COOKIE_FILE) ? COOKIE_FILE : (fs.existsSync(path.resolve('cookies.txt')) ? path.resolve('cookies.txt') : null));
 
-    if (fs.existsSync(cookiePath)) {
+    if (cookiePath && fs.existsSync(cookiePath)) {
       args.push('--cookies', cookiePath);
     }
   }
