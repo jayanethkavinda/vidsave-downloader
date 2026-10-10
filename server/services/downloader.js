@@ -36,7 +36,7 @@ function buildYtdlpArgs() {
     '--no-check-certificates',
     '--geo-bypass',
     '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    '--extractor-args', 'youtube:player_client=android,web;po_token=web+dummy',
+    '--extractor-args', 'youtube:player_client=ios,android,tv,web',
     '--add-header', 'Accept-Language:en-US,en;q=0.9',
   ];
 
