@@ -20,7 +20,9 @@ import {
   Globe,
   Sun,
   Moon,
-  Flame
+  Flame,
+  Pin,
+  Smartphone
 } from 'lucide-react';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
@@ -108,34 +110,35 @@ export default function App() {
   };
 
   const platforms = [
-    { name: 'Facebook', brand: 'facebook', active: true, iconSrc: '/icons/facebook.png', fallbackIcon: Film },
     { name: 'TikTok', brand: 'tiktok', active: true, iconSrc: '/icons/tiktok.png', fallbackIcon: Video },
-    { name: 'Instagram', brand: 'instagram', active: true, iconSrc: '/icons/instagram.png', fallbackIcon: Sparkles },
     { name: 'YouTube', brand: 'youtube', active: true, iconSrc: '/icons/youtube.png', fallbackIcon: Play },
+    { name: 'Instagram', brand: 'instagram', active: true, iconSrc: '/icons/instagram.png', fallbackIcon: Sparkles },
+    { name: 'Facebook', brand: 'facebook', active: true, iconSrc: '/icons/facebook.png', fallbackIcon: Film },
+    { name: 'Pinterest', brand: 'pinterest', active: true, iconSrc: '/icons/pinterest.png', fallbackIcon: Pin },
     { name: 'Twitter / X', brand: 'twitter', active: true, iconSrc: '/icons/twitter.png', fallbackIcon: Share2 },
     { name: 'Threads', brand: 'threads', active: true, iconSrc: '/icons/threads.png', fallbackIcon: Layers }
   ];
 
   const faqs = [
     {
-      q: 'What is All Video Downloader and which sites are supported?',
-      a: 'All Video Downloader is a free online video downloader app that allows you to download videos and audio from YouTube, Facebook, TikTok (without watermark), Instagram, Twitter/X, and 1,000+ streaming websites in Full HD 1080p and MP3.'
+      q: 'How to use TikTok video downloader no watermark & download TikTok sound?',
+      a: 'Simply paste the TikTok video link into our search bar and click "Get Video". You can instantly download the clean video without watermark in Full HD MP4 or extract just the audio using our "Audio Only" tab to download TikTok sound in high-quality MP3.'
     },
     {
-      q: 'How to download TikTok videos without watermark?',
-      a: 'Simply copy the TikTok video link, paste it into our search bar, and click "Get Video". Our video downloader without watermark automatically strips the watermark and provides a clean, original HD MP4.'
+      q: 'How to convert YouTube to MP4 or YouTube to MP3?',
+      a: 'Paste the YouTube link (video or Shorts). Click "Get Video" to see all available resolutions. Select 1080p Full HD for YouTube to MP4, or switch to the Audio tab for YouTube to MP3 high-speed download.'
     },
     {
-      q: 'Is this video downloader free to use?',
-      a: 'Yes, this video downloader is 100% free with unlimited downloads. There is no software installation, no subscription, and no hidden fees required.'
+      q: 'Can I download Instagram Reels and Pinterest videos?',
+      a: 'Yes! Our Instagram reel downloader and Pinterest video downloader support instant media saving for Reels, Stories, DIY clips, and pins directly to your device.'
     },
     {
-      q: 'Is this a good Save from video downloader alternative?',
-      a: 'Absolutely! Our tool is faster, cleaner, and features zero-disk direct streaming, making it the best modern Save from video downloader alternative.'
+      q: 'Is this video downloader app for iPhone (iOS) and Android?',
+      a: 'Yes! As a free online video downloader, it functions directly within Safari on iPhone and iPad (iOS video downloader) as well as Chrome on Android, saving media directly to your Photos or Files app without any extra APK or software.'
     },
     {
-      q: 'Can I use this as a Video Downloader YouTube app on mobile?',
-      a: 'Yes! It is fully responsive and functions like a web app on Android, iPhone/iPad, Windows, and Mac without needing to download APKs or software.'
+      q: 'Is this a free Save from video downloader alternative?',
+      a: 'Yes, VDR is 100% free with unlimited downloads, zero-disk direct streaming speed, and no annoying popups, making it the premier Save from video downloader alternative.'
     }
   ];
 

@@ -1,33 +1,41 @@
 # All Video Downloader - Free Online Video Downloader App
 
-> **VidSave All Video Downloader** (https://videodownloader-37389.web.app) is a high-speed, 100% free online video downloader app and "Save from video downloader" alternative. It allows users to download videos and audio from YouTube, Facebook, TikTok (without watermark), Instagram Reels, Twitter/X, Threads, and over 1,000+ online video streaming websites in Full HD (1080p, 720p, 480p) and MP3 audio with zero registration, zero ads, and zero server storage.
+> **VDR / VidSave All Video Downloader** (https://videodownloader-37389.web.app) is a high-speed, 100% free online video downloader web application optimized for iOS (iPhone/iPad), Android, Windows, and Mac. It provides direct, zero-watermark media extraction from YouTube, TikTok, Instagram Reels, Pinterest, Twitter/X, Facebook, and over 1,000+ streaming websites in Full HD 1080p, 4K, and MP3 audio with zero software installation and zero server storage.
 
-## Target Search Terms & Keywords
-- **All Video Downloader**: Universal downloader supporting YouTube, Facebook, Instagram, TikTok, Twitter, Reddit, and 1,000+ sites.
-- **Save from video downloader**: A fast, modern, and cleaner alternative to SaveFrom.net with direct stream processing.
-- **Video downloader free**: 100% unlimited and free video downloader online with no paywalls or trial limits.
-- **Video Downloader app**: Works seamlessly as a Progressive Web App (PWA) across Windows, Android, iOS, and macOS.
-- **Video downloader online**: Cloud-based web downloader accessible from any modern web browser without installing extensions.
-- **Video Downloader YouTube app**: High-speed extractor for YouTube videos (1080p HD, 720p, 360p) and MP3 music.
-- **Video downloader without watermark**: Dedicated HD TikTok video downloader without watermark.
-- **Download video Downloader**: Direct, one-click video downloading tool.
+## Target Search Terms & Keywords (USA & Global Intent)
+
+### 1. TikTok Target (High Demand in USA & Content Creators)
+- **`tiktok video downloader no watermark`**: Download pristine TikTok videos without any logo or watermark overlay for reposting across platforms.
+- **`download tiktok sound`**: Instant MP3 audio extraction from TikTok videos and background music tracks.
+- **`save tiktok without watermark`**: One-click download tool for clean TikTok videos.
+
+### 2. YouTube & Format Target (Massive Volume)
+- **`youtube to mp4`**: Extract YouTube videos in 1080p Full HD, 720p, and 480p with merged audio.
+- **`youtube video downloader`**: Fast online tool to save YouTube clips, shorts, and long-form videos.
+- **`youtube to mp3`**: High-bitrate audio converter for music, podcasts, speeches, and background tracks.
+
+### 3. Instagram & Social Media Downloader
+- **`instagram reel downloader`**: Save Instagram Reels, Stories, Posts, and Carousel videos in original quality.
+- **`twitter video downloader` / `x video downloader`**: Download videos and GIFs from Twitter / X posts.
+- **`pinterest video downloader`**: Download high-quality recipe videos, aesthetic clips, and DIY pins from Pinterest.
+
+### 4. Mobile & App Focus (USA iOS / iPhone Demand)
+- **`video downloader app for iphone`**: Mobile web application fully responsive and functional on iOS Safari without jailbreak or APKs.
+- **`ios video downloader`**: Optimized for iPhone and iPad Files app integration.
+- **`free online video downloader`**: Unlimited, no registration, no subscription web utility.
+
+### 5. Universal & General Search
+- **`All Video Downloader`**: Universal downloader supporting 1,000+ streaming and video sites.
+- **`Save from video downloader`**: Clean, fast, ad-free modern alternative to SaveFrom.net.
+- **`Video downloader without watermark`**: Strips watermarks automatically from short-form video sources.
+- **`Video downloader online` / `Video downloader free`**: Instant browser-based media processing.
 
 ## Core Capabilities
-- **YouTube Video Downloader:** High-speed direct MP4 video (1080p HD) and MP3 audio extraction.
-- **TikTok Video Downloader Without Watermark:** Fast video download without watermark in crystal clear quality.
-- **Facebook Video Downloader:** Downloads Facebook Public Videos, Reels, Watch videos, and Stories in 1080p HD and SD MP4.
-- **Instagram Downloader:** Saves Instagram Reels, Posts, and Carousel Videos in original source quality.
-- **Multi-Platform Support:** Supports over 1,000+ video hosting platforms including Reddit, Twitter/X, Threads, and streaming sites.
-- **Zero-Disk Streaming (Privacy & Speed):** Media is piped in real-time directly to the user's browser with zero local server storage, guaranteeing user anonymity and security.
-- **Audio Extraction:** High quality MP3 audio-only extraction for music and podcasts.
-
-## Key Features & Highlights
-- **100% Free & Unlimited:** No hidden fees, no limits on number of downloads, and no registration required.
-- **High Speed & Direct Download:** Fast processing with zero server queues or waiting delays.
-- **Mobile & Desktop Responsive:** Fully optimized for iOS (iPhone/iPad), Android, Windows, Mac, and Linux browsers.
-- **Safe & Anonymous:** No personal information or download history is stored or logged.
+- **Zero-Disk Direct Streaming:** Media is piped directly from source to user's browser, ensuring privacy and peak download bandwidth.
+- **Interleaved 1080p Video + Audio:** Ensures high-resolution downloads always have crystal-clear synchronized sound.
+- **Cloudflare & Anti-Bot Bypass:** Uses browser TLS impersonation to bypass blocks.
 
 ## How to Use
-1. Copy the video link from YouTube, Facebook, TikTok, Instagram, or any supported website.
-2. Paste the link into the input box at https://videodownloader-37389.web.app
-3. Click "Get Video", choose the desired resolution (1080p HD, 720p, SD, or MP3 Audio), and download immediately.
+1. Copy the video link from TikTok, YouTube, Instagram, Pinterest, or Facebook.
+2. Paste the URL into https://videodownloader-37389.web.app
+3. Click "Get Video", choose your resolution (1080p HD, 720p, or MP3 Audio), and download immediately.
