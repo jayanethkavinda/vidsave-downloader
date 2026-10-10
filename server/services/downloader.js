@@ -22,7 +22,10 @@ console.log(`[Downloader Engine] Using Python binary: "${PYTHON_BIN}"`);
 // Automatically detect ffmpeg path from imageio_ffmpeg or system
 let ffmpegPath = '';
 try {
-  ffmpegPath = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { encoding: 'utf8' }).trim();
+  ffmpegPath = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { 
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore']
+  }).trim();
 } catch (e) {
   ffmpegPath = 'ffmpeg';
 }
