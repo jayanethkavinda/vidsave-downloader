@@ -92,6 +92,10 @@ function buildYtdlpArgs(useCookies = true) {
     }
   }
 
+  if (process.env.YTDLP_PROXY) {
+    args.push('--proxy', process.env.YTDLP_PROXY);
+  }
+
   return args;
 }
 
