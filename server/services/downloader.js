@@ -30,6 +30,16 @@ try {
   ffmpegPath = 'ffmpeg';
 }
 
+// Auto-initialize cookies from environment variable if provided (for Cloud/Render deployments)
+if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
+  try {
+    fs.writeFileSync(path.resolve('cookies.txt'), process.env.YTDLP_COOKIES.trim(), 'utf8');
+    console.log('[Downloader Engine] Initialized cookies.txt from YTDLP_COOKIES environment variable.');
+  } catch (e) {
+    console.error('[Downloader Engine] Failed to write cookies from env:', e.message);
+  }
+}
+
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
  */
@@ -40,13 +50,14 @@ function buildYtdlpArgs() {
     '--retries', '2',
     '--socket-timeout', '20',
     '--force-ipv4',
+    '--extractor-args', 'youtube:player_client=ios,android,tv,web',
   ];
 
   if (ffmpegPath) {
     args.push('--ffmpeg-location', ffmpegPath);
   }
 
-  // Optional: provide cookies through a protected server-side file or env var
+  // Check for cookies in environment path, local file, or secret file
   const cookiePath = process.env.YTDLP_COOKIES_PATH
     ? path.resolve(process.env.YTDLP_COOKIES_PATH)
     : path.resolve('cookies.txt');
