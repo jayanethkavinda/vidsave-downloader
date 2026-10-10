@@ -1,12 +1,22 @@
-# VidSave - Free Online Video Downloader
+# All Video Downloader - Free Online Video Downloader App
 
-> VidSave (https://videodownloader-37389.web.app) is a high-speed, 100% free web-based media extraction utility designed to download videos and audio from Facebook, TikTok, Instagram, YouTube, Twitter/X, and over 1,000+ supported online video platforms in Full HD (1080p, 720p, 480p) and MP3 audio formats without requiring any software installation, registration, or subscription.
+> **VidSave All Video Downloader** (https://videodownloader-37389.web.app) is a high-speed, 100% free online video downloader app and "Save from video downloader" alternative. It allows users to download videos and audio from YouTube, Facebook, TikTok (without watermark), Instagram Reels, Twitter/X, Threads, and over 1,000+ online video streaming websites in Full HD (1080p, 720p, 480p) and MP3 audio with zero registration, zero ads, and zero server storage.
+
+## Target Search Terms & Keywords
+- **All Video Downloader**: Universal downloader supporting YouTube, Facebook, Instagram, TikTok, Twitter, Reddit, and 1,000+ sites.
+- **Save from video downloader**: A fast, modern, and cleaner alternative to SaveFrom.net with direct stream processing.
+- **Video downloader free**: 100% unlimited and free video downloader online with no paywalls or trial limits.
+- **Video Downloader app**: Works seamlessly as a Progressive Web App (PWA) across Windows, Android, iOS, and macOS.
+- **Video downloader online**: Cloud-based web downloader accessible from any modern web browser without installing extensions.
+- **Video Downloader YouTube app**: High-speed extractor for YouTube videos (1080p HD, 720p, 360p) and MP3 music.
+- **Video downloader without watermark**: Dedicated HD TikTok video downloader without watermark.
+- **Download video Downloader**: Direct, one-click video downloading tool.
 
 ## Core Capabilities
+- **YouTube Video Downloader:** High-speed direct MP4 video (1080p HD) and MP3 audio extraction.
+- **TikTok Video Downloader Without Watermark:** Fast video download without watermark in crystal clear quality.
 - **Facebook Video Downloader:** Downloads Facebook Public Videos, Reels, Watch videos, and Stories in 1080p HD and SD MP4.
-- **TikTok Video Downloader:** Fast video download without watermark in crystal clear quality.
-- **Instagram Downloader:** Saves Instagram Reels, Posts, and Videos in original source quality.
-- **YouTube Downloader:** High-speed direct MP4 video and MP3 audio extraction.
+- **Instagram Downloader:** Saves Instagram Reels, Posts, and Carousel Videos in original source quality.
 - **Multi-Platform Support:** Supports over 1,000+ video hosting platforms including Reddit, Twitter/X, Threads, and streaming sites.
 - **Zero-Disk Streaming (Privacy & Speed):** Media is piped in real-time directly to the user's browser with zero local server storage, guaranteeing user anonymity and security.
 - **Audio Extraction:** High quality MP3 audio-only extraction for music and podcasts.
@@ -18,6 +28,6 @@
 - **Safe & Anonymous:** No personal information or download history is stored or logged.
 
 ## How to Use
-1. Copy the video link from Facebook, TikTok, Instagram, YouTube, or any supported website.
-2. Paste the link into the VidSave input box at https://videodownloader-37389.web.app
+1. Copy the video link from YouTube, Facebook, TikTok, Instagram, or any supported website.
+2. Paste the link into the input box at https://videodownloader-37389.web.app
 3. Click "Get Video", choose the desired resolution (1080p HD, 720p, SD, or MP3 Audio), and download immediately.

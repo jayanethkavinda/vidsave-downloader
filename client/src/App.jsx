@@ -118,20 +118,24 @@ export default function App() {
 
   const faqs = [
     {
-      q: 'How do I download a Facebook video using this website?',
-      a: 'Simply copy the video link from Facebook (Click Share -> Copy Link), paste it into the search box above, and click "Get Video". Choose your preferred quality (HD 1080p, 720p, SD, or MP3) to download instantly.'
+      q: 'What is All Video Downloader and which sites are supported?',
+      a: 'All Video Downloader is a free online video downloader app that allows you to download videos and audio from YouTube, Facebook, TikTok (without watermark), Instagram, Twitter/X, and 1,000+ streaming websites in Full HD 1080p and MP3.'
     },
     {
-      q: 'Does this save videos on the server?',
-      a: 'No! We use a high-speed Direct Stream pipeline (Zero-Disk Write). The video streams directly from the source to your browser without consuming server disk space.'
+      q: 'How to download TikTok videos without watermark?',
+      a: 'Simply copy the TikTok video link, paste it into our search bar, and click "Get Video". Our video downloader without watermark automatically strips the watermark and provides a clean, original HD MP4.'
     },
     {
-      q: 'Is this Facebook Downloader completely free?',
-      a: 'Yes, it is 100% free with unlimited downloads, no registration required, and no hidden subscriptions.'
+      q: 'Is this video downloader free to use?',
+      a: 'Yes, this video downloader is 100% free with unlimited downloads. There is no software installation, no subscription, and no hidden fees required.'
     },
     {
-      q: 'Can I download private Facebook videos or Reels?',
-      a: 'You can download any publicly accessible Facebook video, Reel, Watch video, or group video. Private posts restricted to specific friends require direct login access.'
+      q: 'Is this a good Save from video downloader alternative?',
+      a: 'Absolutely! Our tool is faster, cleaner, and features zero-disk direct streaming, making it the best modern Save from video downloader alternative.'
+    },
+    {
+      q: 'Can I use this as a Video Downloader YouTube app on mobile?',
+      a: 'Yes! It is fully responsive and functions like a web app on Android, iPhone/iPad, Windows, and Mac without needing to download APKs or software.'
     }
   ];
 
@@ -156,7 +160,7 @@ export default function App() {
         <div className="nav-actions">
           <div className="nav-badge">
             <span className="nav-pulse"></span>
-            Fast Downloader
+            All Video Downloader
           </div>
           <button 
             type="button" 
@@ -174,10 +178,10 @@ export default function App() {
       <main className="container">
         <section className="hero">
           <h1 className="hero-title">
-            Download Any Video in <span className="gradient-text">Full HD & 4K</span>
+            All Video Downloader - <span className="gradient-text">Free Online App</span>
           </h1>
           <p className="hero-subtitle">
-            Fast, free online video downloader supporting Facebook, TikTok, Instagram, YouTube, X, and 1,000+ streaming websites.
+            Fast save from video downloader for YouTube, Facebook, TikTok (without watermark), Instagram, and 1,000+ platforms in 1080p Full HD & MP3.
           </p>
 
           {/* Search Box */}
@@ -356,15 +360,15 @@ export default function App() {
 
         {/* 3 Step Tutorial (SaveFrom Reference) */}
         <section className="section-wrapper">
-          <h2 className="section-title">How to Download Facebook Videos Online</h2>
-          <p className="section-desc">Download any video in 3 simple steps without installing extra software</p>
+          <h2 className="section-title">How to Download Any Video Online (Save From Video Downloader)</h2>
+          <p className="section-desc">Download video downloader tool in 3 simple steps without installing extra software</p>
 
           <div className="steps-grid">
             <div className="glass-panel step-card">
               <div className="step-number">1</div>
               <h3 className="step-title">Copy the Video Link</h3>
               <p className="step-text">
-                Open Facebook on your browser or mobile app. Locate the video or Reel you want to download and click <strong>Share → Copy Link</strong>.
+                Open YouTube, Facebook, TikTok, or Instagram. Find your video or Reel and click <strong>Share → Copy Link</strong>.
               </p>
             </div>
 
@@ -372,15 +376,15 @@ export default function App() {
               <div className="step-number">2</div>
               <h3 className="step-title">Paste the Link</h3>
               <p className="step-text">
-                Paste the copied Facebook link into the input box above and click the <strong>"Get Video"</strong> button to parse available resolutions.
+                Paste the copied URL into our <strong>All Video Downloader</strong> input box above and click the <strong>"Get Video"</strong> button.
               </p>
             </div>
 
             <div className="glass-panel step-card">
               <div className="step-number">3</div>
-              <h3 className="step-title">Download & Enjoy</h3>
+              <h3 className="step-title">Download Without Watermark</h3>
               <p className="step-text">
-                Select your desired quality (HD 1080p, 720p, or MP3 Audio) and click <strong>Download</strong> to save it directly to your device.
+                Select your preferred quality (Full HD 1080p, 720p, or MP3 Audio) and click <strong>Download</strong> to save immediately to your device.
               </p>
             </div>
           </div>
