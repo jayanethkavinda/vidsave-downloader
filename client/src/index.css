@@ -935,3 +935,90 @@ button {
     gap: 1.25rem;
   }
 }
+
+/* =========================================================
+   🌐 Quick Links Grid & Footer Multi-Page Navigation
+   ========================================================= */
+
+.active-chip {
+  border-color: var(--cyan-primary) !important;
+  background: rgba(6, 182, 212, 0.18) !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.4) !important;
+  transform: translateY(-2px);
+}
+
+.quick-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.quick-link-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+}
+
+.quick-link-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--cyan-primary);
+  background: var(--bg-card-hover);
+  box-shadow: 0 8px 25px rgba(6, 182, 212, 0.25);
+}
+
+.active-link-card {
+  border-color: var(--cyan-primary);
+  background: rgba(6, 182, 212, 0.08);
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+}
+
+.quick-link-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--text-main);
+  margin-bottom: 0.4rem;
+}
+
+.quick-link-tag {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+.footer {
+  padding: 3rem 1.5rem 2.5rem;
+  text-align: center;
+  border-top: 1px solid var(--border-glass);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem 1.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.footer-nav-link {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-nav-link:hover {
+  color: var(--cyan-primary);
+  text-decoration: underline;
+}

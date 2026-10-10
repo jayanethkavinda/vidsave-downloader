@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Download,
   Link as LinkIcon,
@@ -22,12 +23,18 @@ import {
   Moon,
   Flame,
   Pin,
-  Smartphone
+  Smartphone,
+  ExternalLink
 } from 'lucide-react';
+import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPage = PAGES_CONFIG[location.pathname] || PAGES_CONFIG['/'];
+
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('vidsave_theme') || 'dark';
   });
@@ -36,8 +43,19 @@ export default function App() {
   const [videoInfo, setVideoInfo] = useState(null);
   const [error, setError] = useState('');
   const [downloadingFormat, setDownloadingFormat] = useState(null);
-  const [activeTab, setActiveTab] = useState('video');
+  const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
+
+  // Sync route changes to document title, meta tags, and activeTab
+  useEffect(() => {
+    document.title = currentPage.title;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', currentPage.description);
+    }
+    setActiveTab(currentPage.defaultTab || 'video');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -110,13 +128,13 @@ export default function App() {
   };
 
   const platforms = [
-    { name: 'TikTok', brand: 'tiktok', active: true, iconSrc: '/icons/tiktok.png', fallbackIcon: Video },
-    { name: 'YouTube', brand: 'youtube', active: true, iconSrc: '/icons/youtube.png', fallbackIcon: Play },
-    { name: 'Instagram', brand: 'instagram', active: true, iconSrc: '/icons/instagram.png', fallbackIcon: Sparkles },
-    { name: 'Facebook', brand: 'facebook', active: true, iconSrc: '/icons/facebook.png', fallbackIcon: Film },
-    { name: 'Pinterest', brand: 'pinterest', active: true, iconSrc: '/icons/pinterest.png', fallbackIcon: Pin },
-    { name: 'Twitter / X', brand: 'twitter', active: true, iconSrc: '/icons/twitter.png', fallbackIcon: Share2 },
-    { name: 'Threads', brand: 'threads', active: true, iconSrc: '/icons/threads.png', fallbackIcon: Layers }
+    { name: 'TikTok', brand: 'tiktok', path: '/save-tiktok-without-watermark', iconSrc: '/icons/tiktok.png', fallbackIcon: Video },
+    { name: 'YouTube', brand: 'youtube', path: '/youtube-video-downloader', iconSrc: '/icons/youtube.png', fallbackIcon: Play },
+    { name: 'Instagram', brand: 'instagram', path: '/instagram-reel-downloader', iconSrc: '/icons/instagram.png', fallbackIcon: Sparkles },
+    { name: 'Facebook', brand: 'facebook', path: '/fb-video-downloader', iconSrc: '/icons/facebook.png', fallbackIcon: Film },
+    { name: 'Pinterest', brand: 'pinterest', path: '/pinterest-video-downloader', iconSrc: '/icons/pinterest.png', fallbackIcon: Pin },
+    { name: 'Twitter / X', brand: 'twitter', path: '/x-video-downloader', iconSrc: '/icons/twitter.png', fallbackIcon: Share2 },
+    { name: 'Threads', brand: 'threads', path: '/threads-video-downloader', iconSrc: '/icons/threads.png', fallbackIcon: Layers }
   ];
 
   const faqs = [
@@ -152,7 +170,7 @@ export default function App() {
     <div className="app">
       {/* Navigation */}
       <header className="navbar container">
-        <div className="logo">
+        <Link to="/" className="logo">
           <img 
             src="/videoDownloader.jpg" 
             alt="VDR Logo" 
@@ -161,7 +179,7 @@ export default function App() {
           <div className="logo-text">
             VDR<span>Downloader</span>
           </div>
-        </div>
+        </Link>
         <div className="nav-actions">
           <div className="nav-badge">
             <span className="nav-pulse"></span>
@@ -183,10 +201,10 @@ export default function App() {
       <main className="container">
         <section className="hero">
           <h1 className="hero-title">
-            All Video Downloader - <span className="gradient-text">Free Online App</span>
+            {currentPage.h1} - <span className="gradient-text">{currentPage.h1Highlight}</span>
           </h1>
           <p className="hero-subtitle">
-            Fast save from video downloader for YouTube, Facebook, TikTok (without watermark), Instagram, and 1,000+ platforms in 1080p Full HD & MP3.
+            {currentPage.subtitle}
           </p>
 
           {/* Search Box */}
@@ -196,7 +214,7 @@ export default function App() {
               <input
                 type="text"
                 className="search-input"
-                placeholder="Paste video URL here (Facebook, TikTok, Instagram, YouTube, etc.)"
+                placeholder={currentPage.placeholder}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 autoFocus
@@ -220,12 +238,18 @@ export default function App() {
             </div>
           </form>
 
-          {/* Supported Platform Chips */}
+          {/* Supported Platform Chips with Link Navigation */}
           <div className="platform-chips">
             {platforms.map((p) => {
               const FallbackComp = p.fallbackIcon;
+              const isSelected = location.pathname === p.path;
               return (
-                <div key={p.name} className={`chip ${p.brand}`}>
+                <Link
+                  key={p.name} 
+                  to={p.path}
+                  className={`chip ${p.brand} ${isSelected ? 'active-chip' : ''}`}
+                  title={`Open ${p.name} Downloader`}
+                >
                   <img
                     src={p.iconSrc}
                     alt={p.name}
@@ -241,7 +265,7 @@ export default function App() {
                     <FallbackComp size={15} />
                   </span>
                   <span>{p.name}</span>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -425,10 +449,10 @@ export default function App() {
         </section>
 
         {/* FAQs */}
-        <section className="section-wrapper" style={{ paddingTop: '1rem', paddingBottom: '5rem' }}>
+        <section className="section-wrapper" style={{ paddingTop: '1rem', paddingBottom: '3rem' }}>
           <div className="faq-container">
             <h2 className="section-title">Frequently Asked Questions</h2>
-            <p className="section-desc">Common questions about downloading Facebook videos</p>
+            <p className="section-desc">Common questions about video extraction, quality, and supported platforms</p>
 
             <div>
               {faqs.map((faq, idx) => (
@@ -446,11 +470,48 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        {/* 🚀 Supported Tools & Quick Subpage Links (SEO Power Grid) */}
+        <section className="section-wrapper" style={{ paddingTop: '0', paddingBottom: '5rem' }}>
+          <div className="faq-container">
+            <h2 className="section-title">Specialized Downloader Tools</h2>
+            <p className="section-desc">Direct access to dedicated platform extractors and audio converters</p>
+
+            <div className="quick-links-grid">
+              {QUICK_LINKS.map((item) => {
+                const isActive = location.pathname === item.slug;
+                return (
+                  <Link
+                    key={item.slug}
+                    to={item.slug}
+                    className={`quick-link-card ${isActive ? 'active-link-card' : ''}`}
+                    title={item.title}
+                  >
+                    <div className="quick-link-title">
+                      <Zap size={16} color="var(--cyan-primary)" style={{ flexShrink: 0 }} />
+                      <span>{item.name}</span>
+                    </div>
+                    <span className="quick-link-tag">{item.h1Highlight}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
       <footer className="footer container">
-        <p>© 2026 VidSave Media Downloader. Developed for fast, high-quality social media video extraction.</p>
+        <div className="footer-links">
+          {QUICK_LINKS.map((link) => (
+            <Link key={link.slug} to={link.slug} className="footer-nav-link">
+              {link.name}
+            </Link>
+          ))}
+        </div>
+        <p style={{ marginTop: '1.5rem', color: 'var(--text-dim)', fontSize: '0.9rem' }}>
+          © 2026 VDR (Video DownloadeR). Free universal high-speed media extraction service.
+        </p>
       </footer>
     </div>
   );
