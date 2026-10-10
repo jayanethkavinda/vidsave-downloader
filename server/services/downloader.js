@@ -50,7 +50,6 @@ function buildYtdlpArgs() {
     '--retries', '2',
     '--socket-timeout', '20',
     '--force-ipv4',
-    '--extractor-args', 'youtube:player_client=ios,android,tv,web',
   ];
 
   if (ffmpegPath) {
