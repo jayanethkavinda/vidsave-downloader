@@ -41,6 +41,8 @@ app.get('/api/diagnose', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
 // Server IP & YouTube Status Check Endpoint
 app.get('/api/check-ip', async (req, res) => {
   try {
