@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js"
+    "dev": "node --watch index.js",
+    "postinstall": "pip3 install -U yt-dlp imageio-ffmpeg --break-system-packages || pip install -U yt-dlp imageio-ffmpeg || true"
   },
   "dependencies": {
     "cors": "^2.8.5",
