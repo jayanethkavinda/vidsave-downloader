@@ -41,6 +41,29 @@ app.get('/api/diagnose', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+// Server IP & YouTube Status Check Endpoint
+app.get('/api/check-ip', async (req, res) => {
+  try {
+    const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json()).catch(() => ({ ip: 'Unknown' }));
+    let ytStatus = 'Unknown';
+    try {
+      const ytRes = await fetch('https://www.youtube.com', {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      });
+      ytStatus = `HTTP ${ytRes.status} ${ytRes.statusText}`;
+    } catch (e) {
+      ytStatus = `Error: ${e.message}`;
+    }
+
+    res.json({
+      serverIp: ipRes.ip,
+      youtubeStatus: ytStatus,
+      isDatacenter: true,
+      timestamp: new Date()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Video Metadata Endpoint
