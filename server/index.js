@@ -48,8 +48,9 @@ app.get('/api/download', (req, res) => {
     .trim()
     .substring(0, 80) || 'media';
 
-  const ext = format.includes('audio') || format === 'mp3' ? 'mp3' : 'mp4';
-  const mimeType = ext === 'mp3' ? 'audio/mpeg' : 'video/mp4';
+  const isAudio = format === 'audio_best' || format === 'mp3' || (format.includes('audio') && !format.includes('best_with_audio'));
+  const ext = isAudio ? 'mp3' : 'mp4';
+  const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(sanitizedTitle)}.${ext}"`);
   res.setHeader('Content-Type', mimeType);
