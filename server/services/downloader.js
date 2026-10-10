@@ -32,6 +32,14 @@ try {
 
 const COOKIE_FILE = path.resolve('ytdlp_session_cookies.txt');
 
+// Remove legacy root cookies.txt to prevent yt-dlp from implicitly auto-loading it
+try {
+  const legacyCookie = path.resolve('cookies.txt');
+  if (fs.existsSync(legacyCookie)) {
+    fs.unlinkSync(legacyCookie);
+  }
+} catch (e) {}
+
 // Auto-initialize cookies from environment variable if provided (for Cloud/Render deployments)
 if (process.env.YTDLP_COOKIES && process.env.YTDLP_COOKIES.trim().length > 0) {
   try {
@@ -77,7 +85,7 @@ function buildYtdlpArgs(useCookies = true) {
   if (useCookies) {
     const cookiePath = process.env.YTDLP_COOKIES_PATH
       ? path.resolve(process.env.YTDLP_COOKIES_PATH)
-      : (fs.existsSync(COOKIE_FILE) ? COOKIE_FILE : (fs.existsSync(path.resolve('cookies.txt')) ? path.resolve('cookies.txt') : null));
+      : (fs.existsSync(COOKIE_FILE) ? COOKIE_FILE : null);
 
     if (cookiePath && fs.existsSync(cookiePath)) {
       args.push('--cookies', cookiePath);
