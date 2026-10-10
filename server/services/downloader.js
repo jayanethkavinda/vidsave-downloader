@@ -35,20 +35,22 @@ try {
  */
 function buildYtdlpArgs() {
   const args = [
+    '--ignore-config',
     '--no-warnings',
-    '--no-check-certificates',
-    '--geo-bypass',
-    '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    '--extractor-args', 'youtube:player_client=ios,android,tv,web',
-    '--add-header', 'Accept-Language:en-US,en;q=0.9',
+    '--retries', '2',
+    '--socket-timeout', '20',
+    '--force-ipv4',
   ];
 
   if (ffmpegPath) {
     args.push('--ffmpeg-location', ffmpegPath);
   }
 
-  // If a cookies.txt file exists in the server directory, use it automatically to bypass age restrictions & logins
-  const cookiePath = path.resolve('cookies.txt');
+  // Optional: provide cookies through a protected server-side file or env var
+  const cookiePath = process.env.YTDLP_COOKIES_PATH
+    ? path.resolve(process.env.YTDLP_COOKIES_PATH)
+    : path.resolve('cookies.txt');
+
   if (fs.existsSync(cookiePath)) {
     args.push('--cookies', cookiePath);
   }
@@ -86,6 +88,9 @@ export async function getVideoInfo(url) {
 
     child.on('close', (code) => {
       if (code !== 0) {
+        console.error('[yt-dlp] Exit code:', code);
+        console.error('[yt-dlp] Error output:', stderrData);
+
         let cleanErr = stderrData || `Failed with exit code ${code}`;
         if (cleanErr.includes('HTTP Error 410') || cleanErr.includes('This video is unavailable')) {
           cleanErr = 'This video is unavailable, deleted, or removed by the host platform.';
