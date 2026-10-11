@@ -2,6 +2,7 @@ import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import ffmpegStatic from 'ffmpeg-static';
 
 // Automatically detect Python command (python3 on Linux/Render, python on Windows)
 function getPythonCommand() {
@@ -20,16 +21,22 @@ function getPythonCommand() {
 const PYTHON_BIN = getPythonCommand();
 console.log(`[Downloader Engine] Using Python binary: "${PYTHON_BIN}"`);
 
-// Automatically detect ffmpeg path from imageio_ffmpeg or system
-let ffmpegPath = '';
-try {
-  ffmpegPath = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { 
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'ignore']
-  }).trim();
-} catch (e) {
-  ffmpegPath = 'ffmpeg';
+// Automatically detect robust ffmpeg path from ffmpeg-static or imageio_ffmpeg
+let ffmpegPath = (ffmpegStatic && fs.existsSync(ffmpegStatic)) ? ffmpegStatic : '';
+if (!ffmpegPath) {
+  try {
+    const candidate = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { 
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'ignore']
+    }).trim();
+    if (candidate && fs.existsSync(candidate)) {
+      ffmpegPath = candidate;
+    }
+  } catch (e) {
+    ffmpegPath = '';
+  }
 }
+console.log(`[Downloader Engine] Using FFmpeg binary: "${ffmpegPath || 'system PATH'}"`);
 
 const COOKIE_FILE = path.resolve('ytdlp_session_cookies.txt');
 
@@ -251,7 +258,15 @@ export async function getVideoInfo(url) {
           return h >= tier.minHeight;
         });
 
-        const bestFmt = matchingFormats.sort((a, b) => (b.filesize || b.tbr || 0) - (a.filesize || a.tbr || 0))[0];
+        const bestFmt = matchingFormats.sort((a, b) => {
+          const aIsMp4 = a.ext === 'mp4' ? 1 : 0;
+          const bIsMp4 = b.ext === 'mp4' ? 1 : 0;
+          if (bIsMp4 !== aIsMp4) return bIsMp4 - aIsMp4;
+          const aSize = a.filesize || a.filesize_approx || (a.tbr && duration ? Math.round((a.tbr * 1000 / 8) * duration) : 0);
+          const bSize = b.filesize || b.filesize_approx || (b.tbr && duration ? Math.round((b.tbr * 1000 / 8) * duration) : 0);
+          return aSize - bSize;
+        })[0] || matchingFormats[0];
+
         let vSize = bestFmt?.filesize || bestFmt?.filesize_approx;
         if (!vSize && (bestFmt?.vbr || bestFmt?.tbr) && duration) {
           vSize = Math.round(((bestFmt.vbr || bestFmt.tbr) * 1000 / 8) * duration);
@@ -411,7 +426,10 @@ export function streamVideoDownload(url, formatPreset, res) {
   if (isAudio) {
     args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
   } else {
-    args.push('--merge-output-format', 'mp4');
+    args.push(
+      '--merge-output-format', 'mp4',
+      '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac'
+    );
   }
 
   args.push('-o', tempFile, ...buildYtdlpArgs(url), url);
@@ -435,6 +453,12 @@ export function streamVideoDownload(url, formatPreset, res) {
       if (fs.existsSync(tempFile)) {
         fs.unlinkSync(tempFile);
       }
+      const dir = path.dirname(tempFile);
+      const baseNoExt = path.basename(tempFile, path.extname(tempFile));
+      const remnants = fs.readdirSync(dir).filter(f => f.startsWith(baseNoExt));
+      for (const r of remnants) {
+        try { fs.unlinkSync(path.join(dir, r)); } catch (e) {}
+      }
     } catch (e) {}
   };
 
@@ -446,7 +470,19 @@ export function streamVideoDownload(url, formatPreset, res) {
   });
 
   child.on('close', (code) => {
-    if (code !== 0 || !fs.existsSync(tempFile)) {
+    let actualFile = tempFile;
+    if (!fs.existsSync(actualFile)) {
+      const dir = path.dirname(tempFile);
+      const baseNoExt = path.basename(tempFile, path.extname(tempFile));
+      try {
+        const found = fs.readdirSync(dir).find(f => f.startsWith(baseNoExt) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
+        if (found) {
+          actualFile = path.join(dir, found);
+        }
+      } catch (e) {}
+    }
+
+    if (code !== 0 || !fs.existsSync(actualFile)) {
       console.error(`[Download Stream] yt-dlp execution failed with exit code ${code}`);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Download processing failed. Please check the video link.' });
@@ -456,11 +492,11 @@ export function streamVideoDownload(url, formatPreset, res) {
     }
 
     try {
-      const stat = fs.statSync(tempFile);
+      const stat = fs.statSync(actualFile);
       if (!res.headersSent) {
         res.setHeader('Content-Length', stat.size);
       }
-      const stream = fs.createReadStream(tempFile);
+      const stream = fs.createReadStream(actualFile);
       stream.pipe(res);
       stream.on('close', cleanup);
       stream.on('error', (err) => {
