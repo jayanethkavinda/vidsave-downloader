@@ -666,6 +666,16 @@ button {
   white-space: nowrap;
 }
 
+.quality-badge.ultra {
+  background: rgba(244, 63, 94, 0.18);
+  color: #e11d48;
+  border: 1px solid rgba(244, 63, 94, 0.45);
+}
+
+[data-theme='dark'] .quality-badge.ultra {
+  color: #fb7185;
+}
+
 .quality-badge.best {
   background: rgba(6, 182, 212, 0.18);
   color: #0284c7;

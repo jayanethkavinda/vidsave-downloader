@@ -1,5 +1,5 @@
 # robots.txt for VidSave - Video Downloader
-# https://videodownloader-37389.web.app
+# https://vidsave-hd.web.app
 
 User-agent: *
 Allow: /
@@ -32,4 +32,4 @@ User-agent: CCBot
 Allow: /
 Allow: /llms.txt
 
-Sitemap: https://videodownloader-37389.web.app/sitemap.xml
+Sitemap: https://vidsave-hd.web.app/sitemap.xml

@@ -169,4 +169,6 @@ export const PAGES_CONFIG = {
   },
 };
 
-export const QUICK_LINKS = Object.values(PAGES_CONFIG);
+export const QUICK_LINKS = Object.values(PAGES_CONFIG).filter(
+  (item) => item.activeBrand !== 'adult'
+);

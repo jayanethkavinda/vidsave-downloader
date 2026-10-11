@@ -46,13 +46,27 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
 
-  // Sync route changes to document title, meta tags, and activeTab
+  // Sync route changes to document title, meta tags, canonical link, and activeTab
   useEffect(() => {
     document.title = currentPage.title;
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
       metaDesc.setAttribute('content', currentPage.description);
     }
+    const fullCanonicalUrl = `https://vidsave-hd.web.app${currentPage.slug === '/' ? '/' : currentPage.slug}`;
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', fullCanonicalUrl);
+
+    const ogUrl = document.querySelector('meta[property="og:url"]');
+    if (ogUrl) {
+      ogUrl.setAttribute('content', fullCanonicalUrl);
+    }
+
     setActiveTab(currentPage.defaultTab || 'video');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
@@ -434,7 +448,12 @@ export default function App() {
                   <div className="featured-title">
                     {videoInfo.isYouTubeFallback 
                       ? 'Download Full HD (1080p MP4) via Fast Mirror'
-                      : 'Download Best Quality (1080p HD with Audio)'}
+                      : (videoInfo.bestPreset ? videoInfo.bestPreset.label : 'Download Best Quality')}
+                    {videoInfo.bestPreset?.filesizeFormatted && (
+                      <span style={{ fontSize: '0.9rem', color: 'var(--cyan-primary)', marginLeft: '8px', fontWeight: '600' }}>
+                        (~{videoInfo.bestPreset.filesizeFormatted})
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
@@ -444,8 +463,8 @@ export default function App() {
                 >
                   {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : <Download size={18} />}
                   {downloadingFormat === 'best_with_audio' 
-                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Starting...') 
-                    : 'Download HD (1080p)'}
+                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Downloading & Merging...') 
+                    : (videoInfo.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Best Quality')}
                 </button>
               </div>
 
@@ -470,8 +489,9 @@ export default function App() {
                   <table className="quality-table">
                     <tbody>
                       {filteredPresets.map((preset) => {
-                        let badgeClass = 'hd';
+                        let badgeClass = preset.badge || 'hd';
                         if (preset.id.includes('best') && preset.type === 'video') badgeClass = 'best';
+                        else if (preset.id === '4320' || preset.id === '2160') badgeClass = 'ultra';
                         else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
                         else if (preset.type === 'audio') badgeClass = 'audio';
 
@@ -485,6 +505,11 @@ export default function App() {
                             </td>
                             <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                               Format: <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
+                              {preset.filesizeFormatted && (
+                                <span style={{ marginLeft: '12px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
+                                  • {preset.filesizeFormatted}
+                                </span>
+                              )}
                             </td>
                             <td className="quality-cell" style={{ textAlign: 'right' }}>
                               <button
@@ -494,7 +519,7 @@ export default function App() {
                               >
                                 {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
                                 {downloadingFormat === preset.id 
-                                  ? (videoInfo.isYouTubeFallback ? 'Opening...' : 'Starting...') 
+                                  ? (videoInfo.isYouTubeFallback ? 'Opening...' : 'Downloading...') 
                                   : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
                               </button>
                             </td>
