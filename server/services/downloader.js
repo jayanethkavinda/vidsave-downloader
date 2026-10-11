@@ -279,7 +279,7 @@ export async function getVideoInfo(url) {
 
         matchedTiers.push({
           id: tier.id,
-          label: `${tier.label} (with Audio)`,
+          label: tier.label,
           shortLabel: tier.shortLabel,
           badge: tier.badge,
           height: tier.minHeight,
@@ -296,7 +296,7 @@ export async function getVideoInfo(url) {
       const estSize = Math.round(fallbackTier.estByteRate * (duration || 60));
       matchedTiers.push({
         id: fallbackTier.id,
-        label: `${fallbackTier.label} (with Audio)`,
+        label: fallbackTier.label,
         shortLabel: fallbackTier.shortLabel,
         badge: fallbackTier.badge,
         height: fallbackTier.minHeight,
@@ -323,7 +323,7 @@ export async function getVideoInfo(url) {
 
     const audioPreset = {
       id: 'audio_best',
-      label: 'MP3 / Audio Only (High Quality Audio)',
+      label: 'MP3 Audio (High Quality)',
       shortLabel: 'MP3 Audio',
       ext: 'mp3',
       type: 'audio',

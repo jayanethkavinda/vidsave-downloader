@@ -266,11 +266,12 @@ export default function App() {
     }
   ];
 
-  const filteredPresets = videoInfo?.presets?.filter(p => {
-    if (activeTab === 'video') return p.type === 'video';
-    if (activeTab === 'audio') return p.type === 'audio';
-    return true;
-  }) || [];
+  const allVideoPresets = (videoInfo?.presets || []).filter(p => p.type === 'video' && p.id !== 'best_with_audio');
+  // Highest quality is prominently featured in the Recommended card above, so show remaining tiers below
+  const videoPresets = allVideoPresets.length > 1 ? allVideoPresets.slice(1) : allVideoPresets;
+  const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
+  const filteredPresets = activeTab === 'video' ? videoPresets : audioPresets;
+
 
   return (
     <div className="app">
@@ -475,13 +476,13 @@ export default function App() {
                     className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
                     onClick={() => setActiveTab('video')}
                   >
-                    <Film size={16} /> Video Formats ({videoInfo.presets.filter(p => p.type === 'video').length})
+                    <Film size={16} /> Video Formats ({videoPresets.length})
                   </button>
                   <button
                     className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
                     onClick={() => setActiveTab('audio')}
                   >
-                    <Music size={16} /> Audio Only ({videoInfo.presets.filter(p => p.type === 'audio').length})
+                    <Music size={16} /> Audio Only ({audioPresets.length})
                   </button>
                 </div>
 
@@ -504,9 +505,9 @@ export default function App() {
                               </span>
                             </td>
                             <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                              Format: <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
+                              <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
                               {preset.filesizeFormatted && (
-                                <span style={{ marginLeft: '12px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
+                                <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
                                   • {preset.filesizeFormatted}
                                 </span>
                               )}
