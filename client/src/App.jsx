@@ -46,6 +46,40 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
 
+  // Typing animation cycling through major platforms letter by letter
+  const TYPING_PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Twitter (X)', 'Pinterest'];
+  const [typedPlatform, setTypedPlatform] = useState('');
+  const [platformIndex, setPlatformIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    const currentWord = TYPING_PLATFORMS[platformIndex];
+    let timer;
+
+    if (!isDeleting) {
+      if (typedPlatform.length < currentWord.length) {
+        timer = setTimeout(() => {
+          setTypedPlatform(currentWord.slice(0, typedPlatform.length + 1));
+        }, 110);
+      } else {
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 1500);
+      }
+    } else {
+      if (typedPlatform.length > 0) {
+        timer = setTimeout(() => {
+          setTypedPlatform(currentWord.slice(0, typedPlatform.length - 1));
+        }, 55);
+      } else {
+        setIsDeleting(false);
+        setPlatformIndex((prev) => (prev + 1) % TYPING_PLATFORMS.length);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [typedPlatform, isDeleting, platformIndex]);
+
   // Sync route changes to document title, meta tags, canonical link, and activeTab
   useEffect(() => {
     document.title = currentPage.title;
@@ -290,7 +324,7 @@ export default function App() {
         <div className="nav-actions">
           <div className="nav-badge">
             <span className="nav-pulse"></span>
-            All Video Downloader
+            All Video Free Downloader
           </div>
           <button 
             type="button" 
@@ -308,8 +342,26 @@ export default function App() {
       <main className="container">
         <section className="hero">
           <h1 className="hero-title">
-            {currentPage.h1} - <span className="gradient-text">{currentPage.h1Highlight}</span>
+            {currentPage.slug === '/' ? (
+              <>
+                All Video <span className="gradient-text">Free Downloader</span>
+              </>
+            ) : (
+              <>
+                {currentPage.h1} - <span className="gradient-text">{currentPage.h1Highlight}</span>
+              </>
+            )}
           </h1>
+
+          {/* Typing Animation under Main Header */}
+          <div className="typing-animation-container">
+            <span className="typing-prefix">Fast Save from </span>
+            <span className="typing-highlight-box">
+              <span className="typing-word">{typedPlatform}</span>
+              <span className="typing-cursor"></span>
+            </span>
+          </div>
+
           <p className="hero-subtitle">
             {currentPage.subtitle}
           </p>

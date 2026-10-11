@@ -1,12 +1,12 @@
 export const PAGES_CONFIG = {
   '/': {
     slug: '/',
-    name: 'All Video Downloader',
-    title: 'All Video Downloader - Free Online Video Downloader App | YouTube, TikTok, Facebook',
-    description: 'Fast, free universal online video downloader app to save videos from YouTube, Facebook, TikTok without watermark, Instagram, and 1,000+ streaming sites in 1080p HD & MP3.',
-    h1: 'All Video Downloader',
-    h1Highlight: 'Free Online App',
-    subtitle: 'Fast save from video downloader for YouTube, Facebook, TikTok (without watermark), Instagram, and 1,000+ platforms in 1080p Full HD & MP3.',
+    name: 'All Video Free Downloader',
+    title: 'All Video Free Downloader | YouTube, TikTok, Instagram, Facebook in 8K & 4K',
+    description: 'Fast, free universal online video downloader app to save videos from YouTube, Facebook, TikTok without watermark, Instagram, and 1,000+ streaming sites in 8K Ultra HD, 4K, 1080p HD & MP3.',
+    h1: 'All Video',
+    h1Highlight: 'Free Downloader',
+    subtitle: 'Fast save from video downloader for YouTube, Facebook, TikTok (without watermark), Instagram, and 1,000+ platforms in 8K Ultra HD, 4K, 1080p Full HD & MP3.',
     placeholder: 'Paste video URL here (YouTube, TikTok, Instagram, Facebook, etc.)...',
     activeBrand: 'all',
     defaultTab: 'video',
