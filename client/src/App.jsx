@@ -449,7 +449,7 @@ export default function App() {
                   <div className="featured-title">
                     {videoInfo.isYouTubeFallback 
                       ? 'Download Full HD (1080p MP4) via Fast Mirror'
-                      : (videoInfo.bestPreset ? videoInfo.bestPreset.label : 'Download Best Quality')}
+                      : (videoInfo.bestPreset ? videoInfo.bestPreset.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() : 'Download Best Quality')}
                     {videoInfo.bestPreset?.filesizeFormatted && (
                       <span style={{ fontSize: '0.9rem', color: 'var(--cyan-primary)', marginLeft: '8px', fontWeight: '600' }}>
                         (~{videoInfo.bestPreset.filesizeFormatted})
@@ -496,12 +496,17 @@ export default function App() {
                         else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
                         else if (preset.type === 'audio') badgeClass = 'audio';
 
+                        const cleanLabel = (preset.label || '')
+                          .replace(/\s*\(with\s*Audio\)/gi, '')
+                          .replace(/\s*with\s*Audio/gi, '')
+                          .trim();
+
                         return (
                           <tr key={preset.id} className="quality-row">
                             <td className="quality-cell" style={{ fontWeight: '600' }}>
                               <span className={`quality-badge ${badgeClass}`}>
                                 {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
-                                {preset.label}
+                                {cleanLabel}
                               </span>
                             </td>
                             <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
