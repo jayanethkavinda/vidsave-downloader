@@ -212,7 +212,7 @@ export async function getVideoInfo(url) {
     // Video formats
     const videoFormats = rawFormats.filter(f => f.vcodec !== 'none');
     
-    // Find all unique available heights from video formats
+    // Find all unique available heights from video formats (supports both horizontal & vertical videos like TikTok/Reels)
     const availableHeights = new Set();
     videoFormats.forEach(f => {
       let h = f.height;
@@ -220,10 +220,14 @@ export async function getVideoInfo(url) {
         const m = f.format_note.match(/(\d+)p/);
         if (m) h = parseInt(m[1], 10);
       }
-      if (h) availableHeights.add(h);
+      const effectiveRes = (f.width && f.height) ? Math.min(f.width, f.height) : h;
+      if (effectiveRes) availableHeights.add(effectiveRes);
     });
 
-    if (rawInfo.height) availableHeights.add(rawInfo.height);
+    if (rawInfo.height) {
+      const rawRes = (rawInfo.width && rawInfo.height) ? Math.min(rawInfo.width, rawInfo.height) : rawInfo.height;
+      availableHeights.add(rawRes);
+    }
 
     const maxHeight = availableHeights.size > 0 ? Math.max(...availableHeights) : (rawInfo.height || 720);
 
@@ -253,7 +257,8 @@ export async function getVideoInfo(url) {
 
       if (hasTier) {
         const matchingFormats = videoFormats.filter(f => {
-          const h = f.height || (f.format_note && parseInt(f.format_note)) || 0;
+          const rawH = f.height || (f.format_note && parseInt(f.format_note)) || 0;
+          const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
           if (upperTier) return h >= tier.minHeight && h < upperTier.minHeight;
           return h >= tier.minHeight;
         });
@@ -391,24 +396,28 @@ export function streamVideoDownload(url, formatPreset, res) {
   let formatArg;
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3' || (formatPreset && formatPreset.includes('audio') && !formatPreset.includes('best_with_audio'));
 
+  const buildTierFormat = (res) => {
+    return `bestvideo[height<=${res}]+bestaudio/bestvideo[width<=${res}]+bestaudio/best[height<=${res}]/best[width<=${res}]/best`;
+  };
+
   if (isAudio) {
     formatArg = 'bestaudio/best';
   } else if (formatPreset === '4320') {
-    formatArg = 'bestvideo[height<=4320]+bestaudio/best[height<=4320]/best';
+    formatArg = buildTierFormat(4320);
   } else if (formatPreset === '2160') {
-    formatArg = 'bestvideo[height<=2160]+bestaudio/best[height<=2160]/best';
+    formatArg = buildTierFormat(2160);
   } else if (formatPreset === '1440') {
-    formatArg = 'bestvideo[height<=1440]+bestaudio/best[height<=1440]/best';
+    formatArg = buildTierFormat(1440);
   } else if (formatPreset === '1080') {
-    formatArg = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+    formatArg = buildTierFormat(1080);
   } else if (formatPreset === '720') {
-    formatArg = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+    formatArg = buildTierFormat(720);
   } else if (formatPreset === '480') {
-    formatArg = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best';
+    formatArg = buildTierFormat(480);
   } else if (formatPreset === '360') {
-    formatArg = 'bestvideo[height<=360]+bestaudio/best[height<=360]/best';
+    formatArg = buildTierFormat(360);
   } else if (formatPreset && formatPreset !== 'best' && formatPreset !== 'best_with_audio') {
-    formatArg = `bestvideo[height<=${formatPreset}]+bestaudio/best[height<=${formatPreset}]/best`;
+    formatArg = buildTierFormat(formatPreset);
   } else {
     // Top quality (8K / 4K / 1080p with audio)
     formatArg = 'bestvideo+bestaudio/best';
