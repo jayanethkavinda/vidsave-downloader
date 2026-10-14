@@ -1,6 +1,19 @@
 import express from 'express';
 import cors from 'cors';
-import { getVideoInfo, streamVideoDownload, streamTrimmedDownload, convertVttToSrt, convertSrv1ToVtt } from './services/downloader.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import crypto from 'crypto';
+import { spawn } from 'child_process';
+import { 
+  getVideoInfo, 
+  streamVideoDownload, 
+  streamTrimmedDownload, 
+  convertVttToSrt, 
+  convertSrv1ToVtt,
+  buildYtdlpArgs,
+  PYTHON_BIN
+} from './services/downloader.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -273,6 +286,61 @@ app.get('/api/proxy-stream', async (req, res) => {
     console.error('Proxy stream failed:', err.message);
     if (!res.headersSent) res.status(500).send('Proxy stream failed');
   }
+});
+
+// High-Speed Lightweight Video Preview Endpoint (Serves 1-2 MB low-res MP4 with full Range/seeking support)
+app.get('/api/preview', async (req, res) => {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).send('URL is required');
+  }
+
+  const hash = crypto.createHash('md5').update(url).digest('hex');
+  const tempFile = path.join(os.tmpdir(), `vidsave_prev_${hash}.mp4`);
+
+  // If already cached on disk, send instantly!
+  if (fs.existsSync(tempFile) && fs.statSync(tempFile).size > 10000) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return res.sendFile(tempFile);
+  }
+
+  // Quickly download lightweight 360p/480p preview stream (takes 1-3 seconds, ~1-2 MB, zero transcoding)
+  const args = [
+    '-m', 'yt_dlp',
+    '-f', 'best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best',
+    '--no-playlist',
+    '--no-warnings',
+    '--no-part',
+    '--socket-timeout', '15',
+    ...buildYtdlpArgs(url, true),
+    '-o', tempFile,
+    url
+  ];
+
+  console.log(`[Preview Generator] Generating lightweight in-browser preview for: ${url}`);
+  const child = spawn(PYTHON_BIN, args, { windowsHide: true });
+
+  child.on('close', (code) => {
+    if (code === 0 && fs.existsSync(tempFile) && fs.statSync(tempFile).size > 5000) {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      // Auto-cleanup after 20 minutes
+      setTimeout(() => {
+        try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (_) {}
+      }, 20 * 60 * 1000);
+
+      return res.sendFile(tempFile);
+    } else {
+      if (!res.headersSent) {
+        res.status(502).send('Failed to generate video preview');
+      }
+    }
+  });
+
+  req.on('close', () => {
+    if (!res.headersSent && child && !child.killed) {
+      try { child.kill('SIGTERM'); } catch (_) {}
+    }
+  });
 });
 
 app.listen(PORT, () => {

@@ -48,10 +48,12 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
 
   const ytVideoId = videoInfo?.videoId || extractYouTubeId(videoInfo?.webpageUrl);
   
-  // Find proxy stream URL or direct stream URL for zero-load in-browser preview (TikTok, Instagram, etc.)
-  const previewVideoUrl = videoInfo?.previewStreamUrl 
-    ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
-    : (videoInfo?.directStreamUrl || videoInfo?.formats?.find(f => f.directUrl && f.hasVideo)?.directUrl || null);
+  // High-speed lightweight 360p/480p preview for in-browser video playback (TikTok, Instagram, Facebook, etc.)
+  const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
+    ? (videoInfo?.previewStreamUrl 
+        ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+        : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`)
+    : null;
   const [streamError, setStreamError] = useState(false);
 
   // Format seconds to mm:ss.s or mm:ss

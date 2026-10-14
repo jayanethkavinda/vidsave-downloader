@@ -18,7 +18,7 @@ function getPythonCommand() {
   return 'python3';
 }
 
-const PYTHON_BIN = getPythonCommand();
+export const PYTHON_BIN = getPythonCommand();
 console.log(`[Downloader Engine] Using Python binary: "${PYTHON_BIN}"`);
 
 // Automatically detect robust ffmpeg path from ffmpeg-static or imageio_ffmpeg
@@ -90,7 +90,7 @@ function isYouTubeUrl(rawUrl) {
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
  */
-function buildYtdlpArgs(url = '', useCookies = true) {
+export function buildYtdlpArgs(url = '', useCookies = true) {
   const args = [
     '--ignore-config',
     '--no-warnings',
@@ -364,10 +364,11 @@ export async function getVideoInfo(url) {
 
     const subtitles = extractSubtitles(rawInfo);
 
-    // Direct stream URL for zero-load in-browser HTML5 preview (TikTok, Twitter, Facebook, etc.)
+    // Dedicated preview URL for in-browser HTML5 preview (TikTok, Instagram, Facebook, etc.)
+    const isYt = isYouTubeUrl(rawInfo.webpage_url || url);
     const directStreamUrl = rawInfo.url || (formats.find(f => f.directUrl && f.hasVideo)?.directUrl) || null;
-    const previewStreamUrl = directStreamUrl 
-      ? `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}&referer=${encodeURIComponent(rawInfo.webpage_url || url)}` 
+    const previewStreamUrl = !isYt 
+      ? `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}` 
       : null;
 
     const cleanInfo = {
