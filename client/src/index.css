@@ -2096,4 +2096,175 @@ button {
   text-align: left;
 }
 
+/* Live Trimmer Processing Progress Card */
+.trim-progress-card {
+  background: rgba(6, 182, 212, 0.07);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.15);
+  animation: fadeIn 0.25s ease-out;
+}
+
+[data-theme='light'] .trim-progress-card {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+  box-shadow: 0 4px 15px rgba(13, 148, 136, 0.1);
+}
+
+.trim-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.trim-pulse-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(6, 182, 212, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.trim-progress-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.trim-progress-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.trim-progress-time strong {
+  color: var(--cyan-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Step Stages Row */
+.trim-stages-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.trim-stage-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  padding: 4px 10px;
+  border-radius: 999px;
+  transition: all var(--transition-fast);
+}
+
+.trim-stage-item .stage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.trim-stage-item.active {
+  color: var(--cyan-primary);
+  border-color: rgba(6, 182, 212, 0.4);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+.trim-stage-item.active .stage-dot {
+  background: var(--cyan-primary);
+  box-shadow: 0 0 6px var(--cyan-primary);
+}
+
+/* Progress bar animation */
+.trim-progress-bar-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme='light'] .trim-progress-bar-track {
+  background: #e2e8f0;
+}
+
+.trim-progress-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  background: linear-gradient(90deg, #0284c7, #06b6d4, #10b981);
+  border-radius: 999px;
+  animation: shimmerProgress 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmerProgress {
+  0% {
+    left: -45%;
+  }
+  50% {
+    left: 40%;
+  }
+  100% {
+    left: 105%;
+  }
+}
+
+/* Success Card */
+.trim-success-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  text-align: left;
+  animation: fadeIn 0.3s ease-out;
+  color: var(--text-main);
+}
+
+[data-theme='light'] .trim-success-card {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+/* Error Card */
+.trim-error-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  text-align: left;
+  animation: fadeIn 0.3s ease-out;
+  color: var(--text-main);
+}
+
+[data-theme='light'] .trim-error-card {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+
 

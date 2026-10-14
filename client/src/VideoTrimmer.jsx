@@ -11,7 +11,9 @@ import {
   Zap,
   Clock,
   Sparkles,
-  Volume2
+  Volume2,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
@@ -26,6 +28,10 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [downloading, setDownloading] = useState(null); // 'video' | 'audio' | null
+  const [downloadElapsed, setDownloadElapsed] = useState(0);
+  const [downloadStep, setDownloadStep] = useState(1);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
   const timelineRef = useRef(null);
   const draggingHandle = useRef(null); // 'left' | 'right' | null
@@ -265,25 +271,65 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
   };
 
   // Trigger server-side stream cut download
-  const handleDownloadTrim = (type = 'video') => {
+  const handleDownloadTrim = async (type = 'video') => {
+    if (downloading) return; // Prevent duplicate requests
     setDownloading(type);
-    const cleanUrl = videoInfo?.webpageUrl;
-    const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim();
-    const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${type}&title=${encodeURIComponent(cleanTitle)}`;
+    setDownloadSuccess(false);
+    setDownloadError('');
+    setDownloadElapsed(0);
+    setDownloadStep(1);
 
-    // Use hidden iframe to trigger native browser download without opening any blank tab
-    let iframe = document.getElementById('vidsave-trim-iframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'vidsave-trim-iframe';
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-    }
-    iframe.src = trimApiUrl;
+    const timer = setInterval(() => {
+      setDownloadElapsed((prev) => prev + 1);
+    }, 1000);
 
-    setTimeout(() => {
+    const step2Timer = setTimeout(() => {
+      setDownloadStep(2);
+    }, 2500);
+
+    try {
+      const cleanUrl = videoInfo?.webpageUrl;
+      const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim() || 'clip';
+      const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${type}&title=${encodeURIComponent(cleanTitle)}`;
+
+      const res = await fetch(trimApiUrl);
+      if (!res.ok) {
+        let errMessage = 'Server failed to process trim section';
+        try {
+          const errData = await res.json();
+          if (errData.error) errMessage = errData.error;
+        } catch (_) {}
+        throw new Error(errMessage);
+      }
+
+      setDownloadStep(3);
+      const blob = await res.blob();
+      const ext = (type === 'audio' || type === 'mp3') ? 'mp3' : 'mp4';
+      const filename = `${cleanTitle}_cut_${Math.round(startTime)}s-${Math.round(endTime)}s.${ext}`;
+
+      // Instant download trigger via ObjectURL
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+
+      setDownloadSuccess(true);
+      setTimeout(() => {
+        setDownloadSuccess(false);
+      }, 6000);
+    } catch (err) {
+      console.error('Trim download error:', err);
+      setDownloadError(err.message || 'Download failed. Please check network and try again.');
+    } finally {
+      clearInterval(timer);
+      clearTimeout(step2Timer);
       setDownloading(null);
-    }, 6000);
+      setDownloadStep(0);
+    }
   };
 
   const selectedLength = (endTime - startTime).toFixed(1);
@@ -538,6 +584,66 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
             )}
           </button>
         </div>
+
+        {/* ⏳ Live Processing Progress Card (Active while downloading) */}
+        {downloading !== null && (
+          <div className="trim-progress-card">
+            <div className="trim-progress-header">
+              <div className="trim-pulse-icon-box">
+                <Zap size={22} className="spin text-cyan" />
+              </div>
+              <div className="trim-progress-header-text">
+                <h4 className="trim-progress-title">
+                  {downloading === 'video' ? 'Processing & Stream-Cutting MP4 Video...' : 'Extracting High-Quality MP3 Audio Clip...'}
+                </h4>
+                <p className="trim-progress-time">
+                  Elapsed Time: <strong>{downloadElapsed}s</strong> • Please wait, download will trigger automatically
+                </p>
+              </div>
+            </div>
+
+            <div className="trim-stages-row">
+              <div className={`trim-stage-item ${downloadStep >= 1 ? 'active' : ''}`}>
+                <span className="stage-dot"></span>
+                <span>1. Cloud Extractor</span>
+              </div>
+              <div className={`trim-stage-item ${downloadStep >= 2 ? 'active' : ''}`}>
+                <span className="stage-dot"></span>
+                <span>2. Stream-Cutting ({selectedLength}s)</span>
+              </div>
+              <div className={`trim-stage-item ${downloadStep >= 3 ? 'active' : ''}`}>
+                <span className="stage-dot"></span>
+                <span>3. Direct File Save</span>
+              </div>
+            </div>
+
+            <div className="trim-progress-bar-track">
+              <div className="trim-progress-bar-fill"></div>
+            </div>
+          </div>
+        )}
+
+        {/* 🎉 Success Notification */}
+        {downloadSuccess && (
+          <div className="trim-success-card">
+            <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} />
+            <div>
+              <strong style={{ color: '#10b981', display: 'block', marginBottom: '2px' }}>Download Complete!</strong>
+              <span style={{ fontSize: '0.88rem' }}>Your {selectedLength}s clip has been downloaded to your device.</span>
+            </div>
+          </div>
+        )}
+
+        {/* ❌ Error Notification */}
+        {downloadError && (
+          <div className="trim-error-card">
+            <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0 }} />
+            <div>
+              <strong style={{ color: '#ef4444', display: 'block', marginBottom: '2px' }}>Processing Issue</strong>
+              <span style={{ fontSize: '0.88rem' }}>{downloadError}</span>
+            </div>
+          </div>
+        )}
 
         {/* Trimmer Info Footer Note */}
         <div className="trimmer-info-note">
