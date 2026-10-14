@@ -453,108 +453,176 @@ export function streamVideoDownload(url, formatPreset, res) {
     formatArg = 'bestvideo+bestaudio/best';
   }
 
-  const ext = isAudio ? 'mp3' : 'mp4';
-  const tempDir = os.tmpdir();
-  const tempFile = path.join(tempDir, `vidsave_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+  const isYt = isYouTubeUrl(url);
 
-  const args = [
-    '-m', 'yt_dlp',
-    '-f', formatArg,
-  ];
+  // Standard fallback download pipeline using temp file
+  const runTempDownload = () => {
+    const ext = isAudio ? 'mp3' : 'mp4';
+    const tempDir = os.tmpdir();
+    const tempFile = path.join(tempDir, `vidsave_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
 
-  if (isAudio) {
-    args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-  } else {
-    args.push(
-      '--merge-output-format', 'mp4',
-      '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac'
-    );
-  }
+    const args = [
+      '-m', 'yt_dlp',
+      '-f', formatArg,
+    ];
 
-  args.push('-o', tempFile, ...buildYtdlpArgs(url), url);
-
-  console.log(`[Download Stream] Processing ${formatPreset} download into temp container: ${tempFile}`);
-
-  const child = spawn(PYTHON_BIN, args, {
-    windowsHide: true,
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
-
-  child.stderr.on('data', (data) => {
-    const msg = data.toString();
-    if (msg.includes('ERROR:')) {
-      console.error('[yt-dlp error]', msg.trim());
+    if (isAudio) {
+      args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
+    } else {
+      args.push(
+        '--merge-output-format', 'mp4',
+        '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac'
+      );
     }
-  });
 
-  const cleanup = () => {
-    try {
-      if (fs.existsSync(tempFile)) {
-        fs.unlinkSync(tempFile);
+    args.push('-o', tempFile, ...buildYtdlpArgs(url), url);
+
+    console.log(`[Download Stream] Processing ${formatPreset} download into temp container: ${tempFile}`);
+
+    const child = spawn(PYTHON_BIN, args, {
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    child.stderr.on('data', (data) => {
+      const msg = data.toString();
+      if (msg.includes('ERROR:')) {
+        console.error('[yt-dlp error]', msg.trim());
       }
-      const dir = path.dirname(tempFile);
-      const baseNoExt = path.basename(tempFile, path.extname(tempFile));
-      const remnants = fs.readdirSync(dir).filter(f => f.startsWith(baseNoExt));
-      for (const r of remnants) {
-        try { fs.unlinkSync(path.join(dir, r)); } catch (e) {}
-      }
-    } catch (e) {}
-  };
+    });
 
-  res.on('close', () => {
-    if (!child.killed) {
-      try { child.kill('SIGKILL'); } catch (e) {}
-    }
-    cleanup();
-  });
-
-  child.on('close', (code) => {
-    let actualFile = tempFile;
-    if (!fs.existsSync(actualFile)) {
-      const dir = path.dirname(tempFile);
-      const baseNoExt = path.basename(tempFile, path.extname(tempFile));
+    const cleanup = () => {
       try {
-        const found = fs.readdirSync(dir).find(f => f.startsWith(baseNoExt) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
-        if (found) {
-          actualFile = path.join(dir, found);
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+        const dir = path.dirname(tempFile);
+        const baseNoExt = path.basename(tempFile, path.extname(tempFile));
+        const remnants = fs.readdirSync(dir).filter(f => f.startsWith(baseNoExt));
+        for (const r of remnants) {
+          try { fs.unlinkSync(path.join(dir, r)); } catch (e) {}
         }
       } catch (e) {}
-    }
+    };
 
-    if (code !== 0 || !fs.existsSync(actualFile)) {
-      console.error(`[Download Stream] yt-dlp execution failed with exit code ${code}`);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Download processing failed. Please check the video link.' });
+    res.on('close', () => {
+      if (!child.killed) {
+        try { child.kill('SIGKILL'); } catch (e) {}
       }
       cleanup();
-      return;
-    }
+    });
 
-    try {
-      const stat = fs.statSync(actualFile);
-      if (!res.headersSent) {
-        res.setHeader('Content-Length', stat.size);
+    child.on('close', (code) => {
+      let actualFile = tempFile;
+      if (!fs.existsSync(actualFile)) {
+        const dir = path.dirname(tempFile);
+        const baseNoExt = path.basename(tempFile, path.extname(tempFile));
+        try {
+          const found = fs.readdirSync(dir).find(f => f.startsWith(baseNoExt) && !f.endsWith('.part') && !f.endsWith('.ytdl'));
+          if (found) {
+            actualFile = path.join(dir, found);
+          }
+        } catch (e) {}
       }
-      const stream = fs.createReadStream(actualFile);
-      stream.pipe(res);
-      stream.on('close', cleanup);
-      stream.on('error', (err) => {
-        console.error('[Stream Error]', err);
+
+      if (code !== 0 || !fs.existsSync(actualFile)) {
+        console.error(`[Download Stream] yt-dlp execution failed with exit code ${code}`);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Download processing failed. Please check the video link.' });
+        }
         cleanup();
-      });
-    } catch (err) {
-      console.error('[File Read Error]', err);
-      cleanup();
-    }
-  });
+        return;
+      }
 
-  child.on('error', (err) => {
-    console.error('[spawn error]', err);
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Download spawn failed: ' + err.message });
-    }
-    cleanup();
-  });
+      try {
+        const stat = fs.statSync(actualFile);
+        if (!res.headersSent) {
+          res.setHeader('Content-Length', stat.size);
+        }
+        const stream = fs.createReadStream(actualFile);
+        stream.pipe(res);
+        stream.on('close', cleanup);
+        stream.on('error', (err) => {
+          console.error('[Stream Error]', err);
+          cleanup();
+        });
+      } catch (err) {
+        console.error('[File Read Error]', err);
+        cleanup();
+      }
+    });
+
+    child.on('error', (err) => {
+      console.error('[spawn error]', err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Download spawn failed: ' + err.message });
+      }
+      cleanup();
+    });
+  };
+
+  // High-Speed Zero-Disk Direct CDN Pipeline for non-YouTube single streams (Facebook, TikTok, Instagram, Twitter, etc.)
+  // Solves Render 502 Bad Gateway timeouts on long 1-2 hour movies!
+  if (!isYt && !isAudio) {
+    const singleFormat = (formatPreset === 'best' || formatPreset === 'best_with_audio')
+      ? 'best[ext=mp4]/best'
+      : (formatPreset ? `best[height<=${formatPreset}][ext=mp4]/best[height<=${formatPreset}]/best` : 'best[ext=mp4]/best');
+
+    const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), url];
+    console.log(`[Zero-Disk Stream] Resolving direct CDN URL for ${url} (format: ${singleFormat})`);
+    const resolver = spawn(PYTHON_BIN, gArgs, { windowsHide: true });
+    let resolvedUrl = '';
+    resolver.stdout.on('data', d => { resolvedUrl += d.toString(); });
+
+    resolver.on('close', async (code) => {
+      const targetUrl = resolvedUrl.trim().split('\n')[0];
+      if (code === 0 && targetUrl && targetUrl.startsWith('http')) {
+        console.log(`[Zero-Disk Stream] Directly piping CDN stream to browser for ${url}`);
+        try {
+          const { default: https } = await import('https');
+          const { default: http } = await import('http');
+          const client = targetUrl.startsWith('https') ? https : http;
+          const headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+          };
+
+          const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
+            if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
+              return res.redirect(upstreamRes.statusCode, upstreamRes.headers.location);
+            }
+            if (upstreamRes.headers['content-length'] && !res.headersSent) {
+              res.setHeader('Content-Length', upstreamRes.headers['content-length']);
+            }
+            res.setHeader('Content-Type', upstreamRes.headers['content-type'] || 'video/mp4');
+            upstreamRes.pipe(res);
+          });
+
+          upstreamReq.on('error', (err) => {
+            console.error('[CDN Pipe Error]', err.message);
+            if (!res.headersSent) runTempDownload();
+          });
+
+          res.on('close', () => {
+            upstreamReq.destroy();
+          });
+          return;
+        } catch (e) {
+          console.warn('[Direct Stream Fallback]', e.message);
+          return runTempDownload();
+        }
+      } else {
+        runTempDownload();
+      }
+    });
+
+    resolver.on('error', () => {
+      runTempDownload();
+    });
+    return;
+  }
+
+  runTempDownload();
 }
 
 /**
