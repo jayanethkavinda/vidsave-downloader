@@ -6,3 +6,12 @@ client/dist/
 .DS_Store
 *.log
 .env
+*.env
+server/.env
+cookies.txt
+server/cookies.txt
+ytdlp_session_cookies.txt
+server/ytdlp_session_cookies.txt
+*.mp4
+server/*.mp4
+server/*.webm
