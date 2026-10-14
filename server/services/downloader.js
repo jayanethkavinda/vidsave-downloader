@@ -274,7 +274,7 @@ export async function getVideoInfo(url) {
           if (bIsMp4 !== aIsMp4) return bIsMp4 - aIsMp4;
           const aSize = a.filesize || a.filesize_approx || (a.tbr && duration ? Math.round((a.tbr * 1000 / 8) * duration) : 0);
           const bSize = b.filesize || b.filesize_approx || (b.tbr && duration ? Math.round((b.tbr * 1000 / 8) * duration) : 0);
-          return aSize - bSize;
+          return bSize - aSize;
         })[0] || matchingFormats[0];
 
         let vSize = bestFmt?.filesize || bestFmt?.filesize_approx;
@@ -564,9 +564,19 @@ export function streamVideoDownload(url, formatPreset, res) {
   // High-Speed Zero-Disk Direct CDN Pipeline for non-YouTube single streams (Facebook, TikTok, Instagram, Twitter, etc.)
   // Solves Render 502 Bad Gateway timeouts on long 1-2 hour movies!
   if (!isYt && !isAudio) {
-    const singleFormat = (formatPreset === 'best' || formatPreset === 'best_with_audio')
-      ? 'best[ext=mp4]/best'
-      : (formatPreset ? `best[height<=${formatPreset}][ext=mp4]/best[height<=${formatPreset}]/best` : 'best[ext=mp4]/best');
+    const isFacebook = url.includes('facebook.com') || url.includes('fb.watch');
+    let singleFormat;
+    if (isFacebook) {
+      if (formatPreset === '360' || formatPreset === '480') {
+        singleFormat = 'sd/best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best';
+      } else {
+        singleFormat = 'hd/best[height<=1080][ext=mp4]/best[ext=mp4]/best';
+      }
+    } else {
+      singleFormat = (formatPreset === 'best' || formatPreset === 'best_with_audio')
+        ? 'best[ext=mp4]/best'
+        : (formatPreset ? `best[height<=${formatPreset}][ext=mp4]/best[height<=${formatPreset}]/best` : 'best[ext=mp4]/best');
+    }
 
     const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), url];
     console.log(`[Zero-Disk Stream] Resolving direct CDN URL for ${url} (format: ${singleFormat})`);
