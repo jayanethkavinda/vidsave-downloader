@@ -26,9 +26,11 @@ import {
   Smartphone,
   ExternalLink,
   Subtitles,
-  Search
+  Search,
+  Scissors
 } from 'lucide-react';
 import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
+import VideoTrimmer from './VideoTrimmer.jsx';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
 
@@ -48,6 +50,7 @@ export default function App() {
   const [subSearch, setSubSearch] = useState('');
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
+  const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
 
   // Typing animation cycling through major platforms letter by letter
   const TYPING_PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Twitter (X)', 'Pinterest'];
@@ -556,9 +559,16 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
         </div>
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section or Dedicated Video Trimmer */}
       <main className="container">
-        <section className="hero">
+        {viewMode === 'trim' && videoInfo ? (
+          <VideoTrimmer
+            videoInfo={videoInfo}
+            onBack={() => setViewMode('main')}
+          />
+        ) : (
+          <>
+            <section className="hero">
           <h1 className="hero-title">
             {currentPage.slug === '/' ? (
               <>
@@ -736,6 +746,33 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   {downloadingFormat === 'best_with_audio' 
                     ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Downloading & Merging...') 
                     : (videoInfo.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Best Quality')}
+                </button>
+              </div>
+
+              {/* ✂️ CapCut-Style Visual Trimmer Feature Banner */}
+              <div className="trimmer-entry-banner">
+                <div className="trimmer-entry-content">
+                  <div className="trimmer-entry-badge">
+                    <Scissors size={14} color="#f59e0b" />
+                    <span>Visual Range Trimmer & Clipper</span>
+                  </div>
+                  <h4 className="trimmer-entry-title">
+                    Trim & Crop Video before Downloading
+                  </h4>
+                  <p className="trimmer-entry-subtitle">
+                    Select exact cut points with draggable yellow timeline handles, preview live playback, and save only what you need (MP4 / MP3).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('trim');
+                    window.scrollTo({ top: 100, behavior: 'smooth' });
+                  }}
+                  className="btn-launch-trimmer"
+                >
+                  <Scissors size={17} />
+                  <span>✂️ Trim & Crop Video</span>
                 </button>
               </div>
 
@@ -1077,6 +1114,8 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
             </div>
           </div>
         </section>
+          </>
+        )}
       </main>
 
       {/* Footer */}

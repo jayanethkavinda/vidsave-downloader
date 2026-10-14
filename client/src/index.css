@@ -1435,3 +1435,665 @@ button {
   display: block;
 }
 
+/* ==========================================================================
+   ✂️ VISUAL VIDEO TRIMMER & CLIPPER (CapCut-Inspired Pro Mobile UI)
+   ========================================================================== */
+
+/* Trimmer Entry Banner inside Result Card */
+.trimmer-entry-banner {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.12) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  box-shadow: 0 4px 20px -2px rgba(245, 158, 11, 0.15);
+  transition: all var(--transition-fast);
+}
+
+[data-theme='light'] .trimmer-entry-banner {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: #fde68a;
+  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
+}
+
+.trimmer-entry-content {
+  text-align: left;
+}
+
+.trimmer-entry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #d97706;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+
+[data-theme='dark'] .trimmer-entry-badge {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.trimmer-entry-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.trimmer-entry-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.btn-launch-trimmer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.85rem 1.4rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.btn-launch-trimmer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+}
+
+/* Dedicated Trimmer View Container */
+.trimmer-view-container {
+  max-width: 860px;
+  margin: 1rem auto 3rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  animation: fadeIn 0.3s ease-out;
+}
+
+[data-theme='dark'] .trimmer-view-container {
+  background: #0b1120;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Trimmer Top Navigation Bar */
+.trimmer-top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid var(--border-glass);
+  gap: 1rem;
+}
+
+[data-theme='dark'] .trimmer-top-nav {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.btn-trim-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.55rem 1rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-trim-back:hover {
+  background: var(--border-glass);
+  color: var(--cyan-primary);
+}
+
+.trimmer-media-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  max-width: 420px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.btn-trim-save-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.55rem 1.1rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-trim-save-top:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Workspace Layout */
+.trimmer-workspace {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Player Frame with Yellow Selection Outline */
+.trimmer-player-wrapper {
+  display: flex;
+  justify-content: center;
+  background: #020617;
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+.trimmer-player-frame {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  aspect-ratio: 16 / 9;
+  border: 2.5px solid #f59e0b;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000000;
+  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+}
+
+.trimmer-yt-iframe,
+.trimmer-html5-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: none;
+}
+
+.trimmer-static-thumb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.trimmer-static-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trimmer-static-badge {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  color: #fbbf24;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Playback Control Bar */
+.trimmer-playback-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 0.5rem 1rem;
+}
+
+.btn-trim-play {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+  transition: all var(--transition-fast);
+}
+
+.btn-trim-play:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+}
+
+.trimmer-time-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-main);
+  background: var(--bg-hover);
+  padding: 0.45rem 1.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-glass);
+}
+
+.trimmer-time-display .current-t {
+  color: #06b6d4;
+}
+
+.trimmer-time-display .divider {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.trimmer-time-display .total-t {
+  color: var(--text-muted);
+}
+
+.btn-trim-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.btn-trim-reset:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+/* Timeline & Filmstrip Section */
+.trimmer-timeline-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.trimmer-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+}
+
+.timeline-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.timeline-selected-duration {
+  color: var(--text-main);
+  font-size: 0.92rem;
+}
+
+.timeline-selected-duration strong {
+  color: #f59e0b;
+}
+
+/* Timeline Track */
+.trimmer-timeline-track {
+  position: relative;
+  height: 68px;
+  background: #020617;
+  border-radius: 12px;
+  overflow: visible;
+  user-select: none;
+  cursor: pointer;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Filmstrip Thumbnails repeating in background */
+.trimmer-filmstrip-bg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  opacity: 0.65;
+  filter: brightness(0.7) contrast(1.1);
+  pointer-events: none;
+}
+
+.filmstrip-tile {
+  flex: 1;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  border-right: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+/* CapCut Draggable Yellow Selection Frame */
+.trimmer-crop-box {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-top: 3.5px solid #f59e0b;
+  border-bottom: 3.5px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.18);
+  pointer-events: none;
+  z-index: 5;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Left & Right Draggable Handles */
+.trimmer-handle {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 22px;
+  background: #f59e0b;
+  pointer-events: auto;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+  transition: transform 0.1s ease;
+  z-index: 8;
+}
+
+.trimmer-handle:hover,
+.trimmer-handle:active {
+  background: #fbbf24;
+  transform: scaleY(1.06);
+}
+
+.trimmer-handle-left {
+  left: 0;
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.trimmer-handle-right {
+  right: 0;
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+/* Handle Vertical Grip Bar (||) */
+.handle-grip-bar {
+  width: 3px;
+  height: 24px;
+  background: #1e1b18;
+  border-radius: 2px;
+}
+
+/* Box duration tag in center */
+.trimmer-box-label {
+  position: absolute;
+  bottom: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Playhead Needle */
+.trimmer-playhead {
+  position: absolute;
+  top: -8px;
+  bottom: -8px;
+  width: 2px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.playhead-top-notch {
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.playhead-line {
+  flex: 1;
+  width: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Precision Panel */
+.trimmer-precision-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-glass);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.precision-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.precision-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.precision-control-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-tune {
+  padding: 4px 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  color: var(--text-main);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-tune:hover {
+  background: var(--cyan-primary);
+  color: #ffffff;
+  border-color: var(--cyan-primary);
+}
+
+.precision-time-val {
+  min-width: 72px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-main);
+  background: var(--bg-surface);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-glass);
+}
+
+/* Presets Group */
+.trimmer-presets-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.preset-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.btn-preset-chip {
+  padding: 5px 12px;
+  background: rgba(6, 182, 212, 0.1);
+  color: var(--cyan-primary);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-preset-chip:hover {
+  background: var(--cyan-primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Download Actions */
+.trimmer-download-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .trimmer-download-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.btn-trim-download-primary,
+.btn-trim-download-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 1rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: #ffffff;
+}
+
+.btn-trim-download-primary {
+  background: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%);
+  box-shadow: 0 8px 24px -4px rgba(6, 182, 212, 0.4);
+}
+
+.btn-trim-download-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(6, 182, 212, 0.55);
+}
+
+.btn-trim-download-secondary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  box-shadow: 0 8px 24px -4px rgba(139, 92, 246, 0.35);
+}
+
+.btn-trim-download-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -4px rgba(139, 92, 246, 0.5);
+}
+
+.btn-trim-download-primary:disabled,
+.btn-trim-download-secondary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-sub-text {
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* Info Note */
+.trimmer-info-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1.25rem;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  line-height: 1.45;
+  text-align: left;
+}
+
+

@@ -531,6 +531,113 @@ export function streamVideoDownload(url, formatPreset, res) {
   });
 }
 
+/**
+ * Stream trimmed video/audio section using HTTP range seeking and FFmpeg cut
+ */
+export function streamTrimmedDownload(url, startTime, endTime, type = 'video', res) {
+  const isAudio = type === 'audio' || type === 'mp3';
+  const ext = isAudio ? 'mp3' : 'mp4';
+  const tempDir = os.tmpdir();
+  const tempFile = path.join(tempDir, `vidsave_trim_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
+
+  const formatTime = (t) => {
+    if (typeof t === 'number' || /^\d+(\.\d+)?$/.test(String(t).trim())) {
+      const s = Math.max(0, parseFloat(t));
+      const hrs = Math.floor(s / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      const secs = (s % 60).toFixed(2);
+      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.padStart(5, '0')}`;
+    }
+    return String(t).trim();
+  };
+
+  const startSec = Math.max(0, parseFloat(startTime) || 0);
+  const endSec = Math.max(startSec + 1, parseFloat(endTime) || (startSec + 10));
+
+  const startStr = formatTime(startSec);
+  const endStr = formatTime(endSec);
+  const sectionArg = `*${startStr}-${endStr}`;
+
+  console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url}`);
+
+  const formatArg = isAudio 
+    ? 'bestaudio/best'
+    : 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+
+  const args = [
+    '-m', 'yt_dlp',
+    '-f', formatArg,
+    '--download-sections', sectionArg,
+    '--force-keyframes-at-cuts',
+  ];
+
+  if (isAudio) {
+    args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
+  } else {
+    args.push(
+      '--merge-output-format', 'mp4',
+      '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac'
+    );
+  }
+
+  args.push(...buildYtdlpArgs(url, true));
+  args.push('-o', tempFile, url);
+
+  const cleanup = () => {
+    try {
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    } catch (e) {
+      console.error('[Cleanup Error]', e.message);
+    }
+  };
+
+  res.on('close', cleanup);
+  res.on('finish', cleanup);
+
+  const child = spawn(PYTHON_BIN, args, { windowsHide: true });
+  let stderrLog = '';
+
+  child.stderr.on('data', (d) => {
+    stderrLog += d.toString();
+  });
+
+  child.on('close', (code) => {
+    if (code !== 0 || !fs.existsSync(tempFile)) {
+      console.error('[Trimmer Failed]', stderrLog);
+      if (!res.headersSent) {
+        res.status(500).json({ error: `Trimmer processing failed: ${stderrLog.slice(-300)}` });
+      }
+      cleanup();
+      return;
+    }
+
+    try {
+      const stats = fs.statSync(tempFile);
+      res.setHeader('Content-Length', stats.size);
+      const stream = fs.createReadStream(tempFile);
+      stream.pipe(res);
+      stream.on('close', cleanup);
+      stream.on('error', (err) => {
+        console.error('[Stream Error]', err);
+        cleanup();
+      });
+    } catch (err) {
+      console.error('[File Read Error]', err);
+      cleanup();
+    }
+  });
+
+  child.on('error', (err) => {
+    console.error('[spawn error]', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Trim spawn failed: ' + err.message });
+    }
+    cleanup();
+  });
+}
+
 function formatDuration(seconds) {
   if (!seconds) return '0:00';
   const mins = Math.floor(seconds / 60);

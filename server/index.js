@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getVideoInfo, streamVideoDownload, convertVttToSrt, convertSrv1ToVtt } from './services/downloader.js';
+import { getVideoInfo, streamVideoDownload, streamTrimmedDownload, convertVttToSrt, convertSrv1ToVtt } from './services/downloader.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -193,6 +193,30 @@ except Exception as e:
       res.end();
     }
   }
+});
+
+// Video & Audio Segment Trimmer Download Stream (Zero Disk Storage)
+app.get('/api/trim', (req, res) => {
+  const { url, start = 0, end = 10, type = 'video', title = 'clip' } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const isAudio = type === 'audio' || type === 'mp3';
+  const ext = isAudio ? 'mp3' : 'mp4';
+  const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
+
+  const sanitizedTitle = (title || 'clip')
+    .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
+    .trim()
+    .substring(0, 70) || 'trimmed_clip';
+
+  const filename = `${sanitizedTitle}_cut_${Math.round(start)}s-${Math.round(end)}s.${ext}`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.setHeader('Content-Type', mimeType);
+
+  streamTrimmedDownload(url, start, end, type, res);
 });
 
 app.listen(PORT, () => {
