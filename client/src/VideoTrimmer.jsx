@@ -282,8 +282,8 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     seekTo(startTime);
   };
 
-  // Trigger server-side stream cut download
-  const handleDownloadTrim = async (type = 'video') => {
+  // Trigger direct native browser download for trimmed segment (Zero JS Memory / Native Browser Download Manager)
+  const handleDownloadTrim = (type = 'video') => {
     if (downloading) return; // Prevent duplicate requests
     setDownloading(type);
     setDownloadSuccess(false);
@@ -291,54 +291,41 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     setDownloadElapsed(0);
     setDownloadStep(1);
 
-    const timer = setInterval(() => {
-      setDownloadElapsed((prev) => prev + 1);
-    }, 1000);
-
-    const step2Timer = setTimeout(() => {
-      setDownloadStep(2);
-    }, 2500);
-
     try {
       const cleanUrl = videoInfo?.webpageUrl;
       const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim() || 'clip';
       const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${type}&title=${encodeURIComponent(cleanTitle)}`;
-
-      const res = await fetch(trimApiUrl);
-      if (!res.ok) {
-        let errMessage = 'Server failed to process trim section';
-        try {
-          const errData = await res.json();
-          if (errData.error) errMessage = errData.error;
-        } catch (_) {}
-        throw new Error(errMessage);
-      }
-
-      setDownloadStep(3);
-      const blob = await res.blob();
       const ext = (type === 'audio' || type === 'mp3') ? 'mp3' : 'mp4';
       const filename = `${cleanTitle}_cut_${Math.round(startTime)}s-${Math.round(endTime)}s.${ext}`;
 
-      // Instant download trigger via ObjectURL
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
+      setDownloadStep(2);
 
-      setDownloadSuccess(true);
+      // Trigger Native Browser Download immediately
+      const link = document.createElement('a');
+      link.href = trimApiUrl;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
       setTimeout(() => {
-        setDownloadSuccess(false);
-      }, 6000);
+        try {
+          document.body.removeChild(link);
+        } catch (_) {}
+      }, 2000);
+
+      // Notify user download has started in browser tray
+      setTimeout(() => {
+        setDownloadStep(3);
+        setDownloadSuccess(true);
+        setTimeout(() => {
+          setDownloading(null);
+          setDownloadStep(0);
+        }, 1500);
+      }, 800);
     } catch (err) {
       console.error('Trim download error:', err);
-      setDownloadError(err.message || 'Download failed. Please check network and try again.');
-    } finally {
-      clearInterval(timer);
-      clearTimeout(step2Timer);
+      setDownloadError(err.message || 'Download failed. Please try again.');
       setDownloading(null);
       setDownloadStep(0);
     }

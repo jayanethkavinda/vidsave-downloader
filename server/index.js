@@ -121,7 +121,11 @@ app.get('/api/download', (req, res) => {
   const ext = isAudio ? 'mp3' : 'mp4';
   const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(sanitizedTitle)}.${ext}"`);
+  const asciiTitle = sanitizedTitle.replace(/[^\w\s.-]/g, '_').replace(/\s+/g, ' ').trim() || 'media';
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${asciiTitle}.${ext}"; filename*=UTF-8''${encodeURIComponent(sanitizedTitle)}.${ext}`
+  );
   res.setHeader('Content-Type', mimeType);
 
   streamVideoDownload(url, format, res);

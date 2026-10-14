@@ -299,8 +299,8 @@ export default function App() {
     }
   };
 
-  // Trigger streaming download directly to client browser
-  const handleDownload = async (presetId, formatExt = 'mp4') => {
+  // Trigger streaming download directly to client browser (Zero JS Memory / Native Browser Download Manager)
+  const handleDownload = (presetId, formatExt = 'mp4') => {
     if (!videoInfo || downloadingFormat) return;
     setDownloadingFormat(presetId);
     setDownloadSuccess(false);
@@ -320,53 +320,38 @@ export default function App() {
       return;
     }
 
-    const timer = setInterval(() => {
-      setDownloadElapsed((prev) => prev + 1);
-    }, 1000);
-
-    const step2Timer = setTimeout(() => {
-      setDownloadStep(2);
-    }, 2500);
-
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
       const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
 
-      const res = await fetch(downloadUrl);
-      if (!res.ok) {
-        let errMessage = 'Server failed to process download stream';
-        try {
-          const errData = await res.json();
-          if (errData.error) errMessage = errData.error;
-        } catch (_) {}
-        throw new Error(errMessage);
-      }
+      setDownloadStep(2);
 
-      setDownloadStep(3);
-      const blob = await res.blob();
-      const filename = `${cleanTitle}.${formatExt}`;
+      // Trigger Native Browser Download immediately (Zero RAM consumption, Native Chrome Download Manager)
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `${cleanTitle}.${formatExt}`);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
 
-      // Instant download trigger via ObjectURL
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-
-      setDownloadSuccess(true);
       setTimeout(() => {
-        setDownloadSuccess(false);
-      }, 6000);
+        try {
+          document.body.removeChild(link);
+        } catch (_) {}
+      }, 2000);
+
+      // Notify user download has started in browser tray
+      setTimeout(() => {
+        setDownloadStep(3);
+        setDownloadSuccess(true);
+        setTimeout(() => {
+          setDownloadingFormat(null);
+        }, 1500);
+      }, 800);
     } catch (err) {
-      console.error('Download stream error:', err);
-      setDownloadError(err.message || 'Download failed. Please check network and try again.');
-    } finally {
-      clearInterval(timer);
-      clearTimeout(step2Timer);
+      console.error('Download trigger error:', err);
+      setDownloadError(err.message || 'Download failed. Please try again.');
       setDownloadingFormat(null);
     }
   };
