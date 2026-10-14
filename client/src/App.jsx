@@ -314,17 +314,20 @@ export default function App() {
 
     const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(videoInfo.webpageUrl || url)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(videoInfo.title)}`;
     
-    // Create an invisible anchor tag to trigger browser download prompt
-    const a = document.createElement('a');
-    a.href = downloadUrl;
-    a.setAttribute('download', `${videoInfo.title || 'video'}.${formatExt}`);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // Trigger streaming download via hidden iframe so current page NEVER navigates or refreshes
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = downloadUrl;
+    document.body.appendChild(iframe);
 
     setTimeout(() => {
+      try {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      } catch (_) {}
       setDownloadingFormat(null);
-    }, 2500);
+    }, 8000);
   };
 
   // Browser VTT to SRT parser (enables instant client-side conversion)

@@ -586,7 +586,12 @@ export function streamVideoDownload(url, formatPreset, res) {
 
     resolver.on('close', async (code) => {
       const targetUrl = resolvedUrl.trim().split('\n')[0];
-      if (code === 0 && targetUrl && targetUrl.startsWith('http')) {
+      const isHlsOrDash = targetUrl.includes('.m3u8') || 
+                          targetUrl.includes('.mpd') || 
+                          targetUrl.includes('/hls/') || 
+                          targetUrl.includes('manifest');
+
+      if (code === 0 && targetUrl && targetUrl.startsWith('http') && !isHlsOrDash) {
         console.log(`[Zero-Disk Stream] Directly piping CDN stream to browser for ${url}`);
         try {
           const { default: https } = await import('https');
@@ -609,6 +614,13 @@ export function streamVideoDownload(url, formatPreset, res) {
             }
             if (upstreamRes.statusCode >= 400) {
               console.warn(`[CDN Stream] Upstream CDN returned HTTP ${upstreamRes.statusCode}, falling back to yt-dlp...`);
+              return runTempDownload();
+            }
+            if (upstreamRes.headers['content-type'] && 
+               (upstreamRes.headers['content-type'].includes('mpegurl') || 
+                upstreamRes.headers['content-type'].includes('text/') || 
+                upstreamRes.headers['content-type'].includes('application/json'))) {
+              console.warn(`[CDN Stream] Upstream returned non-video content-type: ${upstreamRes.headers['content-type']}, falling back to yt-dlp...`);
               return runTempDownload();
             }
             if (upstreamRes.headers['content-length'] && !res.headersSent) {
