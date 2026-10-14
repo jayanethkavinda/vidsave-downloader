@@ -50,6 +50,7 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
   
   const [useFallbackPreview, setUseFallbackPreview] = useState(false);
   const [streamError, setStreamError] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(!ytVideoId);
 
   // High-speed lightweight 360p preview or Zero-load Live Range Proxy for in-browser video playback
   const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
@@ -380,32 +381,45 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
             {ytVideoId ? (
               <div id="trimmer-yt-player" className="trimmer-yt-iframe"></div>
             ) : (previewVideoUrl && !streamError) ? (
-              <video
-                ref={videoElementRef}
-                src={previewVideoUrl}
-                className="trimmer-html5-video"
-                playsInline
-                preload="metadata"
-                referrerPolicy="no-referrer"
-                onError={() => {
-                  if (!useFallbackPreview && videoInfo?.previewStreamUrl?.includes('/api/proxy-stream')) {
-                    console.warn('Proxy stream error, seamlessly falling back to /api/preview');
-                    setUseFallbackPreview(true);
-                  } else {
-                    console.warn('Video preview failed, falling back to visual range card');
-                    setStreamError(true);
-                  }
-                }}
-                onTimeUpdate={() => {
-                  if (videoElementRef.current) {
-                    const t = videoElementRef.current.currentTime;
-                    setCurrentTime(t);
-                    if (t >= endTime) {
-                      videoElementRef.current.currentTime = startTime;
+              <>
+                {videoLoading && (
+                  <div className="trimmer-video-loader">
+                    <Zap size={22} className="spin" color="#f59e0b" />
+                    <span>Preparing Live Video Stream...</span>
+                  </div>
+                )}
+                <video
+                  ref={videoElementRef}
+                  src={previewVideoUrl}
+                  className="trimmer-html5-video"
+                  playsInline
+                  preload="metadata"
+                  referrerPolicy="no-referrer"
+                  onLoadedData={() => setVideoLoading(false)}
+                  onCanPlay={() => setVideoLoading(false)}
+                  onWaiting={() => setVideoLoading(true)}
+                  onPlaying={() => setVideoLoading(false)}
+                  onError={() => {
+                    setVideoLoading(false);
+                    if (!useFallbackPreview && videoInfo?.previewStreamUrl?.includes('/api/proxy-stream')) {
+                      console.warn('Proxy stream error, seamlessly falling back to /api/preview');
+                      setUseFallbackPreview(true);
+                    } else {
+                      console.warn('Video preview failed, falling back to visual range card');
+                      setStreamError(true);
                     }
-                  }
-                }}
-              />
+                  }}
+                  onTimeUpdate={() => {
+                    if (videoElementRef.current) {
+                      const t = videoElementRef.current.currentTime;
+                      setCurrentTime(t);
+                      if (t >= endTime) {
+                        videoElementRef.current.currentTime = startTime;
+                      }
+                    }
+                  }}
+                />
+              </>
             ) : (
               <div className="trimmer-static-thumb">
                 <img src={videoInfo?.thumbnail} alt={videoInfo?.title} />
