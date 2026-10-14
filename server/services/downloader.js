@@ -569,9 +569,16 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
 
   console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url}`);
 
-  const formatArg = isAudio 
-    ? 'bestaudio/best'
-    : 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+  const isYt = isYouTubeUrl(url);
+  let formatArg;
+  if (isAudio) {
+    formatArg = 'bestaudio/best';
+  } else if (isYt) {
+    formatArg = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+  } else {
+    // TikTok, Instagram, Twitter, Facebook: Direct single-stream, zero complex merging (prevents code -11)
+    formatArg = 'best[height<=1080]/best[ext=mp4]/best';
+  }
 
   const args = [
     '-m', 'yt_dlp',
@@ -581,11 +588,9 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
 
   if (isAudio) {
     args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-  } else {
-    args.push(
-      '--merge-output-format', 'mp4',
-      '--postprocessor-args', 'ffmpeg:-c copy'
-    );
+  } else if (isYt) {
+    // Only separate YouTube DASH streams require merge
+    args.push('--merge-output-format', 'mp4');
   }
 
   args.push(...buildYtdlpArgs(url, true));
