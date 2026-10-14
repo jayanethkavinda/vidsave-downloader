@@ -546,9 +546,15 @@ function formatDuration(seconds) {
 function formatBytes(bytes) {
   if (!bytes || isNaN(bytes) || bytes <= 0) return null;
   if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
-  return Math.round(bytes / (1024 * 1024)) + ' MB';
+  if (bytes >= 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    return mb >= 10 ? Math.round(mb) + ' MB' : mb.toFixed(1) + ' MB';
+  }
+  // KB files: always show decimal MB (e.g. 760 KB = 0.74 MB), never 0 MB
+  const mbDecimal = (bytes / (1024 * 1024)).toFixed(2);
+  return (parseFloat(mbDecimal) > 0 ? mbDecimal : '0.01') + ' MB';
 }
 
 /**

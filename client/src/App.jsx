@@ -37,9 +37,7 @@ export default function App() {
   const navigate = useNavigate();
   const currentPage = PAGES_CONFIG[location.pathname] || PAGES_CONFIG['/'];
 
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('vidsave_theme') || 'dark';
-  });
+  const [theme, setTheme] = useState('light');
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [videoInfo, setVideoInfo] = useState(null);
@@ -202,25 +200,43 @@ export default function App() {
     };
   };
 
+  // Helper to format file size cleanly - NEVER shows 0 MB, always displays decimal MB (e.g. 0.76 MB)
+  const getCleanFilesize = (preset) => {
+    if (!preset) return null;
+    const str = preset.filesizeFormatted;
+    if (str && !/^0(?:\.00?)?\s*mb$/i.test(str.trim())) {
+      return str;
+    }
+    if (preset.filesize && preset.filesize > 0) {
+      const bytes = preset.filesize;
+      if (bytes >= 1024 * 1024 * 1024) return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+      if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      const mbDecimal = (bytes / (1024 * 1024)).toFixed(2);
+      return (parseFloat(mbDecimal) > 0 ? mbDecimal : '0.01') + ' MB';
+    }
+    return null;
+  };
+
   // Handle URL fetch
-  const handleFetchInfo = async (e) => {
+  const handleFetchInfo = async (e, directUrl = null) => {
     if (e) e.preventDefault();
-    if (!url.trim()) return;
+    const targetUrl = (directUrl || url || '').trim();
+    if (!targetUrl) return;
 
     setLoading(true);
     setError('');
     setVideoInfo(null);
 
-    const videoId = extractYouTubeId(url.trim());
+    const videoId = extractYouTubeId(targetUrl);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/info?url=${encodeURIComponent(url.trim())}`);
+      const response = await fetch(`${BACKEND_URL}/api/info?url=${encodeURIComponent(targetUrl)}`);
       const data = await response.json();
 
       if (!response.ok) {
         // If it is YouTube or a YouTube bot challenge error, activate seamless cloud fallback
         if (videoId || (data.error && /bot|sign in|youtube|extractor/i.test(data.error))) {
-          const fallbackInfo = await getYouTubeFallbackInfo(url.trim(), videoId || 'video');
+          const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId || 'video');
           setVideoInfo(fallbackInfo);
           return;
         }
@@ -231,7 +247,7 @@ export default function App() {
     } catch (err) {
       if (videoId) {
         // Seamlessly fall back to Instant Cloud Resolver for YouTube
-        const fallbackInfo = await getYouTubeFallbackInfo(url.trim(), videoId);
+        const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId);
         setVideoInfo(fallbackInfo);
       } else {
         setError(err.message || 'Could not reach backend server or video link is invalid/private.');
@@ -241,15 +257,29 @@ export default function App() {
     }
   };
 
-  // Paste from clipboard helper
+  // Paste from clipboard helper (hides paste icon & immediately starts extracting video)
   const handlePaste = async () => {
     try {
       const text = await navigator.clipboard.readText();
-      if (text) {
-        setUrl(text);
+      if (text && text.trim()) {
+        const cleanUrl = text.trim();
+        setUrl(cleanUrl);
+        handleFetchInfo(null, cleanUrl);
       }
     } catch (err) {
       console.warn('Clipboard access denied or not supported', err);
+    }
+  };
+
+  // On native paste (right-click paste, touch long-press paste, Ctrl+V)
+  const handleInputPaste = (e) => {
+    const text = e.clipboardData?.getData('text');
+    if (text && text.trim()) {
+      const cleanUrl = text.trim();
+      setUrl(cleanUrl);
+      setTimeout(() => {
+        handleFetchInfo(null, cleanUrl);
+      }, 50);
     }
   };
 
@@ -503,12 +533,25 @@ export default function App() {
                 placeholder={currentPage.placeholder}
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
+                onPaste={handleInputPaste}
                 autoFocus
               />
               <div className="search-actions">
-                <button type="button" onClick={handlePaste} className="btn-paste">
-                  <Clipboard size={16} /> Paste
-                </button>
+                {!url.trim() && (
+                  <button type="button" onClick={handlePaste} className="btn-paste">
+                    <Clipboard size={16} /> Paste
+                  </button>
+                )}
+                {url.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => { setUrl(''); setVideoInfo(null); setError(''); }}
+                    className="btn-clear"
+                    title="Clear input"
+                  >
+                    ✕
+                  </button>
+                )}
                 <button type="submit" disabled={loading || !url.trim()} className="btn-submit">
                   {loading ? (
                     <>
@@ -524,40 +567,27 @@ export default function App() {
             </div>
           </form>
 
-          {/* Supported Platform Chips with Link Navigation */}
-          <div className="platform-chips">
-            {platforms.map((p) => {
-              const FallbackComp = p.fallbackIcon;
-              const isSelected = location.pathname === p.path;
-              return (
-                <Link
-                  key={p.name} 
-                  to={p.path}
-                  className={`chip ${p.brand} ${isSelected ? 'active-chip' : ''}`}
-                  title={`Open ${p.name} Downloader`}
-                >
-                  <img
-                    src={p.iconSrc}
-                    alt={p.name}
-                    className="chip-icon"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      if (e.target.nextSibling) {
-                        e.target.nextSibling.style.display = 'inline-flex';
-                      }
-                    }}
-                  />
-                  <span className="fallback-chip-icon" style={{ display: 'none' }}>
-                    <FallbackComp size={15} />
-                  </span>
-                  <span>{p.name}</span>
-                </Link>
-              );
-            })}
-          </div>
+          {/* 🔍 Animated Searching & Extracting Box (Active while video is finding) */}
+          {loading && (
+            <div className="glass-panel searching-card">
+              <div className="searching-spinner-container">
+                <div className="searching-pulse-ring"></div>
+                <Zap size={30} className="searching-icon spin" />
+              </div>
+              <div className="searching-content">
+                <h3 className="searching-title">Searching & Analyzing Media...</h3>
+                <p className="searching-desc">
+                  Connecting to high-speed cloud extractors • Finding Full HD, 4K video, audio & subtitles
+                </p>
+                <div className="searching-progress-track">
+                  <div className="searching-progress-bar"></div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Notice */}
-          {error && (
+          {error && !loading && (
             <div className="glass-panel" style={{ maxWidth: '780px', margin: '0 auto 2.5rem', padding: '1.25rem', borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.08)', display: 'flex', alignItems: 'center', gap: '1rem', textAlign: 'left' }}>
               <AlertCircle color="#ef4444" size={24} style={{ flexShrink: 0 }} />
               <div>
@@ -568,7 +598,7 @@ export default function App() {
           )}
 
           {/* Video Result Card */}
-          {videoInfo && (
+          {videoInfo && !loading && (
             <div className="glass-panel result-card">
               <div className="result-header">
                 <div className="thumb-container">
@@ -629,9 +659,9 @@ export default function App() {
                     {videoInfo.isYouTubeFallback 
                       ? 'Download Full HD (1080p MP4) via Fast Mirror'
                       : (videoInfo.bestPreset ? videoInfo.bestPreset.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() : 'Download Best Quality')}
-                    {videoInfo.bestPreset?.filesizeFormatted && (
+                    {getCleanFilesize(videoInfo.bestPreset) && (
                       <span style={{ fontSize: '0.9rem', color: 'var(--cyan-primary)', marginLeft: '8px', fontWeight: '600' }}>
-                        (~{videoInfo.bestPreset.filesizeFormatted})
+                        (~{getCleanFilesize(videoInfo.bestPreset)})
                       </span>
                     )}
                   </div>
@@ -680,7 +710,7 @@ export default function App() {
                     </div>
                   ) : (
                     <>
-                      {subtitles.length > 5 && (
+                      {subtitles.length > 0 && (
                         <div className="sub-search-box">
                           <Search size={16} color="var(--text-muted)" />
                           <input
@@ -776,9 +806,9 @@ export default function App() {
                               </td>
                               <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                                 <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
-                                {preset.filesizeFormatted && (
+                                {getCleanFilesize(preset) && (
                                   <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
-                                    • {preset.filesizeFormatted}
+                                    • {getCleanFilesize(preset)}
                                   </span>
                                 )}
                               </td>
@@ -804,6 +834,38 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* Supported Platform Chips (Always positioned underneath searching box & video result card!) */}
+          <div className="platform-chips">
+            {platforms.map((p) => {
+              const FallbackComp = p.fallbackIcon;
+              const isSelected = location.pathname === p.path;
+              return (
+                <Link
+                  key={p.name} 
+                  to={p.path}
+                  className={`chip ${p.brand} ${isSelected ? 'active-chip' : ''}`}
+                  title={`Open ${p.name} Downloader`}
+                >
+                  <img
+                    src={p.iconSrc}
+                    alt={p.name}
+                    className="chip-icon"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      if (e.target.nextSibling) {
+                        e.target.nextSibling.style.display = 'inline-flex';
+                      }
+                    }}
+                  />
+                  <span className="fallback-chip-icon" style={{ display: 'none' }}>
+                    <FallbackComp size={15} />
+                  </span>
+                  <span>{p.name}</span>
+                </Link>
+              );
+            })}
+          </div>
         </section>
 
         {/* 3 Step Tutorial (SaveFrom Reference) */}
