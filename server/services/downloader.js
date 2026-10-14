@@ -364,6 +364,12 @@ export async function getVideoInfo(url) {
 
     const subtitles = extractSubtitles(rawInfo);
 
+    // Direct stream URL for zero-load in-browser HTML5 preview (TikTok, Twitter, Facebook, etc.)
+    const directStreamUrl = rawInfo.url || (formats.find(f => f.directUrl && f.hasVideo)?.directUrl) || null;
+    const previewStreamUrl = directStreamUrl 
+      ? `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}&referer=${encodeURIComponent(rawInfo.webpage_url || url)}` 
+      : null;
+
     const cleanInfo = {
       id: rawInfo.id,
       title: rawInfo.title || 'Extracted Media',
@@ -380,7 +386,9 @@ export async function getVideoInfo(url) {
       presets,
       formats: formats.slice(0, 15),
       subtitles,
-      subtitlesCount: subtitles.length
+      subtitlesCount: subtitles.length,
+      directStreamUrl,
+      previewStreamUrl
     };
 
     return cleanInfo;

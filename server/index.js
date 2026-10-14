@@ -219,6 +219,62 @@ app.get('/api/trim', (req, res) => {
   streamTrimmedDownload(url, start, end, type, res);
 });
 
+// Zero-Load Media Proxy Stream with HTTP Range pass-through for in-browser Trimmer preview (TikTok, Instagram, Facebook, etc.)
+app.get('/api/proxy-stream', async (req, res) => {
+  const { url, referer } = req.query;
+  if (!url) {
+    return res.status(400).send('URL is required');
+  }
+
+  try {
+    const targetUrl = decodeURIComponent(url);
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Encoding': 'identity;q=1, *;q=0',
+    };
+
+    if (referer) {
+      headers['Referer'] = decodeURIComponent(referer);
+    }
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range;
+    }
+
+    const { default: https } = await import('https');
+    const { default: http } = await import('http');
+    const client = targetUrl.startsWith('https') ? https : http;
+
+    const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
+      // Forward status code (200 OK or 206 Partial Content)
+      res.status(upstreamRes.statusCode || 200);
+
+      // Forward headers required for smooth video seeking & playback in browser
+      const forwardHeaders = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
+      forwardHeaders.forEach((h) => {
+        if (upstreamRes.headers[h]) {
+          res.setHeader(h, upstreamRes.headers[h]);
+        }
+      });
+
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      upstreamRes.pipe(res);
+    });
+
+    upstreamReq.on('error', (err) => {
+      console.warn('Proxy-stream error:', err.message);
+      if (!res.headersSent) res.status(502).send('Upstream stream error');
+    });
+
+    req.on('close', () => {
+      upstreamReq.destroy();
+    });
+  } catch (err) {
+    console.error('Proxy stream failed:', err.message);
+    if (!res.headersSent) res.status(500).send('Proxy stream failed');
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Video Downloader Backend running at http://localhost:${PORT}`);
 });

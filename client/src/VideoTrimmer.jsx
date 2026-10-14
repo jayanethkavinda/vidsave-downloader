@@ -48,8 +48,11 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
 
   const ytVideoId = videoInfo?.videoId || extractYouTubeId(videoInfo?.webpageUrl);
   
-  // Find direct stream URL if available from videoInfo.formats
-  const directVideoUrl = videoInfo?.formats?.find(f => f.directUrl && f.hasVideo)?.directUrl || null;
+  // Find proxy stream URL or direct stream URL for zero-load in-browser preview (TikTok, Instagram, etc.)
+  const previewVideoUrl = videoInfo?.previewStreamUrl 
+    ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+    : (videoInfo?.directStreamUrl || videoInfo?.formats?.find(f => f.directUrl && f.hasVideo)?.directUrl || null);
+  const [streamError, setStreamError] = useState(false);
 
   // Format seconds to mm:ss.s or mm:ss
   const formatTime = (seconds, includeDecimals = true) => {
@@ -150,13 +153,15 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
         ytPlayerRef.current.playVideo();
         setIsPlaying(true);
       }
-    } else if (videoElementRef.current) {
+    } else if (videoElementRef.current && !streamError) {
       const vid = videoElementRef.current;
       if (vid.paused) {
         if (vid.currentTime < startTime || vid.currentTime >= endTime) {
           vid.currentTime = startTime;
         }
-        vid.play();
+        vid.play().catch(() => {
+          setIsPlaying(true);
+        });
         setIsPlaying(true);
       } else {
         vid.pause();
@@ -170,16 +175,16 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
 
   // Simulated playback ticker for static preview
   useEffect(() => {
-    if (!ytVideoId && !directVideoUrl && isPlaying) {
+    if ((!ytVideoId && (!previewVideoUrl || streamError)) && isPlaying) {
       const timer = setInterval(() => {
         setCurrentTime((prev) => {
           if (prev >= endTime) return startTime;
-          return prev + 0.1;
+          return parseFloat((prev + 0.1).toFixed(1));
         });
       }, 100);
       return () => clearInterval(timer);
     }
-  }, [isPlaying, ytVideoId, directVideoUrl, startTime, endTime]);
+  }, [isPlaying, ytVideoId, previewVideoUrl, streamError, startTime, endTime]);
 
   // Seek video to specific time
   const seekTo = useCallback((t) => {
@@ -187,10 +192,10 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     setCurrentTime(clamped);
     if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === 'function') {
       ytPlayerRef.current.seekTo(clamped, true);
-    } else if (videoElementRef.current) {
+    } else if (videoElementRef.current && !streamError) {
       videoElementRef.current.currentTime = clamped;
     }
-  }, [duration]);
+  }, [duration, streamError]);
 
   // Handle timeline dragging (mouse & touch)
   const handleTimelineMove = useCallback((clientX) => {
@@ -368,12 +373,18 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
           <div className="trimmer-player-frame">
             {ytVideoId ? (
               <div id="trimmer-yt-player" className="trimmer-yt-iframe"></div>
-            ) : directVideoUrl ? (
+            ) : (previewVideoUrl && !streamError) ? (
               <video
                 ref={videoElementRef}
-                src={directVideoUrl}
+                src={previewVideoUrl}
                 className="trimmer-html5-video"
                 playsInline
+                preload="metadata"
+                referrerPolicy="no-referrer"
+                onError={() => {
+                  console.warn('Proxy video stream failed, falling back to simulated preview');
+                  setStreamError(true);
+                }}
                 onTimeUpdate={() => {
                   if (videoElementRef.current) {
                     const t = videoElementRef.current.currentTime;
