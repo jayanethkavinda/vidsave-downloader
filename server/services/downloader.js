@@ -562,13 +562,12 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
 
   const formatArg = isAudio 
     ? 'bestaudio/best'
-    : 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+    : 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
 
   const args = [
     '-m', 'yt_dlp',
     '-f', formatArg,
     '--download-sections', sectionArg,
-    '--force-keyframes-at-cuts',
   ];
 
   if (isAudio) {
@@ -576,7 +575,7 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
   } else {
     args.push(
       '--merge-output-format', 'mp4',
-      '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac'
+      '--postprocessor-args', 'ffmpeg:-c copy'
     );
   }
 

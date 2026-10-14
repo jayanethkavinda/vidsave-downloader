@@ -271,18 +271,19 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim();
     const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${type}&title=${encodeURIComponent(cleanTitle)}`;
 
-    // Create invisible anchor to trigger browser save dialog
-    const link = document.createElement('a');
-    link.href = trimApiUrl;
-    link.target = '_blank';
-    link.rel = 'noopener,noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Use hidden iframe to trigger native browser download without opening any blank tab
+    let iframe = document.getElementById('vidsave-trim-iframe');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = 'vidsave-trim-iframe';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    iframe.src = trimApiUrl;
 
     setTimeout(() => {
       setDownloading(null);
-    }, 4000);
+    }, 6000);
   };
 
   const selectedLength = (endTime - startTime).toFixed(1);
