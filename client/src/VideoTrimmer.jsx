@@ -11,33 +11,58 @@ import {
   Zap,
   Clock,
   Sparkles,
-  Volume2,
+  Maximize2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Link as LinkIcon,
+  Clipboard,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
+import TaslAttributionCard from './TaslAttributionCard.jsx';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
 
-export default function VideoTrimmer({ videoInfo, onBack }) {
+export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVideoExtracted }) {
+  const [videoInfo, setVideoInfo] = useState(initialVideoInfo || null);
+  const [inputUrl, setInputUrl] = useState(initialVideoInfo?.webpageUrl || '');
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState('');
+
   const duration = Math.max(1, parseFloat(videoInfo?.duration) || 60);
 
-  // Initial range: 0 to min(15, duration)
+  // Initial cut range: 0 to min(15, duration)
   const initialEnd = Math.min(15, duration);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(initialEnd);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [downloading, setDownloading] = useState(null); // 'video' | 'audio' | null
-  const [downloadElapsed, setDownloadElapsed] = useState(0);
-  const [downloadStep, setDownloadStep] = useState(1);
+
+  // Download state with in-button percentage animation
+  const [downloadingType, setDownloadingType] = useState(null); // 'video' | 'audio' | null
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
+  const [selectedQuality, setSelectedQuality] = useState('best'); // 'best' | '1080' | '720' | '480' | 'audio'
 
   const timelineRef = useRef(null);
   const draggingHandle = useRef(null); // 'left' | 'right' | null
   const videoElementRef = useRef(null);
   const ytPlayerRef = useRef(null);
   const ytIntervalRef = useRef(null);
+  const progressTimerRef = useRef(null);
+
+  // Sync state if initialVideoInfo changes from outside
+  useEffect(() => {
+    if (initialVideoInfo) {
+      setVideoInfo(initialVideoInfo);
+      setInputUrl(initialVideoInfo.webpageUrl || '');
+      const d = Math.max(1, parseFloat(initialVideoInfo.duration) || 60);
+      setStartTime(0);
+      setEndTime(Math.min(15, d));
+      setCurrentTime(0);
+    }
+  }, [initialVideoInfo]);
 
   // Extract YouTube ID if applicable
   const extractYouTubeId = (rawUrl) => {
@@ -47,12 +72,11 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
   };
 
   const ytVideoId = videoInfo?.videoId || extractYouTubeId(videoInfo?.webpageUrl);
-  
   const [useFallbackPreview, setUseFallbackPreview] = useState(false);
   const [streamError, setStreamError] = useState(false);
-  const [videoLoading, setVideoLoading] = useState(!ytVideoId);
+  const [videoLoading, setVideoLoading] = useState(!ytVideoId && Boolean(videoInfo));
 
-  // High-speed lightweight 360p preview or Zero-load Live Range Proxy for in-browser video playback
+  // High-speed lightweight 220p / 240p preview stream with Range support
   const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
     ? (useFallbackPreview
         ? `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`
@@ -75,7 +99,54 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     return `${minsStr}:${secsStr}`;
   };
 
-  // Initialize YouTube Iframe Player API if applicable
+  // Handle URL extraction from inside Trimmer view
+  const handleExtractInsideTrimmer = async (e) => {
+    if (e) e.preventDefault();
+    const cleanUrl = inputUrl.trim();
+    if (!cleanUrl) return;
+
+    setExtracting(true);
+    setExtractError('');
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/info?url=${encodeURIComponent(cleanUrl)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to extract video information');
+      }
+
+      setVideoInfo(data);
+      const newDuration = Math.max(1, parseFloat(data.duration) || 60);
+      setStartTime(0);
+      setEndTime(Math.min(15, newDuration));
+      setCurrentTime(0);
+      setIsPlaying(false);
+      setUseFallbackPreview(false);
+      setStreamError(false);
+      setVideoLoading(true);
+
+      if (typeof onVideoExtracted === 'function') {
+        onVideoExtracted(data);
+      }
+    } catch (err) {
+      console.error('[Trimmer Extractor Error]', err);
+      setExtractError(err.message || 'Unable to fetch video. Please check the URL.');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handlePasteUrl = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        setInputUrl(text);
+      }
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
+    }
+  };
+
+  // Initialize YouTube Iframe Player API
   useEffect(() => {
     if (!ytVideoId) return;
 
@@ -175,12 +246,11 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
         setIsPlaying(false);
       }
     } else {
-      // Simulated preview playback
       setIsPlaying(!isPlaying);
     }
   };
 
-  // Simulated playback ticker for static preview
+  // Simulated ticker for fallback
   useEffect(() => {
     if ((!ytVideoId && (!previewVideoUrl || streamError)) && isPlaying) {
       const timer = setInterval(() => {
@@ -275,30 +345,38 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
     });
   };
 
-  // Quick preset lengths
-  const applyPresetLength = (secs) => {
-    const end = Math.min(duration, startTime + secs);
-    setEndTime(end);
-    seekTo(startTime);
+  // Reset to full video duration (0 to total duration)
+  const handleResetFullVideo = () => {
+    setStartTime(0);
+    setEndTime(duration);
+    seekTo(0);
   };
 
-  // Trigger direct native browser download for trimmed segment (Zero JS Memory / Native Browser Download Manager)
-  const handleDownloadTrim = (type = 'video') => {
-    if (downloading) return; // Prevent duplicate requests
-    setDownloading(type);
+  // Trigger direct native browser download with smooth in-button percentage increments
+  const handleDownloadTrim = (type = 'video', format = selectedQuality) => {
+    if (downloadingType) return;
+    setDownloadingType(type);
     setDownloadSuccess(false);
     setDownloadError('');
-    setDownloadElapsed(0);
-    setDownloadStep(1);
+    setDownloadProgress(20);
+
+    // Smooth percentage ticker 20% -> 45% -> 75% -> 99% -> 100%
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setDownloadProgress((prev) => {
+        if (prev >= 95) return prev;
+        const jump = Math.floor(Math.random() * 8) + 4;
+        return Math.min(96, prev + jump);
+      });
+    }, 140);
 
     try {
-      const cleanUrl = videoInfo?.webpageUrl;
+      const cleanUrl = videoInfo?.webpageUrl || inputUrl;
       const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim() || 'clip';
-      const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${type}&title=${encodeURIComponent(cleanTitle)}`;
-      const ext = (type === 'audio' || type === 'mp3') ? 'mp3' : 'mp4';
+      const actualType = (type === 'audio' || format === 'audio') ? 'audio' : 'video';
+      const ext = actualType === 'audio' ? 'mp3' : 'mp4';
       const filename = `${cleanTitle}_cut_${Math.round(startTime)}s-${Math.round(endTime)}s.${ext}`;
-
-      setDownloadStep(2);
+      const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${actualType}&format=${format}&title=${encodeURIComponent(cleanTitle)}`;
 
       // Trigger Native Browser Download immediately
       const link = document.createElement('a');
@@ -314,22 +392,30 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
         } catch (_) {}
       }, 2000);
 
-      // Notify user download has started in browser tray
+      // Once browser starts streaming, wrap up percentage to 100% and show quick confirmation
       setTimeout(() => {
-        setDownloadStep(3);
+        if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+        setDownloadProgress(100);
         setDownloadSuccess(true);
         setTimeout(() => {
-          setDownloading(null);
-          setDownloadStep(0);
-        }, 1500);
-      }, 800);
+          setDownloadingType(null);
+          setDownloadProgress(0);
+        }, 1600);
+      }, 1100);
     } catch (err) {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       console.error('Trim download error:', err);
       setDownloadError(err.message || 'Download failed. Please try again.');
-      setDownloading(null);
-      setDownloadStep(0);
+      setDownloadingType(null);
+      setDownloadProgress(0);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    };
+  }, []);
 
   const selectedLength = (endTime - startTime).toFixed(1);
   const leftPercent = (startTime / duration) * 100;
@@ -339,343 +425,379 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
 
   return (
     <div className="trimmer-view-container">
-      {/* Top Bar (CapCut Style) */}
+      {/* 🔝 Sticky Top Nav inside Trimmer */}
       <div className="trimmer-top-nav">
         <button type="button" onClick={onBack} className="btn-trim-back">
           <ArrowLeft size={18} />
-          <span>Back to Downloader</span>
+          <span>Full Downloader</span>
         </button>
         <div className="trimmer-media-title" title={videoInfo?.title}>
           <Scissors size={15} color="#f59e0b" style={{ flexShrink: 0 }} />
-          <span>{videoInfo?.title || 'Visual Video Trimmer'}</span>
+          <span>{videoInfo?.title ? videoInfo.title : 'Clip & Trim Video'}</span>
         </div>
         <button
           type="button"
-          onClick={() => handleDownloadTrim('video')}
-          disabled={downloading !== null}
+          onClick={() => handleDownloadTrim('video', selectedQuality)}
+          disabled={downloadingType !== null || !videoInfo}
           className="btn-trim-save-top"
         >
-          {downloading === 'video' ? <Zap size={15} className="spin" /> : <Download size={15} />}
-          <span>{downloading === 'video' ? 'Saving...' : 'Save Clip'}</span>
+          {downloadingType === 'video' ? <Zap size={15} className="spin" /> : <Download size={15} />}
+          <span>{downloadingType === 'video' ? `${downloadProgress}%` : 'Save Clip'}</span>
         </button>
       </div>
 
-      {/* Main Trimming Workspace */}
-      <div className="trimmer-workspace">
-        {/* Video Player Display Frame with Yellow Crop Border */}
-        <div className="trimmer-player-wrapper">
-          <div className="trimmer-player-frame">
-            {ytVideoId ? (
-              <div id="trimmer-yt-player" className="trimmer-yt-iframe"></div>
-            ) : (previewVideoUrl && !streamError) ? (
-              <>
-                {videoLoading && (
-                  <div className="trimmer-video-loader">
-                    <Zap size={22} className="spin" color="#f59e0b" />
-                    <span>Preparing Live Video Stream...</span>
-                  </div>
-                )}
-                <video
-                  ref={videoElementRef}
-                  src={previewVideoUrl}
-                  className="trimmer-html5-video"
-                  playsInline
-                  preload="metadata"
-                  referrerPolicy="no-referrer"
-                  onLoadedData={() => setVideoLoading(false)}
-                  onCanPlay={() => setVideoLoading(false)}
-                  onWaiting={() => setVideoLoading(true)}
-                  onPlaying={() => setVideoLoading(false)}
-                  onError={() => {
-                    setVideoLoading(false);
-                    if (!useFallbackPreview && videoInfo?.previewStreamUrl?.includes('/api/proxy-stream')) {
-                      console.warn('Proxy stream error, seamlessly falling back to /api/preview');
-                      setUseFallbackPreview(true);
-                    } else {
-                      console.warn('Video preview failed, falling back to visual range card');
-                      setStreamError(true);
-                    }
-                  }}
-                  onTimeUpdate={() => {
-                    if (videoElementRef.current) {
-                      const t = videoElementRef.current.currentTime;
-                      setCurrentTime(t);
-                      if (t >= endTime) {
-                        videoElementRef.current.currentTime = startTime;
-                      }
-                    }
-                  }}
-                />
-              </>
-            ) : (
-              <div className="trimmer-static-thumb">
-                <img src={videoInfo?.thumbnail} alt={videoInfo?.title} />
-                <div className="trimmer-static-badge">Live Visual Range Preview</div>
-              </div>
+      {/* 🔗 Dedicated URL Input Bar at the Top of Trimmer */}
+      <div className="trimmer-url-bar-card">
+        <form onSubmit={handleExtractInsideTrimmer} className="trimmer-url-form">
+          <div className="trimmer-input-wrapper">
+            <LinkIcon size={18} className="trimmer-input-icon" />
+            <input
+              type="text"
+              placeholder="Paste any video link to clip & trim (YouTube, TikTok, Instagram, FB, X)..."
+              value={inputUrl}
+              onChange={(e) => setInputUrl(e.target.value)}
+              className="trimmer-url-input"
+            />
+            {!inputUrl.trim() && (
+              <button type="button" onClick={handlePasteUrl} className="btn-trimmer-paste">
+                <Clipboard size={14} /> Paste
+              </button>
             )}
           </div>
-        </div>
-
-        {/* Playback Controls & Timestamp Header */}
-        <div className="trimmer-playback-bar">
-          <button type="button" onClick={togglePlay} className="btn-trim-play">
-            {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" style={{ marginLeft: '2px' }} />}
-          </button>
-
-          <div className="trimmer-time-display">
-            <span className="current-t">{formatTime(currentTime, true)}</span>
-            <span className="divider">|</span>
-            <span className="total-t">{formatTime(duration, false)}</span>
-          </div>
-
           <button
-            type="button"
-            onClick={() => {
-              setStartTime(0);
-              setEndTime(initialEnd);
-              seekTo(0);
-            }}
-            className="btn-trim-reset"
-            title="Reset to initial cut range"
+            type="submit"
+            disabled={extracting || !inputUrl.trim()}
+            className="btn-trimmer-load"
           >
-            <RotateCcw size={16} />
-            <span>Reset</span>
+            {extracting ? <Zap size={16} className="spin" /> : <Scissors size={16} />}
+            <span>{extracting ? 'Extracting Clip...' : 'Load Video'}</span>
           </button>
-        </div>
+        </form>
 
-        {/* 🎬 CapCut-Style Horizontal Timeline Filmstrip with Draggable Yellow Handles */}
-        <div className="trimmer-timeline-section">
-          <div className="trimmer-timeline-header">
-            <span className="timeline-hint">
-              <Sparkles size={14} color="#f59e0b" />
-              Drag the yellow handles to select video section
-            </span>
-            <span className="timeline-selected-duration">
-              Clip Duration: <strong>{selectedLength}s</strong>
-            </span>
-          </div>
-
-          <div
-            ref={timelineRef}
-            className="trimmer-timeline-track"
-            onClick={handleTimelineClick}
-          >
-            {/* Filmstrip Background tiles */}
-            <div className="trimmer-filmstrip-bg">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="filmstrip-tile"
-                  style={{
-                    backgroundImage: videoInfo?.thumbnail ? `url(${videoInfo.thumbnail})` : 'none',
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Draggable Yellow Crop Selection Box */}
-            <div
-              className="trimmer-crop-box"
-              style={{
-                left: `${leftPercent}%`,
-                width: `${widthPercent}%`,
-              }}
-            >
-              {/* Left Handle */}
-              <div
-                className="trimmer-handle trimmer-handle-left"
-                onMouseDown={(e) => startDrag('left', e)}
-                onTouchStart={(e) => startDrag('left', e)}
-                title="Drag to adjust Start Time"
-              >
-                <div className="handle-grip-bar"></div>
-              </div>
-
-              {/* Inside Duration Badge */}
-              <div className="trimmer-box-label">
-                {selectedLength}s
-              </div>
-
-              {/* Right Handle */}
-              <div
-                className="trimmer-handle trimmer-handle-right"
-                onMouseDown={(e) => startDrag('right', e)}
-                onTouchStart={(e) => startDrag('right', e)}
-                title="Drag to adjust End Time"
-              >
-                <div className="handle-grip-bar"></div>
-              </div>
-            </div>
-
-            {/* Playhead Needle Indicator */}
-            <div
-              className="trimmer-playhead"
-              style={{ left: `${playheadPercent}%` }}
-            >
-              <div className="playhead-top-notch"></div>
-              <div className="playhead-line"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Precision Numeric Inputs & Fine Tune Adjustments */}
-        <div className="trimmer-precision-panel">
-          {/* Start Time Box */}
-          <div className="precision-group">
-            <label className="precision-label">
-              <Clock size={13} />
-              <span>Start Cut Time</span>
-            </label>
-            <div className="precision-control-row">
-              <button type="button" onClick={() => adjustStart(-1)} className="btn-tune" title="-1s">-1s</button>
-              <button type="button" onClick={() => adjustStart(-0.1)} className="btn-tune" title="-0.1s">-0.1s</button>
-              <div className="precision-time-val">{formatTime(startTime, true)}</div>
-              <button type="button" onClick={() => adjustStart(+0.1)} className="btn-tune" title="+0.1s">+0.1s</button>
-              <button type="button" onClick={() => adjustStart(+1)} className="btn-tune" title="+1s">+1s</button>
-            </div>
-          </div>
-
-          {/* Quick Presets */}
-          <div className="trimmer-presets-group">
-            <span className="preset-label">Quick Clips:</span>
-            <button type="button" onClick={() => applyPresetLength(15)} className="btn-preset-chip">
-              ⚡ 15s Shorts
-            </button>
-            <button type="button" onClick={() => applyPresetLength(30)} className="btn-preset-chip">
-              🔥 30s Status
-            </button>
-            <button type="button" onClick={() => applyPresetLength(60)} className="btn-preset-chip">
-              ✨ 60s Reel
-            </button>
-          </div>
-
-          {/* End Time Box */}
-          <div className="precision-group">
-            <label className="precision-label">
-              <Clock size={13} />
-              <span>End Cut Time</span>
-            </label>
-            <div className="precision-control-row">
-              <button type="button" onClick={() => adjustEnd(-1)} className="btn-tune" title="-1s">-1s</button>
-              <button type="button" onClick={() => adjustEnd(-0.1)} className="btn-tune" title="-0.1s">-0.1s</button>
-              <div className="precision-time-val">{formatTime(endTime, true)}</div>
-              <button type="button" onClick={() => adjustEnd(+0.1)} className="btn-tune" title="+0.1s">+0.1s</button>
-              <button type="button" onClick={() => adjustEnd(+1)} className="btn-tune" title="+1s">+1s</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Download Action Area */}
-        <div className="trimmer-download-actions">
-          <button
-            type="button"
-            onClick={() => handleDownloadTrim('video')}
-            disabled={downloading !== null}
-            className="btn-trim-download-primary"
-          >
-            {downloading === 'video' ? (
-              <>
-                <Zap size={20} className="spin" />
-                <span>Trimming & Multiplexing MP4...</span>
-              </>
-            ) : (
-              <>
-                <Film size={20} />
-                <span>Download Trimmed Video (MP4)</span>
-                <span className="btn-sub-text">Full HD Clip • {selectedLength}s</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleDownloadTrim('audio')}
-            disabled={downloading !== null}
-            className="btn-trim-download-secondary"
-          >
-            {downloading === 'audio' ? (
-              <>
-                <Zap size={20} className="spin" />
-                <span>Extracting MP3 Audio Clip...</span>
-              </>
-            ) : (
-              <>
-                <Music size={20} />
-                <span>Download Trimmed Audio (MP3)</span>
-                <span className="btn-sub-text">Crystal Clear 320kbps • {selectedLength}s</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* ⏳ Live Processing Progress Card (Active while downloading) */}
-        {downloading !== null && (
-          <div className="trim-progress-card">
-            <div className="trim-progress-header">
-              <div className="trim-pulse-icon-box">
-                <Zap size={22} className="spin text-cyan" />
-              </div>
-              <div className="trim-progress-header-text">
-                <h4 className="trim-progress-title">
-                  {downloading === 'video' ? 'Processing & Stream-Cutting MP4 Video...' : 'Extracting High-Quality MP3 Audio Clip...'}
-                </h4>
-                <p className="trim-progress-time">
-                  Elapsed Time: <strong>{downloadElapsed}s</strong> • Please wait, download will trigger automatically
-                </p>
-              </div>
-            </div>
-
-            <div className="trim-stages-row">
-              <div className={`trim-stage-item ${downloadStep >= 1 ? 'active' : ''}`}>
-                <span className="stage-dot"></span>
-                <span>1. Cloud Extractor</span>
-              </div>
-              <div className={`trim-stage-item ${downloadStep >= 2 ? 'active' : ''}`}>
-                <span className="stage-dot"></span>
-                <span>2. Stream-Cutting ({selectedLength}s)</span>
-              </div>
-              <div className={`trim-stage-item ${downloadStep >= 3 ? 'active' : ''}`}>
-                <span className="stage-dot"></span>
-                <span>3. Direct File Save</span>
-              </div>
-            </div>
-
-            <div className="trim-progress-bar-track">
-              <div className="trim-progress-bar-fill"></div>
-            </div>
+        {extractError && (
+          <div className="trim-error-card" style={{ marginTop: '0.75rem' }}>
+            <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: '0.85rem' }}>{extractError}</span>
           </div>
         )}
-
-        {/* 🎉 Success Notification */}
-        {downloadSuccess && (
-          <div className="trim-success-card">
-            <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} />
-            <div>
-              <strong style={{ color: '#10b981', display: 'block', marginBottom: '2px' }}>Download Complete!</strong>
-              <span style={{ fontSize: '0.88rem' }}>Your {selectedLength}s clip has been downloaded to your device.</span>
-            </div>
-          </div>
-        )}
-
-        {/* ❌ Error Notification */}
-        {downloadError && (
-          <div className="trim-error-card">
-            <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0 }} />
-            <div>
-              <strong style={{ color: '#ef4444', display: 'block', marginBottom: '2px' }}>Processing Issue</strong>
-              <span style={{ fontSize: '0.88rem' }}>{downloadError}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Trimmer Info Footer Note */}
-        <div className="trimmer-info-note">
-          <Sparkles size={14} color="#06b6d4" />
-          <span>
-            <strong>Zero Server Storage & High Speed:</strong> The selected section is directly extracted with FFmpeg stream cutting so you don't waste bandwidth downloading the entire long video!
-          </span>
-        </div>
       </div>
+
+      {/* Empty State if no video is loaded yet */}
+      {!videoInfo ? (
+        <div className="trimmer-empty-state">
+          <div className="trimmer-empty-icon-wrap">
+            <Scissors size={38} color="#f59e0b" />
+          </div>
+          <h3 className="trimmer-empty-title">Paste a Video Link Above to Start Trimming</h3>
+          <p className="trimmer-empty-desc">
+            Instantly set custom start and end points with our visual timeline slider, preview playback in real-time, and download only the exact clip you need in Full HD or MP3.
+          </p>
+        </div>
+      ) : (
+        /* Main Trimming Workspace */
+        <div className="trimmer-workspace">
+          {/* Video Player Display Frame with Yellow Crop Border */}
+          <div className="trimmer-player-wrapper">
+            <div className="trimmer-player-frame">
+              {ytVideoId ? (
+                <div id="trimmer-yt-player" className="trimmer-yt-iframe"></div>
+              ) : (previewVideoUrl && !streamError) ? (
+                <>
+                  {videoLoading && (
+                    <div className="trimmer-video-loader">
+                      <Zap size={22} className="spin" color="#f59e0b" />
+                      <span>Loading Fast Preview Stream...</span>
+                    </div>
+                  )}
+                  <video
+                    ref={videoElementRef}
+                    src={previewVideoUrl}
+                    className="trimmer-html5-video"
+                    playsInline
+                    preload="metadata"
+                    referrerPolicy="no-referrer"
+                    onLoadedData={() => setVideoLoading(false)}
+                    onCanPlay={() => setVideoLoading(false)}
+                    onWaiting={() => setVideoLoading(true)}
+                    onPlaying={() => setVideoLoading(false)}
+                    onError={() => {
+                      setVideoLoading(false);
+                      if (!useFallbackPreview && videoInfo?.previewStreamUrl?.includes('/api/proxy-stream')) {
+                        console.warn('Proxy stream error, seamlessly falling back to /api/preview');
+                        setUseFallbackPreview(true);
+                      } else {
+                        console.warn('Video preview failed, falling back to visual range card');
+                        setStreamError(true);
+                      }
+                    }}
+                    onTimeUpdate={() => {
+                      if (videoElementRef.current) {
+                        const t = videoElementRef.current.currentTime;
+                        setCurrentTime(t);
+                        if (t >= endTime) {
+                          videoElementRef.current.currentTime = startTime;
+                        }
+                      }
+                    }}
+                  />
+                </>
+              ) : (
+                <div className="trimmer-static-thumb">
+                  <img src={videoInfo?.thumbnail} alt={videoInfo?.title} />
+                  <div className="trimmer-static-badge">Live Visual Range Preview</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Playback Controls & Timestamp Header */}
+          <div className="trimmer-playback-bar">
+            <button type="button" onClick={togglePlay} className="btn-trim-play">
+              {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" style={{ marginLeft: '2px' }} />}
+            </button>
+
+            <div className="trimmer-time-display">
+              <span className="current-t">{formatTime(currentTime, true)}</span>
+              <span className="divider">|</span>
+              <span className="total-t">{formatTime(duration, false)}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleResetFullVideo}
+              className="btn-trim-reset"
+              title="Reset to full video length"
+            >
+              <RotateCcw size={15} />
+              <span>Full Video</span>
+            </button>
+          </div>
+
+          {/* 🎬 Visual Timeline Filmstrip with Draggable Yellow Handles */}
+          <div className="trimmer-timeline-section">
+            <div className="trimmer-timeline-header">
+              <span className="timeline-hint">
+                <Sparkles size={14} color="#f59e0b" />
+                Drag yellow handles to adjust start and end cut points
+              </span>
+              <span className="timeline-selected-duration">
+                Selected Clip: <strong>{selectedLength}s</strong>
+              </span>
+            </div>
+
+            <div
+              ref={timelineRef}
+              className="trimmer-timeline-track"
+              onClick={handleTimelineClick}
+            >
+              {/* Filmstrip Background tiles */}
+              <div className="trimmer-filmstrip-bg">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="filmstrip-tile"
+                    style={{
+                      backgroundImage: videoInfo?.thumbnail ? `url(${videoInfo.thumbnail})` : 'none',
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Draggable Yellow Crop Selection Box */}
+              <div
+                className="trimmer-crop-box"
+                style={{
+                  left: `${leftPercent}%`,
+                  width: `${widthPercent}%`,
+                }}
+              >
+                {/* Left Handle */}
+                <div
+                  className="trimmer-handle trimmer-handle-left"
+                  onMouseDown={(e) => startDrag('left', e)}
+                  onTouchStart={(e) => startDrag('left', e)}
+                  title="Drag to adjust Start Time"
+                >
+                  <div className="handle-grip-bar"></div>
+                </div>
+
+                {/* Inside Duration Badge */}
+                <div className="trimmer-box-label">
+                  {selectedLength}s
+                </div>
+
+                {/* Right Handle */}
+                <div
+                  className="trimmer-handle trimmer-handle-right"
+                  onMouseDown={(e) => startDrag('right', e)}
+                  onTouchStart={(e) => startDrag('right', e)}
+                  title="Drag to adjust End Time"
+                >
+                  <div className="handle-grip-bar"></div>
+                </div>
+              </div>
+
+              {/* Playhead Needle Indicator */}
+              <div
+                className="trimmer-playhead"
+                style={{ left: `${playheadPercent}%` }}
+              >
+                <div className="playhead-top-notch"></div>
+                <div className="playhead-line"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* 🎛️ Manual Cut Controls & Reset to Full Video (Replaced Quick Clicks) */}
+          <div className="trimmer-manual-controls-panel">
+            {/* Start Cut Time Card */}
+            <div className="manual-cut-card">
+              <div className="manual-cut-header">
+                <Clock size={14} color="#f59e0b" />
+                <span>Start Cut Time</span>
+              </div>
+              <div className="manual-cut-display">{formatTime(startTime, true)}</div>
+              <div className="manual-cut-steppers">
+                <button type="button" onClick={() => adjustStart(-1)} className="btn-manual-step" title="Subtract 1 second">-1s</button>
+                <button type="button" onClick={() => adjustStart(-0.1)} className="btn-manual-step" title="Subtract 0.1 second">-0.1s</button>
+                <button type="button" onClick={() => adjustStart(+0.1)} className="btn-manual-step" title="Add 0.1 second">+0.1s</button>
+                <button type="button" onClick={() => adjustStart(+1)} className="btn-manual-step" title="Add 1 second">+1s</button>
+              </div>
+            </div>
+
+            {/* 🔄 Reset to Full Video Duration (Hero Button) */}
+            <div className="manual-reset-center-card">
+              <button
+                type="button"
+                onClick={handleResetFullVideo}
+                className="btn-reset-full-video"
+                title="Select complete video duration without cutting"
+              >
+                <Maximize2 size={18} />
+                <div className="reset-full-text">
+                  <strong>Select Entire Video</strong>
+                  <span>Reset to Full Length (00:00 → {formatTime(duration, false)})</span>
+                </div>
+              </button>
+            </div>
+
+            {/* End Cut Time Card */}
+            <div className="manual-cut-card">
+              <div className="manual-cut-header">
+                <Clock size={14} color="#f59e0b" />
+                <span>End Cut Time</span>
+              </div>
+              <div className="manual-cut-display">{formatTime(endTime, true)}</div>
+              <div className="manual-cut-steppers">
+                <button type="button" onClick={() => adjustEnd(-1)} className="btn-manual-step" title="Subtract 1 second">-1s</button>
+                <button type="button" onClick={() => adjustEnd(-0.1)} className="btn-manual-step" title="Subtract 0.1 second">-0.1s</button>
+                <button type="button" onClick={() => adjustEnd(+0.1)} className="btn-manual-step" title="Add 0.1 second">+0.1s</button>
+                <button type="button" onClick={() => adjustEnd(+1)} className="btn-manual-step" title="Add 1 second">+1s</button>
+              </div>
+            </div>
+          </div>
+
+          {/* 📥 Download Action Area with Quality Selector Dropdown */}
+          <div className="trimmer-export-container">
+            <div className="trimmer-export-bar">
+              {/* Quality Dropdown Selector */}
+              <div className="trimmer-quality-select-wrap">
+                <label className="trimmer-quality-label" htmlFor="trim-quality-select">
+                  <Layers size={14} /> Quality:
+                </label>
+                <div className="trimmer-select-wrapper">
+                  <select
+                    id="trim-quality-select"
+                    value={selectedQuality}
+                    onChange={(e) => setSelectedQuality(e.target.value)}
+                    className="trimmer-quality-select"
+                  >
+                    <option value="best">Original Upload Quality (Max HD)</option>
+                    <option value="1080">1080p Full HD</option>
+                    <option value="720">720p HD</option>
+                    <option value="480">480p SD</option>
+                    <option value="audio">MP3 Audio Only (320kbps)</option>
+                  </select>
+                  <ChevronDown size={14} className="select-chevron" />
+                </div>
+              </div>
+
+              {/* Main Download Button with In-Button Loading Percentage */}
+              <button
+                type="button"
+                onClick={() => handleDownloadTrim('video', selectedQuality)}
+                disabled={downloadingType !== null}
+                className="btn-trim-download-primary"
+              >
+                {downloadingType === 'video' ? (
+                  <>
+                    <Zap size={20} className="spin text-cyan" />
+                    <span>Preparing Download... {downloadProgress}%</span>
+                  </>
+                ) : (
+                  <>
+                    <Film size={20} />
+                    <span>Download Trimmed Video (MP4)</span>
+                    <span className="btn-sub-text">
+                      {selectedQuality === 'best' ? 'Original Quality' : `${selectedQuality}p`} • {selectedLength}s
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {/* Secondary MP3 Audio Button */}
+              <button
+                type="button"
+                onClick={() => handleDownloadTrim('audio', 'audio')}
+                disabled={downloadingType !== null}
+                className="btn-trim-download-secondary"
+              >
+                {downloadingType === 'audio' ? (
+                  <>
+                    <Zap size={20} className="spin text-cyan" />
+                    <span>Extracting Audio... {downloadProgress}%</span>
+                  </>
+                ) : (
+                  <>
+                    <Music size={20} />
+                    <span>Download Audio (MP3)</span>
+                    <span className="btn-sub-text">Crystal Clear 320kbps • {selectedLength}s</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Quick Completion Alert */}
+            {downloadSuccess && (
+              <div className="trim-success-card" style={{ marginTop: '1rem' }}>
+                <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0 }} />
+                <div>
+                  <strong style={{ color: '#10b981', display: 'block', fontSize: '0.92rem' }}>Download Started!</strong>
+                  <span style={{ fontSize: '0.84rem' }}>Your {selectedLength}s clip is now saving to your device through your browser.</span>
+                </div>
+              </div>
+            )}
+
+            {downloadError && (
+              <div className="trim-error-card" style={{ marginTop: '1rem' }}>
+                <AlertCircle size={20} color="#ef4444" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '0.85rem' }}>{downloadError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* ⚖️ Auto-Attribution & Fair Use Credit (TASL) Component */}
+          <TaslAttributionCard videoInfo={videoInfo} />
+
+          {/* Trimmer Info Footer Note */}
+          <div className="trimmer-info-note">
+            <Sparkles size={14} color="#06b6d4" />
+            <span>
+              <strong>Zero Server Storage & High Speed:</strong> Cut sections are directly streamed to your browser via native stream cutting, so you get exact clips with zero storage wait!
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

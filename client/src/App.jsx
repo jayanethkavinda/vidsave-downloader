@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
   Download,
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 import VideoTrimmer from './VideoTrimmer.jsx';
+import TaslAttributionCard from './TaslAttributionCard.jsx';
 
 const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
 
@@ -45,16 +46,17 @@ export default function App() {
   const [videoInfo, setVideoInfo] = useState(null);
   const [error, setError] = useState('');
   const [downloadingFormat, setDownloadingFormat] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadElapsed, setDownloadElapsed] = useState(0);
   const [downloadStep, setDownloadStep] = useState(1);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const [downloadingSubId, setDownloadingSubId] = useState(null);
-  const [copiedAttribution, setCopiedAttribution] = useState(false);
   const [subSearch, setSubSearch] = useState('');
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
+  const downloadProgressTimerRef = useRef(null);
 
   // Typing animation cycling through major platforms letter by letter
   const TYPING_PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Twitter (X)', 'Pinterest'];
@@ -305,8 +307,16 @@ export default function App() {
     setDownloadingFormat(presetId);
     setDownloadSuccess(false);
     setDownloadError('');
-    setDownloadElapsed(0);
-    setDownloadStep(1);
+    setDownloadProgress(20);
+
+    if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
+    downloadProgressTimerRef.current = setInterval(() => {
+      setDownloadProgress((prev) => {
+        if (prev >= 95) return prev;
+        const jump = Math.floor(Math.random() * 8) + 4;
+        return Math.min(96, prev + jump);
+      });
+    }, 140);
 
     // If this is a YouTube fallback, launch the instant fast mirror resolver
     if (videoInfo.isYouTubeFallback) {
@@ -315,7 +325,9 @@ export default function App() {
         window.open(preset.mirrorUrl, '_blank', 'noopener,noreferrer');
       }
       setTimeout(() => {
+        if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadingFormat(null);
+        setDownloadProgress(0);
       }, 1500);
       return;
     }
@@ -324,8 +336,6 @@ export default function App() {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
       const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
-
-      setDownloadStep(2);
 
       // Trigger Native Browser Download immediately (Zero RAM consumption, Native Chrome Download Manager)
       const link = document.createElement('a');
@@ -341,18 +351,22 @@ export default function App() {
         } catch (_) {}
       }, 2000);
 
-      // Notify user download has started in browser tray
+      // Once browser starts streaming, wrap up progress to 100% and notify user
       setTimeout(() => {
-        setDownloadStep(3);
+        if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
+        setDownloadProgress(100);
         setDownloadSuccess(true);
         setTimeout(() => {
           setDownloadingFormat(null);
+          setDownloadProgress(0);
         }, 1500);
-      }, 800);
+      }, 1100);
     } catch (err) {
+      if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
       console.error('Download trigger error:', err);
       setDownloadError(err.message || 'Download failed. Please try again.');
       setDownloadingFormat(null);
+      setDownloadProgress(0);
     }
   };
 
@@ -567,41 +581,66 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
 
   return (
     <div className="app">
-      {/* Navigation */}
-      <header className="navbar container">
-        <Link to="/" className="logo">
-          <img 
-            src="/videoDownloader.jpg" 
-            alt="VidSave Logo" 
-            className="logo-img" 
-          />
-          <div className="logo-text">
-            Vid<span>Save</span>
+      {/* Fixed Sticky Navigation Bar */}
+      <header className="navbar-wrapper">
+        <div className="navbar container">
+          <Link to="/" className="logo" onClick={() => setViewMode('main')}>
+            <img 
+              src="/videoDownloader.jpg" 
+              alt="VidSave Logo" 
+              className="logo-img" 
+            />
+            <div className="logo-text">
+              Vid<span>Save</span>
+            </div>
+          </Link>
+
+          {/* Mode Switcher Nav Buttons (Tailored for US Audience) */}
+          <nav className="nav-mode-switcher">
+            <button
+              type="button"
+              onClick={() => setViewMode('main')}
+              className={`nav-mode-btn ${viewMode === 'main' ? 'active' : ''}`}
+              title="Download Full HD Videos from any platform"
+            >
+              <Film size={16} />
+              <span>Full Video Downloader</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('trim')}
+              className={`nav-mode-btn ${viewMode === 'trim' ? 'active trim-active' : ''}`}
+              title="Trim, Cut & Crop Video Clpis"
+            >
+              <Scissors size={16} />
+              <span>Clip & Trim Video</span>
+            </button>
+          </nav>
+
+          <div className="nav-actions">
+            <button 
+              type="button" 
+              onClick={toggleTheme} 
+              className="btn-theme-toggle"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              aria-label="Toggle Theme"
+            >
+              {theme === 'dark' ? <Sun size={20} color="#06b6d4" /> : <Moon size={20} color="#0284c7" />}
+            </button>
           </div>
-        </Link>
-        <div className="nav-actions">
-          <div className="nav-badge">
-            <span className="nav-pulse"></span>
-            All Video Free Downloader
-          </div>
-          <button 
-            type="button" 
-            onClick={toggleTheme} 
-            className="btn-theme-toggle"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            aria-label="Toggle Theme"
-          >
-            {theme === 'dark' ? <Sun size={20} color="#06b6d4" /> : <Moon size={20} color="#0284c7" />}
-          </button>
         </div>
       </header>
 
       {/* Hero Section or Dedicated Video Trimmer */}
       <main className="container">
-        {viewMode === 'trim' && videoInfo ? (
+        {viewMode === 'trim' ? (
           <VideoTrimmer
             videoInfo={videoInfo}
             onBack={() => setViewMode('main')}
+            onVideoExtracted={(info) => {
+              setVideoInfo(info);
+              setUrl(info.webpageUrl || '');
+            }}
           />
         ) : (
           <>
@@ -773,56 +812,23 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       </span>
                     )}
                   </div>
+                  {/* 🔒 Reassurance Trust Badge */}
+                  <div className="trust-quality-badge">
+                    <ShieldCheck size={13} color="#10b981" style={{ flexShrink: 0 }} />
+                    <span>This video only has <strong>({videoInfo.maxQualityLabel || 'Original Quality'})</strong> original upload quality</span>
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDownload('best_with_audio', 'mp4')}
                   className="btn-primary-download"
                   disabled={downloadingFormat !== null}
                 >
-                  {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : (downloadingFormat === 'best_with_audio' ? <Zap size={18} className="spin" /> : <Download size={18} />)}
+                  {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : (downloadingFormat === 'best_with_audio' ? <Zap size={18} className="spin text-cyan" /> : <Download size={18} />)}
                   {downloadingFormat === 'best_with_audio' 
-                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Streaming & Saving...') 
+                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : `Starting Download... ${downloadProgress}%`) 
                     : (videoInfo.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Best Quality')}
                 </button>
               </div>
-
-              {/* ⏳ Live Direct Streaming Download Progress Card (Active while downloading) */}
-              {downloadingFormat !== null && (
-                <div className="trim-progress-card" style={{ margin: '1.25rem 0' }}>
-                  <div className="trim-progress-header">
-                    <div className="trim-pulse-icon-box">
-                      <Zap size={22} className="spin text-cyan" />
-                    </div>
-                    <div className="trim-progress-header-text">
-                      <h4 className="trim-progress-title">
-                        Processing & Direct Streaming Full Media...
-                      </h4>
-                      <p className="trim-progress-time">
-                        Elapsed Time: <strong>{downloadElapsed}s</strong> • Please wait, download will trigger automatically
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="trim-stages-row">
-                    <div className={`trim-stage-item ${downloadStep >= 1 ? 'active' : ''}`}>
-                      <span className="stage-dot"></span>
-                      <span>1. Cloud Extractor</span>
-                    </div>
-                    <div className={`trim-stage-item ${downloadStep >= 2 ? 'active' : ''}`}>
-                      <span className="stage-dot"></span>
-                      <span>2. Direct Stream Pipeline</span>
-                    </div>
-                    <div className={`trim-stage-item ${downloadStep >= 3 ? 'active' : ''}`}>
-                      <span className="stage-dot"></span>
-                      <span>3. Direct File Save</span>
-                    </div>
-                  </div>
-
-                  <div className="trim-progress-bar-track">
-                    <div className="trim-progress-bar-fill"></div>
-                  </div>
-                </div>
-              )}
 
               {/* ❌ Download Error Alert Card */}
               {downloadError && (
@@ -857,7 +863,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                     Trim & Crop Video before Downloading
                   </h4>
                   <p className="trimmer-entry-subtitle">
-                    Select exact cut points with draggable yellow timeline handles, preview live playback, and save only what you need (MP4 / MP3).
+                    Drag timeline handles to select cut points and export your clip in HD or MP3.
                   </p>
                 </div>
                 <button
@@ -920,6 +926,28 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           )}
                         </div>
                       )}
+
+                      {/* 💡 Subtitles Format Selection Guide */}
+                      <div className="sub-format-guide-card">
+                        <div className="sub-guide-header">
+                          <Subtitles size={16} color="#06b6d4" />
+                          <span>Which Subtitle Format Should You Choose?</span>
+                        </div>
+                        <div className="sub-guide-list">
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge srt">.SRT</span>
+                            <span className="sub-guide-text">
+                              <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
+                            </span>
+                          </div>
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge vtt">.VTT</span>
+                            <span className="sub-guide-text">
+                              <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
 
                       <div className="quality-table-wrapper">
                         <table className="quality-table">
@@ -1015,7 +1043,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                                 >
                                   {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
                                   {downloadingFormat === preset.id 
-                                    ? (videoInfo.isYouTubeFallback ? 'Opening...' : 'Downloading...') 
+                                    ? (videoInfo.isYouTubeFallback ? 'Opening...' : `Starting... ${downloadProgress}%`) 
                                     : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
                                 </button>
                               </td>
@@ -1028,42 +1056,8 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 )}
               </div>
 
-              {/* ⚖️ Auto-Attribution & TASL Credit Generator */}
-              <div className="attribution-card">
-                <div className="attribution-header">
-                  <div className="attribution-title-wrap">
-                    <ShieldCheck size={20} className="attribution-badge-icon" />
-                    <div>
-                      <h4 className="attribution-heading">Creator Attribution & Fair Use Credit (TASL)</h4>
-                      <p className="attribution-subheading">
-                        Ethical copyright attribution text ready for social media, YouTube descriptions, or research blogs
-                      </p>
-                    </div>
-                  </div>
-                  <div className="attribution-actions">
-                    <button
-                      type="button"
-                      onClick={handleCopyAttribution}
-                      className="btn-attribution-action"
-                      title="Copy attribution text to clipboard"
-                    >
-                      {copiedAttribution ? <CheckCircle size={15} color="#10b981" /> : <Clipboard size={15} />}
-                      {copiedAttribution ? 'Copied!' : 'Copy Attribution'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDownloadAttribution}
-                      className="btn-attribution-action btn-attribution-download"
-                      title="Download attribution as .TXT file"
-                    >
-                      <Download size={15} /> Download .TXT
-                    </button>
-                  </div>
-                </div>
-                <div className="attribution-snippet-box">
-                  <code>{generateAttributionText(videoInfo)}</code>
-                </div>
-              </div>
+              {/* ⚖️ Auto-Attribution & Fair Use Credit (TASL Standard) */}
+              <TaslAttributionCard videoInfo={videoInfo} />
             </div>
           )}
 

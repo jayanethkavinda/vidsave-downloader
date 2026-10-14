@@ -236,7 +236,9 @@ export async function getVideoInfo(url) {
 
     const maxHeight = availableHeights.size > 0 ? Math.max(...availableHeights) : (rawInfo.height || 720);
 
-    // Standard resolution tiers: from 8K down to 360p
+    const isYt = isYouTubeUrl(rawInfo.webpage_url || url);
+
+    // Standard resolution tiers: from 8K down to 360p (360p enabled for YouTube only; omitted for FB, TikTok, IG, etc.)
     const RESOLUTION_TIERS = [
       { minHeight: 3800, id: '4320', label: '8K Ultra HD (4320p)', shortLabel: '8K Ultra HD', badge: 'ultra', estByteRate: 14 * 1024 * 1024 },
       { minHeight: 2000, id: '2160', label: '4K Ultra HD (2160p)', shortLabel: '4K Ultra HD', badge: 'ultra', estByteRate: 5.5 * 1024 * 1024 },
@@ -244,7 +246,7 @@ export async function getVideoInfo(url) {
       { minHeight: 900,  id: '1080', label: '1080p Full HD', shortLabel: '1080p Full HD', badge: 'hd', estByteRate: 1.3 * 1024 * 1024 },
       { minHeight: 600,  id: '720',  label: '720p HD', shortLabel: '720p HD', badge: 'hd', estByteRate: 0.6 * 1024 * 1024 },
       { minHeight: 400,  id: '480',  label: '480p SD', shortLabel: '480p SD', badge: 'sd', estByteRate: 0.28 * 1024 * 1024 },
-      { minHeight: 250,  id: '360',  label: '360p Fast', shortLabel: '360p Fast', badge: 'sd', estByteRate: 0.14 * 1024 * 1024 },
+      ...(isYt ? [{ minHeight: 250,  id: '360',  label: '360p Fast', shortLabel: '360p Fast', badge: 'sd', estByteRate: 0.14 * 1024 * 1024 }] : []),
     ];
 
     // Filter tiers that actually exist in this video
@@ -680,7 +682,7 @@ export function streamVideoDownload(url, formatPreset, res) {
 /**
  * Stream trimmed video/audio section using HTTP range seeking and FFmpeg cut
  */
-export function streamTrimmedDownload(url, startTime, endTime, type = 'video', res) {
+export function streamTrimmedDownload(url, startTime, endTime, type = 'video', format = 'best', res) {
   const isAudio = type === 'audio' || type === 'mp3';
   const ext = isAudio ? 'mp3' : 'mp4';
   const tempDir = os.tmpdir();
@@ -704,17 +706,29 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
   const endStr = formatTime(endSec);
   const sectionArg = `*${startStr}-${endStr}`;
 
-  console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url}`);
+  console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url} (format: ${format})`);
 
   const isYt = isYouTubeUrl(url);
   let formatArg;
   if (isAudio) {
     formatArg = 'bestaudio/best';
-  } else if (isYt) {
-    formatArg = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+  } else if (format === '480') {
+    formatArg = isYt
+      ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
+      : 'bestvideo[height<=480]+bestaudio/bestvideo[width<=480]+bestaudio/best[height<=480]/best[width<=480]/best';
+  } else if (format === '720') {
+    formatArg = isYt
+      ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
+      : 'bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best[width<=720]/best';
+  } else if (format === '1080') {
+    formatArg = isYt
+      ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
+      : 'bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best[width<=1080]/best';
   } else {
-    // TikTok, Instagram, Twitter, Facebook: Full 1080p HD support for both horizontal and vertical videos
-    formatArg = 'bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best[width<=1080]/best';
+    // 'best' - Original creator upload quality
+    formatArg = isYt
+      ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
+      : 'bestvideo+bestaudio/best';
   }
 
   const args = [

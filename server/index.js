@@ -219,7 +219,7 @@ except Exception as e:
 
 // Video & Audio Segment Trimmer Download Stream (Zero Disk Storage)
 app.get('/api/trim', (req, res) => {
-  const { url, start = 0, end = 10, type = 'video', title = 'clip' } = req.query;
+  const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
   if (!url) {
     return res.status(400).json({ error: 'URL is required' });
   }
@@ -238,7 +238,7 @@ app.get('/api/trim', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
   res.setHeader('Content-Type', mimeType);
 
-  streamTrimmedDownload(url, start, end, type, res);
+  streamTrimmedDownload(url, start, end, type, format, res);
 });
 
 // Zero-Load Media Proxy Stream with HTTP Range pass-through for in-browser Trimmer preview (TikTok, Instagram, Facebook, etc.)
