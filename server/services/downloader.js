@@ -573,9 +573,10 @@ export function streamVideoDownload(url, formatPreset, res) {
         singleFormat = 'hd/best[height<=1080][ext=mp4]/best[ext=mp4]/best';
       }
     } else {
-      singleFormat = (formatPreset === 'best' || formatPreset === 'best_with_audio')
+      const p = formatPreset;
+      singleFormat = (p === 'best' || p === 'best_with_audio' || !p)
         ? 'best[ext=mp4]/best'
-        : (formatPreset ? `best[height<=${formatPreset}][ext=mp4]/best[height<=${formatPreset}]/best` : 'best[ext=mp4]/best');
+        : `bestvideo[height<=${p}][ext=mp4]+bestaudio/bestvideo[width<=${p}][ext=mp4]+bestaudio/best[height<=${p}][ext=mp4]/best[width<=${p}][ext=mp4]/best[height<=${p}]/best[width<=${p}]/best`;
     }
 
     const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), url];
@@ -585,11 +586,21 @@ export function streamVideoDownload(url, formatPreset, res) {
     resolver.stdout.on('data', d => { resolvedUrl += d.toString(); });
 
     resolver.on('close', async (code) => {
-      const targetUrl = resolvedUrl.trim().split('\n')[0];
-      const isHlsOrDash = targetUrl.includes('.m3u8') || 
-                          targetUrl.includes('.mpd') || 
-                          targetUrl.includes('/hls/') || 
-                          targetUrl.includes('manifest');
+      const urls = resolvedUrl.trim().split(/\r?\n/).filter(Boolean);
+
+      // If yt-dlp resolved multiple streams (separate video and audio), we MUST merge them via FFmpeg!
+      if (urls.length > 1) {
+        console.log(`[Stream Pipeline] Format ${formatPreset} has separate video+audio streams, running FFmpeg merge pipeline...`);
+        return runTempDownload();
+      }
+
+      const targetUrl = urls[0];
+      const isHlsOrDash = targetUrl && (
+        targetUrl.includes('.m3u8') || 
+        targetUrl.includes('.mpd') || 
+        targetUrl.includes('/hls/') || 
+        targetUrl.includes('manifest')
+      );
 
       if (code === 0 && targetUrl && targetUrl.startsWith('http') && !isHlsOrDash) {
         console.log(`[Zero-Disk Stream] Directly piping CDN stream to browser for ${url}`);
