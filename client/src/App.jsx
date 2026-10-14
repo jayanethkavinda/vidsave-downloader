@@ -45,6 +45,10 @@ export default function App() {
   const [videoInfo, setVideoInfo] = useState(null);
   const [error, setError] = useState('');
   const [downloadingFormat, setDownloadingFormat] = useState(null);
+  const [downloadElapsed, setDownloadElapsed] = useState(0);
+  const [downloadStep, setDownloadStep] = useState(1);
+  const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
   const [downloadingSubId, setDownloadingSubId] = useState(null);
   const [copiedAttribution, setCopiedAttribution] = useState(false);
   const [subSearch, setSubSearch] = useState('');
@@ -296,9 +300,13 @@ export default function App() {
   };
 
   // Trigger streaming download directly to client browser
-  const handleDownload = (presetId, formatExt = 'mp4') => {
-    if (!videoInfo) return;
+  const handleDownload = async (presetId, formatExt = 'mp4') => {
+    if (!videoInfo || downloadingFormat) return;
     setDownloadingFormat(presetId);
+    setDownloadSuccess(false);
+    setDownloadError('');
+    setDownloadElapsed(0);
+    setDownloadStep(1);
 
     // If this is a YouTube fallback, launch the instant fast mirror resolver
     if (videoInfo.isYouTubeFallback) {
@@ -312,22 +320,55 @@ export default function App() {
       return;
     }
 
-    const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(videoInfo.webpageUrl || url)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(videoInfo.title)}`;
-    
-    // Trigger streaming download via hidden iframe so current page NEVER navigates or refreshes
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = downloadUrl;
-    document.body.appendChild(iframe);
+    const timer = setInterval(() => {
+      setDownloadElapsed((prev) => prev + 1);
+    }, 1000);
 
-    setTimeout(() => {
-      try {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
-      } catch (_) {}
+    const step2Timer = setTimeout(() => {
+      setDownloadStep(2);
+    }, 2500);
+
+    try {
+      const cleanUrl = videoInfo.webpageUrl || url;
+      const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
+      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
+
+      const res = await fetch(downloadUrl);
+      if (!res.ok) {
+        let errMessage = 'Server failed to process download stream';
+        try {
+          const errData = await res.json();
+          if (errData.error) errMessage = errData.error;
+        } catch (_) {}
+        throw new Error(errMessage);
+      }
+
+      setDownloadStep(3);
+      const blob = await res.blob();
+      const filename = `${cleanTitle}.${formatExt}`;
+
+      // Instant download trigger via ObjectURL
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+
+      setDownloadSuccess(true);
+      setTimeout(() => {
+        setDownloadSuccess(false);
+      }, 6000);
+    } catch (err) {
+      console.error('Download stream error:', err);
+      setDownloadError(err.message || 'Download failed. Please check network and try again.');
+    } finally {
+      clearInterval(timer);
+      clearTimeout(step2Timer);
       setDownloadingFormat(null);
-    }, 8000);
+    }
   };
 
   // Browser VTT to SRT parser (enables instant client-side conversion)
@@ -751,14 +792,74 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 <button
                   onClick={() => handleDownload('best_with_audio', 'mp4')}
                   className="btn-primary-download"
-                  disabled={downloadingFormat === 'best_with_audio'}
+                  disabled={downloadingFormat !== null}
                 >
-                  {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : <Download size={18} />}
+                  {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : (downloadingFormat === 'best_with_audio' ? <Zap size={18} className="spin" /> : <Download size={18} />)}
                   {downloadingFormat === 'best_with_audio' 
-                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Downloading & Merging...') 
+                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : 'Streaming & Saving...') 
                     : (videoInfo.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Best Quality')}
                 </button>
               </div>
+
+              {/* ⏳ Live Direct Streaming Download Progress Card (Active while downloading) */}
+              {downloadingFormat !== null && (
+                <div className="trim-progress-card" style={{ margin: '1.25rem 0' }}>
+                  <div className="trim-progress-header">
+                    <div className="trim-pulse-icon-box">
+                      <Zap size={22} className="spin text-cyan" />
+                    </div>
+                    <div className="trim-progress-header-text">
+                      <h4 className="trim-progress-title">
+                        Processing & Direct Streaming Full Media...
+                      </h4>
+                      <p className="trim-progress-time">
+                        Elapsed Time: <strong>{downloadElapsed}s</strong> • Please wait, download will trigger automatically
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="trim-stages-row">
+                    <div className={`trim-stage-item ${downloadStep >= 1 ? 'active' : ''}`}>
+                      <span className="stage-dot"></span>
+                      <span>1. Cloud Extractor</span>
+                    </div>
+                    <div className={`trim-stage-item ${downloadStep >= 2 ? 'active' : ''}`}>
+                      <span className="stage-dot"></span>
+                      <span>2. Direct Stream Pipeline</span>
+                    </div>
+                    <div className={`trim-stage-item ${downloadStep >= 3 ? 'active' : ''}`}>
+                      <span className="stage-dot"></span>
+                      <span>3. Direct File Save</span>
+                    </div>
+                  </div>
+
+                  <div className="trim-progress-bar-track">
+                    <div className="trim-progress-bar-fill"></div>
+                  </div>
+                </div>
+              )}
+
+              {/* ❌ Download Error Alert Card */}
+              {downloadError && (
+                <div className="trim-error-card" style={{ margin: '1.25rem 0' }}>
+                  <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0 }} />
+                  <div>
+                    <h5 style={{ margin: '0 0 2px', color: '#ef4444', fontWeight: '700' }}>Download Issue</h5>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>{downloadError}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ✅ Download Success Banner */}
+              {downloadSuccess && (
+                <div className="trim-success-card" style={{ margin: '1.25rem 0' }}>
+                  <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} />
+                  <div>
+                    <h5 style={{ margin: '0 0 2px', color: '#10b981', fontWeight: '700' }}>Download Complete!</h5>
+                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Media file has been directly streamed and saved to your device.</p>
+                  </div>
+                </div>
+              )}
 
               {/* ✂️ CapCut-Style Visual Trimmer Feature Banner */}
               <div className="trimmer-entry-banner">
