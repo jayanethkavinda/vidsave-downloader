@@ -597,9 +597,19 @@ export function streamVideoDownload(url, formatPreset, res) {
             'Accept': '*/*',
           };
 
+          if (url.includes('tiktok.com') || url.includes('tt.site')) headers['Referer'] = 'https://www.tiktok.com/';
+          else if (url.includes('instagram.com')) headers['Referer'] = 'https://www.instagram.com/';
+          else if (url.includes('facebook.com') || url.includes('fb.watch')) headers['Referer'] = 'https://www.facebook.com/';
+          else if (url.includes('pinterest.com')) headers['Referer'] = 'https://www.pinterest.com/';
+          else if (url.includes('twitter.com') || url.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
+
           const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
             if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
               return res.redirect(upstreamRes.statusCode, upstreamRes.headers.location);
+            }
+            if (upstreamRes.statusCode >= 400) {
+              console.warn(`[CDN Stream] Upstream CDN returned HTTP ${upstreamRes.statusCode}, falling back to yt-dlp...`);
+              return runTempDownload();
             }
             if (upstreamRes.headers['content-length'] && !res.headersSent) {
               res.setHeader('Content-Length', upstreamRes.headers['content-length']);
