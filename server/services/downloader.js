@@ -427,7 +427,11 @@ export function streamVideoDownload(url, formatPreset, res) {
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3' || (formatPreset && formatPreset.includes('audio') && !formatPreset.includes('best_with_audio'));
 
   const buildTierFormat = (res) => {
-    return `bestvideo[height<=${res}]+bestaudio/bestvideo[width<=${res}]+bestaudio/best[height<=${res}]/best[width<=${res}]/best`;
+    const num = parseInt(res, 10);
+    if (num >= 1080) {
+      return `bestvideo[height>=${num}]+bestaudio/bestvideo[width>=${num}]+bestaudio/bestvideo[height<=${num}]+bestaudio/bestvideo[width<=${num}]+bestaudio/best`;
+    }
+    return `bestvideo[height<=${num}][height>=${Math.round(num * 0.7)}]+bestaudio/bestvideo[width<=${num}][width>=${Math.round(num * 0.7)}]+bestaudio/bestvideo[height<=${num}]+bestaudio/bestvideo[width<=${num}]+bestaudio/best[height<=${num}]/best[width<=${num}]/best`;
   };
 
   if (isAudio) {
@@ -574,9 +578,11 @@ export function streamVideoDownload(url, formatPreset, res) {
       }
     } else {
       const p = formatPreset;
-      singleFormat = (p === 'best' || p === 'best_with_audio' || !p)
-        ? 'best[ext=mp4]/best'
-        : `bestvideo[height<=${p}][ext=mp4]+bestaudio/bestvideo[width<=${p}][ext=mp4]+bestaudio/best[height<=${p}][ext=mp4]/best[width<=${p}][ext=mp4]/best[height<=${p}]/best[width<=${p}]/best`;
+      if (p === 'best' || p === 'best_with_audio' || !p) {
+        singleFormat = 'bestvideo+bestaudio/best[ext=mp4]/best';
+      } else {
+        singleFormat = buildTierFormat(p);
+      }
     }
 
     const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), url];
