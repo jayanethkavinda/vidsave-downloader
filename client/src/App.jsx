@@ -56,6 +56,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
+  const [selectedFullFormatId, setSelectedFullFormatId] = useState('best_with_audio');
   const downloadProgressTimerRef = useRef(null);
 
   // Typing animation cycling through major platforms letter by letter
@@ -566,9 +567,10 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
     }
   ];
 
-  const allVideoPresets = (videoInfo?.presets || []).filter(p => p.type === 'video' && p.id !== 'best_with_audio');
-  // Highest quality is prominently featured in the Recommended card above, so show remaining tiers below
-  const videoPresets = allVideoPresets.length > 1 ? allVideoPresets.slice(1) : allVideoPresets;
+  const allVideoPresets = (videoInfo?.presets || []).filter(p => p.type === 'video');
+  const dropdownVideoPresets = allVideoPresets.length > 0 ? allVideoPresets : [];
+  const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) || videoInfo?.bestPreset || dropdownVideoPresets[0];
+  const videoPresets = allVideoPresets.filter(p => p.id !== (selectedPreset?.id || 'best_with_audio'));
   const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
   const subtitles = videoInfo?.subtitles || [];
   const filteredSubtitles = subtitles.filter(s =>
@@ -603,17 +605,19 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               className={`nav-mode-btn ${viewMode === 'main' ? 'active' : ''}`}
               title="Download Full HD Videos from any platform"
             >
-              <Film size={16} />
-              <span>Full Video Downloader</span>
+              <Film size={15} />
+              <span className="nav-btn-text-full">Full Video Downloader</span>
+              <span className="nav-btn-text-short">Full Video</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('trim')}
               className={`nav-mode-btn ${viewMode === 'trim' ? 'active trim-active' : ''}`}
-              title="Trim, Cut & Crop Video Clpis"
+              title="Trim, Cut & Crop Video Clips"
             >
-              <Scissors size={16} />
-              <span>Clip & Trim Video</span>
+              <Scissors size={15} />
+              <span className="nav-btn-text-full">Clip & Trim Video</span>
+              <span className="nav-btn-text-short">Clip & Trim</span>
             </button>
           </nav>
 
@@ -795,84 +799,76 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 </div>
               )}
 
-              {/* 🌟 Featured Primary Download CTA */}
+              {/* 🌟 Clean Primary Download Box with Split Dropdown & Direct Trim Button */}
               <div className="featured-download-box">
-                <div className="featured-left">
-                  <div className="featured-label">
-                    <Flame size={14} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '4px' }} />
-                    {videoInfo.isYouTubeFallback ? 'Instant Cloud Mirror' : 'Recommended Quality'}
-                  </div>
-                  <div className="featured-title">
-                    {videoInfo.isYouTubeFallback 
-                      ? 'Download Full HD (1080p MP4) via Fast Mirror'
-                      : (videoInfo.bestPreset ? videoInfo.bestPreset.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() : 'Download Best Quality')}
-                    {getCleanFilesize(videoInfo.bestPreset) && (
-                      <span style={{ fontSize: '0.9rem', color: 'var(--cyan-primary)', marginLeft: '8px', fontWeight: '600' }}>
-                        (~{getCleanFilesize(videoInfo.bestPreset)})
-                      </span>
+                {/* 🔒 Reassurance Trust Badge */}
+                <div className="trust-quality-badge">
+                  <ShieldCheck size={15} color="#10b981" style={{ flexShrink: 0 }} />
+                  <span>This video only has <strong>({videoInfo.maxQualityLabel || 'Original Quality'})</strong> original upload quality</span>
+                </div>
+
+                {/* 📥 Split Dropdown Download Button (Matches Trim Video Page exactly as requested) */}
+                <div className="trimmer-split-btn full-video-split-btn">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (videoInfo.isYouTubeFallback) {
+                        window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
+                      } else {
+                        handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
+                      }
+                    }}
+                    disabled={downloadingFormat !== null}
+                    className="btn-split-action btn-full-split-action"
+                    title={`Download ${selectedPreset?.label || videoInfo.maxQualityLabel || 'Video'}`}
+                  >
+                    {downloadingFormat === (selectedPreset?.id || 'best_with_audio') ? (
+                      <>
+                        <Zap size={18} className="spin text-cyan" />
+                        <span>Starting Download... {downloadProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download size={18} className="split-action-icon" />
+                        <span className="split-action-text">
+                          Download {selectedPreset?.label?.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() || (videoInfo.maxQualityLabel ? `${videoInfo.maxQualityLabel} Full HD` : 'Best Quality')}
+                          {getCleanFilesize(selectedPreset) && (
+                            <span className="split-action-size"> (~{getCleanFilesize(selectedPreset)})</span>
+                          )}
+                        </span>
+                      </>
                     )}
-                  </div>
-                  {/* 🔒 Reassurance Trust Badge */}
-                  <div className="trust-quality-badge">
-                    <ShieldCheck size={13} color="#10b981" style={{ flexShrink: 0 }} />
-                    <span>This video only has <strong>({videoInfo.maxQualityLabel || 'Original Quality'})</strong> original upload quality</span>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDownload('best_with_audio', 'mp4')}
-                  className="btn-primary-download"
-                  disabled={downloadingFormat !== null}
-                >
-                  {videoInfo.isYouTubeFallback ? <ExternalLink size={18} /> : (downloadingFormat === 'best_with_audio' ? <Zap size={18} className="spin text-cyan" /> : <Download size={18} />)}
-                  {downloadingFormat === 'best_with_audio' 
-                    ? (videoInfo.isYouTubeFallback ? 'Opening Fast Mirror...' : `Starting Download... ${downloadProgress}%`) 
-                    : (videoInfo.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Best Quality')}
-                </button>
-              </div>
+                  </button>
 
-              {/* ❌ Download Error Alert Card */}
-              {downloadError && (
-                <div className="trim-error-card" style={{ margin: '1.25rem 0' }}>
-                  <AlertCircle size={22} color="#ef4444" style={{ flexShrink: 0 }} />
-                  <div>
-                    <h5 style={{ margin: '0 0 2px', color: '#ef4444', fontWeight: '700' }}>Download Issue</h5>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>{downloadError}</p>
-                  </div>
+                  {dropdownVideoPresets.length > 1 && (
+                    <div className="split-dropdown-trigger" title="Select Video Quality">
+                      <select
+                        value={selectedFullFormatId}
+                        onChange={(e) => setSelectedFullFormatId(e.target.value)}
+                        className="split-select-native"
+                        aria-label="Select Video Quality"
+                      >
+                        {dropdownVideoPresets.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim()}
+                            {getCleanFilesize(opt) ? ` (~${getCleanFilesize(opt)})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="split-chevron-icon" />
+                    </div>
+                  )}
                 </div>
-              )}
 
-              {/* ✅ Download Success Banner */}
-              {downloadSuccess && (
-                <div className="trim-success-card" style={{ margin: '1.25rem 0' }}>
-                  <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} />
-                  <div>
-                    <h5 style={{ margin: '0 0 2px', color: '#10b981', fontWeight: '700' }}>Download Complete!</h5>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Media file has been directly streamed and saved to your device.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* ✂️ CapCut-Style Visual Trimmer Feature Banner */}
-              <div className="trimmer-entry-banner">
-                <div className="trimmer-entry-content">
-                  <div className="trimmer-entry-badge">
-                    <Scissors size={14} color="#06b6d4" />
-                    <span>Visual Range Trimmer & Clipper</span>
-                  </div>
-                  <h4 className="trimmer-entry-title">
-                    Trim & Crop Video before Downloading
-                  </h4>
-                  <p className="trimmer-entry-subtitle">
-                    Drag timeline handles to select cut points and export your clip in HD or MP3.
-                  </p>
-                </div>
+                {/* ✂️ Trim & Crop Video Button directly under the download button */}
                 <button
                   type="button"
                   onClick={() => {
                     setViewMode('trim');
                     window.scrollTo({ top: 100, behavior: 'smooth' });
                   }}
-                  className="btn-launch-trimmer"
+                  className="btn-launch-trimmer-clean"
+                  title="Trim, Cut & Crop Video"
                 >
                   <Scissors size={17} />
                   <span>✂️ Trim & Crop Video</span>
