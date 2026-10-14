@@ -569,17 +569,17 @@ export function streamVideoDownload(url, formatPreset, res) {
   // Solves Render 502 Bad Gateway timeouts on long 1-2 hour movies!
   if (!isYt && !isAudio) {
     const isFacebook = url.includes('facebook.com') || url.includes('fb.watch');
-    const p = formatPreset;
     let singleFormat;
     if (isFacebook) {
-      if (p === '360' || p === '480') {
-        singleFormat = 'sd/best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/best[width<=480]/best';
-      } else if (p === 'best' || p === 'best_with_audio' || !p) {
-        singleFormat = 'hd/bestvideo+bestaudio/best[ext=mp4]/best';
+      if (formatPreset === '360' || formatPreset === '480') {
+        singleFormat = 'sd/best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/best';
+      } else if (formatPreset === 'best' || formatPreset === 'best_with_audio' || !formatPreset) {
+        singleFormat = 'bestvideo+bestaudio/hd/best[ext=mp4]/best';
       } else {
-        singleFormat = buildTierFormat(p);
+        singleFormat = buildTierFormat(formatPreset);
       }
     } else {
+      const p = formatPreset;
       if (p === 'best' || p === 'best_with_audio' || !p) {
         singleFormat = 'bestvideo+bestaudio/best[ext=mp4]/best';
       } else {
