@@ -57,8 +57,6 @@ export default function App() {
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
   const [selectedFullFormatId, setSelectedFullFormatId] = useState('best_with_audio');
-  const [qualityDropdownOpen, setQualityDropdownOpen] = useState(false);
-  const qualityMenuRef = useRef(null);
   const downloadProgressTimerRef = useRef(null);
 
   // Typing animation cycling through major platforms letter by letter
@@ -119,29 +117,6 @@ export default function App() {
     setActiveTab(currentPage.defaultTab || 'video');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [location.pathname]);
-
-  // Close custom quality dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (qualityMenuRef.current && !qualityMenuRef.current.contains(e.target)) {
-        setQualityDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, []);
-
-  // Automatically select smart default quality (1080p if available, else highest available)
-  useEffect(() => {
-    if (videoInfo?.presets) {
-      const defaultId = getSmartDefaultVideoPreset(videoInfo.presets, videoInfo.bestPreset);
-      setSelectedFullFormatId(defaultId);
-    }
-  }, [videoInfo]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -253,65 +228,18 @@ export default function App() {
     return null;
   };
 
-  // Clean label without repeated words like "Download" or "with Audio"
-  const getCleanQualityLabel = (preset, vInfo) => {
-    if (!preset) {
-      return vInfo?.maxQualityLabel ? `${vInfo.maxQualityLabel} HD` : 'Best Quality';
-    }
-    let label = preset.label || preset.resolution || '';
-    label = label
-      .replace(/\s*\(with\s*Audio\)/gi, '')
-      .replace(/\s*with\s*Audio/gi, '')
-      .replace(/download\s*/gi, '')
-      .replace(/download/gi, '')
-      .trim();
-
-    if ((!label || /^best\s*quality$/i.test(label)) && vInfo?.maxQualityLabel) {
-      label = `${vInfo.maxQualityLabel} HD`;
-    }
-    return label || '1080p Full HD';
-  };
-
-  // Smart default resolution logic:
-  // 1. If video has >= 1080p (8k, 4k, 2k, 1080p), button defaults to 1080p.
-  // 2. If video max is lower (720p, 480p), button defaults to highest available.
-  const getSmartDefaultVideoPreset = (presets, bestPreset) => {
-    if (!presets || presets.length === 0) return bestPreset?.id || 'best_with_audio';
-    const vPresets = presets.filter(p => p.type === 'video');
-    if (vPresets.length === 0) return bestPreset?.id || 'best_with_audio';
-
-    // 1. Check for 1080p preset
-    const p1080 = vPresets.find(p =>
-      p.id === '1080' ||
-      /(?:1080|full\s*hd)/i.test(p.label || '') ||
-      (p.resolution && String(p.resolution).includes('1080'))
-    );
-    if (p1080) return p1080.id;
-
-    // 2. Check 720p preset
-    const p720 = vPresets.find(p =>
-      p.id === '720' ||
-      /720/i.test(p.label || '') ||
-      (p.resolution && String(p.resolution).includes('720'))
-    );
-    if (p720) return p720.id;
-
-    // 3. Check 480p preset
-    const p480 = vPresets.find(p =>
-      p.id === '480' ||
-      /480/i.test(p.label || '') ||
-      (p.resolution && String(p.resolution).includes('480'))
-    );
-    if (p480) return p480.id;
-
-    return vPresets[0]?.id || bestPreset?.id || 'best_with_audio';
-  };
-
   // Handle URL fetch
   const handleFetchInfo = async (e, directUrl = null) => {
     if (e) e.preventDefault();
-    const targetUrl = (directUrl || url || '').trim();
-    if (!targetUrl) return;
+    const rawTarget = (directUrl || url || '').trim();
+    if (!rawTarget) return;
+
+    // Automatically extract clean URL if user accidentally prepended extra text
+    const urlMatch = rawTarget.match(/https?:\/\/[^\s]+/i);
+    const targetUrl = urlMatch ? urlMatch[0] : rawTarget;
+    if (targetUrl !== url) {
+      setUrl(targetUrl);
+    }
 
     setLoading(true);
     setError('');
@@ -345,7 +273,9 @@ export default function App() {
         setVideoInfo(fallbackInfo);
       } else {
         let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
-        if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(msg)) {
+        if (/Failed to fetch|NetworkError/i.test(msg)) {
+          msg = 'Cloud Server is waking up (Render Free cold start takes ~30-50s). Please click "Get Video" again in a few seconds!';
+        } else if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(msg)) {
           msg = 'This Instagram Reel/Post is Age-Restricted, Private, or requires an Instagram login to view.';
         }
         setError(msg);
@@ -648,29 +578,16 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
 
   const allVideoPresets = (videoInfo?.presets || []).filter(p => p.type === 'video');
   const dropdownVideoPresets = allVideoPresets.length > 0 ? allVideoPresets : [];
-  const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) 
-    || dropdownVideoPresets.find(p => /(?:1080|full\s*hd)/i.test(p.label || ''))
-    || videoInfo?.bestPreset 
-    || dropdownVideoPresets[0];
-  const audioPreset = (videoInfo?.presets || []).find(p => p.type === 'audio')
-    || (videoInfo?.presets || []).find(p => p.id === 'mirror_mp3' || p.ext === 'mp3')
-    || { id: 'best_audio', ext: 'mp3', label: 'MP3 Audio' };
+  const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) || videoInfo?.bestPreset || dropdownVideoPresets[0];
+  const videoPresets = allVideoPresets.filter(p => p.id !== (selectedPreset?.id || 'best_with_audio'));
+  const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
   const subtitles = videoInfo?.subtitles || [];
   const filteredSubtitles = subtitles.filter(s =>
     !subSearch.trim() ||
     s.language.toLowerCase().includes(subSearch.toLowerCase()) ||
     s.code.toLowerCase().includes(subSearch.toLowerCase())
   );
-
-  const handleDownloadMp3 = () => {
-    if (!videoInfo || downloadingFormat) return;
-    if (videoInfo.isYouTubeFallback) {
-      const mp3Preset = (videoInfo.presets || []).find(p => p.type === 'audio' || p.id === 'mirror_mp3');
-      window.open(mp3Preset?.mirrorUrl || `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=${encodeURIComponent(videoInfo.webpageUrl)}`, '_blank', 'noopener,noreferrer');
-    } else {
-      handleDownload(audioPreset?.id || 'best_audio', 'mp3');
-    }
-  };
+  const filteredPresets = activeTab === 'video' ? videoPresets : audioPresets;
 
 
   return (
@@ -891,7 +808,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 </div>
               )}
 
-              {/* 🌟 Clean Primary Download Box with Custom Dropdown & Direct Action Buttons */}
+              {/* 🌟 Clean Primary Download Box with Split Dropdown & Direct Trim Button */}
               <div className="featured-download-box">
                 {/* 🔒 Reassurance Trust Badge */}
                 <div className="trust-quality-badge">
@@ -899,8 +816,8 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <span>This video only has <strong>({videoInfo.maxQualityLabel || 'Original Quality'})</strong> original upload quality</span>
                 </div>
 
-                {/* 📥 Row 1: Split Dropdown Download Button */}
-                <div className="trimmer-split-btn full-video-split-btn" ref={qualityMenuRef}>
+                {/* 📥 Split Dropdown Download Button (Matches Trim Video Page exactly as requested) */}
+                <div className="trimmer-split-btn full-video-split-btn">
                   <button
                     type="button"
                     onClick={() => {
@@ -912,7 +829,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                     }}
                     disabled={downloadingFormat !== null}
                     className="btn-split-action btn-full-split-action"
-                    title={`Download ${getCleanQualityLabel(selectedPreset, videoInfo)}`}
+                    title={`Download ${selectedPreset?.label || videoInfo.maxQualityLabel || 'Video'}`}
                   >
                     {downloadingFormat === (selectedPreset?.id || 'best_with_audio') ? (
                       <>
@@ -923,7 +840,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       <>
                         <Download size={18} className="split-action-icon" />
                         <span className="split-action-text">
-                          Download {getCleanQualityLabel(selectedPreset, videoInfo)}
+                          Download {selectedPreset?.label?.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() || (videoInfo.maxQualityLabel ? `${videoInfo.maxQualityLabel} Full HD` : 'Best Quality')}
                           {getCleanFilesize(selectedPreset) && (
                             <span className="split-action-size"> (~{getCleanFilesize(selectedPreset)})</span>
                           )}
@@ -933,107 +850,78 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   </button>
 
                   {dropdownVideoPresets.length > 1 && (
-                    <div className="split-dropdown-trigger-wrap">
-                      <button
-                        type="button"
-                        onClick={() => setQualityDropdownOpen(prev => !prev)}
-                        className={`split-dropdown-trigger-btn ${qualityDropdownOpen ? 'active' : ''}`}
-                        title="Select Video Quality"
+                    <div className="split-dropdown-trigger" title="Select Video Quality">
+                      <select
+                        value={selectedFullFormatId}
+                        onChange={(e) => setSelectedFullFormatId(e.target.value)}
+                        className="split-select-native"
                         aria-label="Select Video Quality"
                       >
-                        <ChevronDown size={18} className={`split-chevron-icon ${qualityDropdownOpen ? 'open' : ''}`} />
-                      </button>
-
-                      {qualityDropdownOpen && (
-                        <div className="custom-dropdown-menu">
-                          {dropdownVideoPresets.map((opt) => {
-                            const isSelected = opt.id === selectedPreset?.id;
-                            const cleanLabel = getCleanQualityLabel(opt, videoInfo);
-                            const sizeStr = getCleanFilesize(opt);
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                className={`custom-dropdown-item ${isSelected ? 'selected' : ''}`}
-                                onClick={() => {
-                                  setSelectedFullFormatId(opt.id);
-                                  setQualityDropdownOpen(false);
-                                }}
-                              >
-                                <div className="dropdown-item-left">
-                                  <Film size={15} className="dropdown-item-icon" />
-                                  <span className="dropdown-item-label">{cleanLabel}</span>
-                                </div>
-                                <div className="dropdown-item-right">
-                                  {sizeStr && <span className="dropdown-item-size">~{sizeStr}</span>}
-                                  {isSelected && <CheckCircle size={15} className="dropdown-item-check" />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                        {dropdownVideoPresets.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim()}
+                            {getCleanFilesize(opt) ? ` (~${getCleanFilesize(opt)})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={16} className="split-chevron-icon" />
                     </div>
                   )}
                 </div>
 
-                {/* ⚡ Row 2: Trim & Crop Video + Download MP3 Side-by-Side */}
-                <div className="secondary-actions-row">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setViewMode('trim');
-                      window.scrollTo({ top: 100, behavior: 'smooth' });
-                    }}
-                    className="btn-action-secondary btn-action-trim"
-                    title="Trim, Cut & Crop Video"
-                  >
-                    <Scissors size={17} />
-                    <span>Trim & Crop Video</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadMp3}
-                    disabled={downloadingFormat !== null}
-                    className="btn-action-secondary btn-action-mp3"
-                    title="Download MP3 Audio"
-                  >
-                    {downloadingFormat === (audioPreset?.id || 'best_audio') ? (
-                      <>
-                        <Zap size={16} className="spin text-cyan" />
-                        <span>Starting MP3... {downloadProgress}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download size={17} />
-                        <span>Download MP3</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                {/* ✂️ Trim & Crop Video Button directly under the download button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('trim');
+                    window.scrollTo({ top: 100, behavior: 'smooth' });
+                  }}
+                  className="btn-launch-trimmer-clean"
+                  title="Trim, Cut & Crop Video"
+                >
+                  <Scissors size={17} />
+                  <span>✂️ Trim & Crop Video</span>
+                </button>
               </div>
 
-              {/* Subtitles Section (Directly displayed below buttons - Video/Audio tables removed as requested) */}
-              <div className="subtitles-section-container">
-                {subtitles.length === 0 ? (
-                  <div className="no-subtitles-card">
-                    <Subtitles size={24} className="no-sub-icon" />
-                    <span className="no-sub-text">This video does not have subtitle files available.</span>
-                  </div>
-                ) : (
-                  <div className="subtitles-active-container">
-                    <div className="subtitles-header-bar">
-                      <div className="subtitles-header-title">
-                        <Subtitles size={18} color="#06b6d4" />
-                        <span>Available Subtitles & Captions ({subtitles.length})</span>
-                      </div>
-                      {subtitles.length > 3 && (
-                        <div className="sub-search-box compact">
-                          <Search size={15} color="var(--text-muted)" />
+              {/* Quality Options & Category Tabs */}
+              <div style={{ textAlign: 'left' }}>
+                <div className="format-tabs">
+                  <button
+                    className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('video')}
+                  >
+                    <Film size={16} /> Video Formats ({videoPresets.length})
+                  </button>
+                  <button
+                    className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('audio')}
+                  >
+                    <Music size={16} /> Audio Only ({audioPresets.length})
+                  </button>
+                  <button
+                    className={`tab-btn ${activeTab === 'subtitles' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('subtitles')}
+                  >
+                    <Subtitles size={16} /> Subtitles ({subtitles.length})
+                  </button>
+                </div>
+
+                {activeTab === 'subtitles' ? (
+                  subtitles.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
+                      <Subtitles size={36} style={{ opacity: 0.35, marginBottom: '0.75rem', display: 'inline-block' }} />
+                      <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>No subtitles found for this video.</p>
+                      <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>This media does not have uploaded or auto-generated captions available.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {subtitles.length > 0 && (
+                        <div className="sub-search-box">
+                          <Search size={16} color="var(--text-muted)" />
                           <input
                             type="text"
-                            placeholder="Search language (Sinhala, English...)"
+                            placeholder="Search language (e.g. Sinhala, English, Tamil, Spanish, French)..."
                             value={subSearch}
                             onChange={(e) => setSubSearch(e.target.value)}
                             className="sub-search-input"
@@ -1043,81 +931,132 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           )}
                         </div>
                       )}
-                    </div>
 
-                    {/* Subtitles Format Selection Guide */}
-                    <div className="sub-format-guide-card">
-                      <div className="sub-guide-header">
-                        <Subtitles size={16} color="#06b6d4" />
-                        <span>Which Subtitle Format Should You Choose?</span>
-                      </div>
-                      <div className="sub-guide-list">
-                        <div className="sub-guide-item">
-                          <span className="sub-guide-badge srt">.SRT</span>
-                          <span className="sub-guide-text">
-                            <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
-                          </span>
+                      {/* 💡 Subtitles Format Selection Guide */}
+                      <div className="sub-format-guide-card">
+                        <div className="sub-guide-header">
+                          <Subtitles size={16} color="#06b6d4" />
+                          <span>Which Subtitle Format Should You Choose?</span>
                         </div>
-                        <div className="sub-guide-item">
-                          <span className="sub-guide-badge vtt">.VTT</span>
-                          <span className="sub-guide-text">
-                            <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
-                          </span>
+                        <div className="sub-guide-list">
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge srt">.SRT</span>
+                            <span className="sub-guide-text">
+                              <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
+                            </span>
+                          </div>
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge vtt">.VTT</span>
+                            <span className="sub-guide-text">
+                              <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="quality-table-wrapper">
-                      <table className="quality-table">
-                        <tbody>
-                          {filteredSubtitles.map((sub) => {
-                            const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
-                            const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
-                            return (
-                              <tr key={sub.id} className="quality-row">
-                                <td className="quality-cell" style={{ fontWeight: '600' }}>
-                                  <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
-                                    {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
-                                    <span>{sub.language}</span>
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
-                                      ({sub.isAuto ? 'Auto CC' : 'Official'})
+                      <div className="quality-table-wrapper">
+                        <table className="quality-table">
+                          <tbody>
+                            {filteredSubtitles.map((sub) => {
+                              const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
+                              const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
+
+                              return (
+                                <tr key={sub.id} className="quality-row">
+                                  <td className="quality-cell" style={{ fontWeight: '600' }}>
+                                    <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
+                                      {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
+                                      <span>{sub.language}</span>
+                                      <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
+                                        ({sub.isAuto ? 'Auto CC' : 'Official'})
+                                      </span>
                                     </span>
+                                  </td>
+                                  <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                    <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
+                                    <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
+                                      • {sub.code.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="quality-cell" style={{ textAlign: 'right' }}>
+                                    <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                      <button
+                                        onClick={() => handleDownloadSub(sub, 'srt')}
+                                        className="btn-download-action btn-sub-action"
+                                        disabled={isDownloadingSrt || isDownloadingVtt}
+                                        title={`Download ${sub.language} subtitle as .SRT file`}
+                                      >
+                                        <Download size={14} />
+                                        {isDownloadingSrt ? 'Saving...' : '.SRT'}
+                                      </button>
+                                      <button
+                                        onClick={() => handleDownloadSub(sub, 'vtt')}
+                                        className="btn-download-action btn-sub-action btn-sub-vtt"
+                                        disabled={isDownloadingSrt || isDownloadingVtt}
+                                        title={`Download ${sub.language} subtitle as .VTT file`}
+                                      >
+                                        <Download size={14} />
+                                        {isDownloadingVtt ? 'Saving...' : '.VTT'}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <div className="quality-table-wrapper">
+                    <table className="quality-table">
+                      <tbody>
+                        {filteredPresets.map((preset) => {
+                          let badgeClass = preset.badge || 'hd';
+                          if (preset.id.includes('best') && preset.type === 'video') badgeClass = 'best';
+                          else if (preset.id === '4320' || preset.id === '2160') badgeClass = 'ultra';
+                          else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
+                          else if (preset.type === 'audio') badgeClass = 'audio';
+
+                          const cleanLabel = (preset.label || '')
+                            .replace(/\s*\(with\s*Audio\)/gi, '')
+                            .replace(/\s*with\s*Audio/gi, '')
+                            .trim();
+
+                          return (
+                            <tr key={preset.id} className="quality-row">
+                              <td className="quality-cell" style={{ fontWeight: '600' }}>
+                                <span className={`quality-badge ${badgeClass}`}>
+                                  {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
+                                  {cleanLabel}
+                                </span>
+                              </td>
+                              <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
+                                {getCleanFilesize(preset) && (
+                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
+                                    • {getCleanFilesize(preset)}
                                   </span>
-                                </td>
-                                <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                  <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
-                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
-                                    • {sub.code.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="quality-cell" style={{ textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                    <button
-                                      onClick={() => handleDownloadSub(sub, 'srt')}
-                                      className="btn-download-action btn-sub-action"
-                                      disabled={isDownloadingSrt || isDownloadingVtt}
-                                      title={`Download ${sub.language} subtitle as .SRT file`}
-                                    >
-                                      <Download size={14} />
-                                      {isDownloadingSrt ? 'Saving...' : '.SRT'}
-                                    </button>
-                                    <button
-                                      onClick={() => handleDownloadSub(sub, 'vtt')}
-                                      className="btn-download-action btn-sub-action btn-sub-vtt"
-                                      disabled={isDownloadingSrt || isDownloadingVtt}
-                                      title={`Download ${sub.language} subtitle as .VTT file`}
-                                    >
-                                      <Download size={14} />
-                                      {isDownloadingVtt ? 'Saving...' : '.VTT'}
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                )}
+                              </td>
+                              <td className="quality-cell" style={{ textAlign: 'right' }}>
+                                <button
+                                  onClick={() => handleDownload(preset.id, preset.ext)}
+                                  className="btn-download-action"
+                                  disabled={downloadingFormat === preset.id}
+                                >
+                                  {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
+                                  {downloadingFormat === preset.id 
+                                    ? (videoInfo.isYouTubeFallback ? 'Opening...' : `Starting... ${downloadProgress}%`) 
+                                    : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>

@@ -7,7 +7,6 @@ import {
   Scissors,
   Music,
   Film,
-  Download,
   Zap,
   Clock,
   Sparkles,
@@ -44,10 +43,8 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
 
-  // Smart quality selection: defaults to 1080p if video is >= 1080p, else highest available
-  const [selectedQuality, setSelectedQuality] = useState('1080'); // 'best' | '1080' | '720' | '480'
-  const [trimQualityOpen, setTrimQualityOpen] = useState(false);
-  const trimmerQualityRef = useRef(null);
+  // Default quality: 720p (as requested)
+  const [selectedQuality, setSelectedQuality] = useState('720'); // 'best' | '1080' | '720' | '480'
 
   const timelineRef = useRef(null);
   const draggingHandle = useRef(null); // 'left' | 'right' | null
@@ -55,37 +52,6 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const ytPlayerRef = useRef(null);
   const ytIntervalRef = useRef(null);
   const progressTimerRef = useRef(null);
-
-  // Close trimmer quality dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (trimmerQualityRef.current && !trimmerQualityRef.current.contains(e.target)) {
-        setTrimQualityOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, []);
-
-  // Set smart default quality when video info loads
-  useEffect(() => {
-    if (videoInfo) {
-      const maxQ = (videoInfo.maxQualityLabel || '').toLowerCase();
-      if (/8k|4k|2k|1440|1080/i.test(maxQ)) {
-        setSelectedQuality('1080');
-      } else if (/720/i.test(maxQ)) {
-        setSelectedQuality('720');
-      } else if (/480|360/i.test(maxQ)) {
-        setSelectedQuality('480');
-      } else {
-        setSelectedQuality('1080');
-      }
-    }
-  }, [videoInfo]);
 
   // Sync state if initialVideoInfo changes from outside
   useEffect(() => {
@@ -818,7 +784,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
           <div className="trimmer-export-container">
             <div className="trimmer-split-download-group">
               {/* White Dropdown Split Button */}
-              <div className="trimmer-split-btn" ref={trimmerQualityRef}>
+              <div className="trimmer-split-btn">
                 {/* Left Side: Click to Download Selected Quality */}
                 <button
                   type="button"
@@ -834,7 +800,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     </>
                   ) : (
                     <>
-                      <Download size={18} className="split-action-icon" />
+                      <Film size={18} className="split-action-icon" />
                       <span className="split-action-text">
                         {selectedQuality === 'best'
                           ? `Original Upload Quality (${videoInfo?.maxQualityLabel || 'Max HD'})`
@@ -848,47 +814,20 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                   )}
                 </button>
 
-                {/* Right Side: Down Arrow Custom Dropdown Trigger */}
-                <div className="split-dropdown-trigger-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setTrimQualityOpen(prev => !prev)}
-                    className={`split-dropdown-trigger-btn ${trimQualityOpen ? 'active' : ''}`}
-                    title="Select Video Quality"
+                {/* Right Side: Down Arrow Dropdown Trigger */}
+                <div className="split-dropdown-trigger" title="Select Video Quality">
+                  <select
+                    value={selectedQuality}
+                    onChange={(e) => setSelectedQuality(e.target.value)}
+                    className="split-select-native"
                     aria-label="Select Video Quality"
                   >
-                    <ChevronDown size={18} className={`split-chevron-icon ${trimQualityOpen ? 'open' : ''}`} />
-                  </button>
-
-                  {trimQualityOpen && (
-                    <div className="custom-dropdown-menu">
-                      {[
-                        { value: 'best', label: `Original Upload Quality (${videoInfo?.maxQualityLabel || 'Max HD'})` },
-                        { value: '1080', label: '1080p Full HD' },
-                        { value: '720', label: '720p HD' },
-                        { value: '480', label: '480p SD' }
-                      ].map((opt) => {
-                        const isSelected = selectedQuality === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            className={`custom-dropdown-item ${isSelected ? 'selected' : ''}`}
-                            onClick={() => {
-                              setSelectedQuality(opt.value);
-                              setTrimQualityOpen(false);
-                            }}
-                          >
-                            <div className="dropdown-item-left">
-                              <Film size={15} className="dropdown-item-icon" />
-                              <span className="dropdown-item-label">{opt.label}</span>
-                            </div>
-                            {isSelected && <CheckCircle size={15} className="dropdown-item-check" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                    <option value="best">Original Upload Quality ({videoInfo?.maxQualityLabel || 'Max HD'})</option>
+                    <option value="1080">1080p Full HD</option>
+                    <option value="720">720p HD</option>
+                    <option value="480">480p SD</option>
+                  </select>
+                  <ChevronDown size={16} className="split-chevron-icon" />
                 </div>
               </div>
 
