@@ -774,6 +774,30 @@ button {
   color: #f472b6;
 }
 
+.quality-badge.sub-manual {
+  background: rgba(16, 185, 129, 0.18);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  width: auto;
+  min-width: 170px;
+}
+
+[data-theme='dark'] .quality-badge.sub-manual {
+  color: #34d399;
+}
+
+.quality-badge.sub-auto {
+  background: rgba(168, 85, 247, 0.18);
+  color: #9333ea;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  width: auto;
+  min-width: 170px;
+}
+
+[data-theme='dark'] .quality-badge.sub-auto {
+  color: #c084fc;
+}
+
 .btn-download-action {
   display: inline-flex;
   align-items: center;
@@ -796,6 +820,72 @@ button {
   color: #fff;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);
+}
+
+.btn-sub-action {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  min-height: 36px;
+  border-radius: 6px;
+}
+
+.btn-sub-vtt {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-glass);
+  color: var(--text-muted);
+}
+
+.btn-sub-vtt:hover {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: var(--cyan-primary);
+  color: var(--cyan-primary);
+  box-shadow: none;
+}
+
+/* Subtitle Search Box */
+.sub-search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.sub-search-box:focus-within {
+  border-color: var(--cyan-primary);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+}
+
+.sub-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.sub-search-input::placeholder {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.sub-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+  border-radius: 50%;
+}
+
+.sub-search-clear:hover {
+  color: var(--text-main);
 }
 
 /* =========================================================

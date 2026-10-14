@@ -24,7 +24,9 @@ import {
   Flame,
   Pin,
   Smartphone,
-  ExternalLink
+  ExternalLink,
+  Subtitles,
+  Search
 } from 'lucide-react';
 import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 
@@ -43,6 +45,8 @@ export default function App() {
   const [videoInfo, setVideoInfo] = useState(null);
   const [error, setError] = useState('');
   const [downloadingFormat, setDownloadingFormat] = useState(null);
+  const [downloadingSubId, setDownloadingSubId] = useState(null);
+  const [subSearch, setSubSearch] = useState('');
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
 
@@ -180,6 +184,20 @@ export default function App() {
           type: 'video', 
           mirrorUrl: 'https://cobalt.tools/' 
         }
+      ],
+      subtitles: [
+        { id: 'auto_en', code: 'en', language: 'English', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=en&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_si', code: 'si', language: 'Sinhala', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=si&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_es', code: 'es', language: 'Spanish', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=es&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_hi', code: 'hi', language: 'Hindi', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=hi&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_ta', code: 'ta', language: 'Tamil', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ta&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_fr', code: 'fr', language: 'French', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=fr&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_de', code: 'de', language: 'German', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=de&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_ja', code: 'ja', language: 'Japanese', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ja&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_ar', code: 'ar', language: 'Arabic', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ar&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_ru', code: 'ru', language: 'Russian', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=ru&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_pt', code: 'pt', language: 'Portuguese', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=pt&fmt=vtt`, exts: ['srt', 'vtt'] },
+        { id: 'auto_zh', code: 'zh', language: 'Chinese', isAuto: true, url: `https://www.youtube.com/api/timedtext?v=${videoId}&lang=zh&fmt=vtt`, exts: ['srt', 'vtt'] }
       ]
     };
   };
@@ -267,6 +285,109 @@ export default function App() {
     }, 2500);
   };
 
+  // Browser VTT to SRT parser (enables instant client-side conversion)
+  const clientConvertVttToSrt = (vttContent) => {
+    if (!vttContent) return '';
+    const lines = vttContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    const srt = [];
+    let counter = 1;
+    let inHeader = true;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (inHeader) {
+        if (line.includes('-->')) inHeader = false;
+        else continue;
+      }
+      if (line.includes('-->')) {
+        srt.push(counter++);
+        const cleanTime = line
+          .replace(/(\d{2}:\d{2}:\d{2})\.(\d{3})/g, '$1,$2')
+          .replace(/(\d{2}:\d{2})\.(\d{3})/g, '00:$1,$2')
+          .replace(/\s+[a-z]+:[^\s]+/gi, '')
+          .trim();
+        srt.push(cleanTime);
+      } else if (line === '') {
+        if (srt.length > 0 && srt[srt.length - 1] !== '') srt.push('');
+      } else {
+        const cleanText = line.replace(/<[^>]+>/g, '').trim();
+        if (cleanText) srt.push(cleanText);
+      }
+    }
+    return srt.join('\r\n');
+  };
+
+  // Multi-tier subtitle downloader (.SRT and .VTT in all languages)
+  const handleDownloadSub = async (sub, ext = 'srt') => {
+    if (!sub || !videoInfo) return;
+    const downloadKey = `${sub.id}_${ext}`;
+    setDownloadingSubId(downloadKey);
+
+    const safeTitle = (videoInfo.title || 'subtitles')
+      .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
+      .trim()
+      .substring(0, 60) || 'subtitles';
+    const filename = `${safeTitle}_${sub.code}.${ext}`;
+
+    try {
+      // Tier 1: Dedicated Backend Subtitle Proxy & Converter
+      const backendSubUrl = `${BACKEND_URL}/api/subtitle?url=${encodeURIComponent(sub.url)}&lang=${encodeURIComponent(sub.code)}&ext=${ext}&title=${encodeURIComponent(safeTitle)}`;
+
+      const res = await fetch(backendSubUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      // Tier 2: Direct Client Browser Fetch + Realtime Converter (for CORS-enabled endpoints like YouTube timedtext)
+      if (sub.url) {
+        let fetchUrl = sub.url;
+        if (fetchUrl.includes('timedtext') && !fetchUrl.includes('fmt=')) {
+          fetchUrl += '&fmt=vtt';
+        }
+        const directRes = await fetch(fetchUrl);
+        if (directRes.ok) {
+          let text = await directRes.text();
+          if (ext === 'srt') {
+            text = clientConvertVttToSrt(text);
+          }
+          const blob = new Blob([text], { type: ext === 'vtt' ? 'text/vtt;charset=utf-8' : 'text/plain;charset=utf-8' });
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+          return;
+        }
+      }
+
+      // Tier 3: Direct stream open fallback
+      if (sub.url) {
+        window.open(sub.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      console.warn('Sub download error, falling back to direct open:', err);
+      if (sub.url) {
+        window.open(sub.url, '_blank', 'noopener,noreferrer');
+      }
+    } finally {
+      setTimeout(() => {
+        setDownloadingSubId(null);
+      }, 1500);
+    }
+  };
+
   const platforms = [
     { name: 'TikTok', brand: 'tiktok', path: '/save-tiktok-without-watermark', iconSrc: '/icons/tiktok.png', fallbackIcon: Video },
     { name: 'YouTube', brand: 'youtube', path: '/youtube-video-downloader', iconSrc: '/icons/youtube.png', fallbackIcon: Play },
@@ -304,6 +425,12 @@ export default function App() {
   // Highest quality is prominently featured in the Recommended card above, so show remaining tiers below
   const videoPresets = allVideoPresets.length > 1 ? allVideoPresets.slice(1) : allVideoPresets;
   const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
+  const subtitles = videoInfo?.subtitles || [];
+  const filteredSubtitles = subtitles.filter(s =>
+    !subSearch.trim() ||
+    s.language.toLowerCase().includes(subSearch.toLowerCase()) ||
+    s.code.toLowerCase().includes(subSearch.toLowerCase())
+  );
   const filteredPresets = activeTab === 'video' ? videoPresets : audioPresets;
 
 
@@ -536,57 +663,144 @@ export default function App() {
                   >
                     <Music size={16} /> Audio Only ({audioPresets.length})
                   </button>
+                  <button
+                    className={`tab-btn ${activeTab === 'subtitles' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('subtitles')}
+                  >
+                    <Subtitles size={16} /> Subtitles ({subtitles.length})
+                  </button>
                 </div>
 
-                <div className="quality-table-wrapper">
-                  <table className="quality-table">
-                    <tbody>
-                      {filteredPresets.map((preset) => {
-                        let badgeClass = preset.badge || 'hd';
-                        if (preset.id.includes('best') && preset.type === 'video') badgeClass = 'best';
-                        else if (preset.id === '4320' || preset.id === '2160') badgeClass = 'ultra';
-                        else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
-                        else if (preset.type === 'audio') badgeClass = 'audio';
+                {activeTab === 'subtitles' ? (
+                  subtitles.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
+                      <Subtitles size={36} style={{ opacity: 0.35, marginBottom: '0.75rem', display: 'inline-block' }} />
+                      <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>No subtitles found for this video.</p>
+                      <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>This media does not have uploaded or auto-generated captions available.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {subtitles.length > 5 && (
+                        <div className="sub-search-box">
+                          <Search size={16} color="var(--text-muted)" />
+                          <input
+                            type="text"
+                            placeholder="Search language (e.g. Sinhala, English, Tamil, Spanish, French)..."
+                            value={subSearch}
+                            onChange={(e) => setSubSearch(e.target.value)}
+                            className="sub-search-input"
+                          />
+                          {subSearch && (
+                            <button onClick={() => setSubSearch('')} className="sub-search-clear">✕</button>
+                          )}
+                        </div>
+                      )}
 
-                        const cleanLabel = (preset.label || '')
-                          .replace(/\s*\(with\s*Audio\)/gi, '')
-                          .replace(/\s*with\s*Audio/gi, '')
-                          .trim();
+                      <div className="quality-table-wrapper">
+                        <table className="quality-table">
+                          <tbody>
+                            {filteredSubtitles.map((sub) => {
+                              const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
+                              const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
 
-                        return (
-                          <tr key={preset.id} className="quality-row">
-                            <td className="quality-cell" style={{ fontWeight: '600' }}>
-                              <span className={`quality-badge ${badgeClass}`}>
-                                {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
-                                {cleanLabel}
-                              </span>
-                            </td>
-                            <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                              <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
-                              {preset.filesizeFormatted && (
-                                <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
-                                  • {preset.filesizeFormatted}
+                              return (
+                                <tr key={sub.id} className="quality-row">
+                                  <td className="quality-cell" style={{ fontWeight: '600' }}>
+                                    <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
+                                      {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
+                                      <span>{sub.language}</span>
+                                      <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
+                                        ({sub.isAuto ? 'Auto CC' : 'Official'})
+                                      </span>
+                                    </span>
+                                  </td>
+                                  <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                    <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
+                                    <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
+                                      • {sub.code.toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="quality-cell" style={{ textAlign: 'right' }}>
+                                    <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                      <button
+                                        onClick={() => handleDownloadSub(sub, 'srt')}
+                                        className="btn-download-action btn-sub-action"
+                                        disabled={isDownloadingSrt || isDownloadingVtt}
+                                        title={`Download ${sub.language} subtitle as .SRT file`}
+                                      >
+                                        <Download size={14} />
+                                        {isDownloadingSrt ? 'Saving...' : '.SRT'}
+                                      </button>
+                                      <button
+                                        onClick={() => handleDownloadSub(sub, 'vtt')}
+                                        className="btn-download-action btn-sub-action btn-sub-vtt"
+                                        disabled={isDownloadingSrt || isDownloadingVtt}
+                                        title={`Download ${sub.language} subtitle as .VTT file`}
+                                      >
+                                        <Download size={14} />
+                                        {isDownloadingVtt ? 'Saving...' : '.VTT'}
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )
+                ) : (
+                  <div className="quality-table-wrapper">
+                    <table className="quality-table">
+                      <tbody>
+                        {filteredPresets.map((preset) => {
+                          let badgeClass = preset.badge || 'hd';
+                          if (preset.id.includes('best') && preset.type === 'video') badgeClass = 'best';
+                          else if (preset.id === '4320' || preset.id === '2160') badgeClass = 'ultra';
+                          else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
+                          else if (preset.type === 'audio') badgeClass = 'audio';
+
+                          const cleanLabel = (preset.label || '')
+                            .replace(/\s*\(with\s*Audio\)/gi, '')
+                            .replace(/\s*with\s*Audio/gi, '')
+                            .trim();
+
+                          return (
+                            <tr key={preset.id} className="quality-row">
+                              <td className="quality-cell" style={{ fontWeight: '600' }}>
+                                <span className={`quality-badge ${badgeClass}`}>
+                                  {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
+                                  {cleanLabel}
                                 </span>
-                              )}
-                            </td>
-                            <td className="quality-cell" style={{ textAlign: 'right' }}>
-                              <button
-                                onClick={() => handleDownload(preset.id, preset.ext)}
-                                className="btn-download-action"
-                                disabled={downloadingFormat === preset.id}
-                              >
-                                {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
-                                {downloadingFormat === preset.id 
-                                  ? (videoInfo.isYouTubeFallback ? 'Opening...' : 'Downloading...') 
-                                  : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              </td>
+                              <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
+                                {preset.filesizeFormatted && (
+                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
+                                    • {preset.filesizeFormatted}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="quality-cell" style={{ textAlign: 'right' }}>
+                                <button
+                                  onClick={() => handleDownload(preset.id, preset.ext)}
+                                  className="btn-download-action"
+                                  disabled={downloadingFormat === preset.id}
+                                >
+                                  {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
+                                  {downloadingFormat === preset.id 
+                                    ? (videoInfo.isYouTubeFallback ? 'Opening...' : 'Downloading...') 
+                                    : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}

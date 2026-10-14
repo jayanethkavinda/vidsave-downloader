@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getVideoInfo, streamVideoDownload } from './services/downloader.js';
+import { getVideoInfo, streamVideoDownload, convertVttToSrt, convertSrv1ToVtt } from './services/downloader.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -107,6 +107,92 @@ app.get('/api/download', (req, res) => {
   res.setHeader('Content-Type', mimeType);
 
   streamVideoDownload(url, format, res);
+});
+
+// Dedicated Subtitle Download Stream Endpoint (.SRT & .VTT)
+app.get('/api/subtitle', async (req, res) => {
+  const { url, lang = 'en', ext = 'srt', title = 'subtitles' } = req.query;
+  if (!url) {
+    return res.status(400).json({ error: 'Subtitle URL is required' });
+  }
+
+  const cleanExt = (ext === 'vtt') ? 'vtt' : 'srt';
+  const sanitizedTitle = (title || 'video')
+    .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
+    .trim()
+    .substring(0, 80) || 'media';
+
+  const filename = `${sanitizedTitle}_${lang}.${cleanExt}`;
+
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.setHeader('Content-Type', cleanExt === 'vtt' ? 'text/vtt; charset=utf-8' : 'text/plain; charset=utf-8');
+
+  try {
+    let subUrl = url;
+    if (subUrl.includes('timedtext') && !subUrl.includes('fmt=')) {
+      subUrl += '&fmt=vtt';
+    }
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
+
+    let rawText = '';
+    const upstreamRes = await fetch(subUrl, { headers });
+    
+    if (upstreamRes.ok) {
+      rawText = await upstreamRes.text();
+    } else {
+      // Fallback: If direct fetch failed, try fetching with python & configured proxy
+      const { spawnSync } = await import('child_process');
+      const pyArgs = ['-c', `
+import urllib.request, os, sys
+proxy = os.environ.get('YTDLP_PROXY')
+handlers = [urllib.request.ProxyHandler({'http': proxy, 'https': proxy})] if proxy else []
+opener = urllib.request.build_opener(*handlers)
+req = urllib.request.Request(sys.argv[1], headers={'User-Agent': 'Mozilla/5.0'})
+try:
+    with opener.open(req, timeout=15) as r:
+        sys.stdout.write(r.read().decode('utf-8', errors='ignore'))
+except Exception as e:
+    sys.stderr.write(str(e))
+    sys.exit(1)
+`, subUrl];
+      
+      const pyProc = spawnSync(process.platform === 'win32' ? 'python' : 'python3', pyArgs, {
+        encoding: 'utf8',
+        env: process.env,
+        timeout: 20000
+      });
+
+      if (pyProc.status === 0 && pyProc.stdout) {
+        rawText = pyProc.stdout;
+      } else {
+        throw new Error(`Upstream fetch returned HTTP ${upstreamRes.status} (proxy fallback failed)`);
+      }
+    }
+
+    // If source is SRV1 XML, convert to WEBVTT first
+    if (rawText.trim().startsWith('<?xml') || rawText.includes('<transcript>')) {
+      rawText = convertSrv1ToVtt(rawText);
+    }
+
+    // If requested ext is srt, convert VTT to SRT
+    let finalOutput = rawText;
+    if (cleanExt === 'srt') {
+      finalOutput = convertVttToSrt(rawText);
+    }
+
+    res.send(finalOutput);
+  } catch (err) {
+    console.error('Subtitle download error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: `Subtitle download failed: ${err.message}` });
+    } else {
+      res.end();
+    }
+  }
 });
 
 app.listen(PORT, () => {
