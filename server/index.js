@@ -264,6 +264,11 @@ app.get('/api/proxy-stream', async (req, res) => {
     const client = targetUrl.startsWith('https') ? https : http;
 
     const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
+      // If upstream issues a redirect, follow it cleanly
+      if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
+        return res.redirect(upstreamRes.statusCode, upstreamRes.headers.location);
+      }
+
       // Forward status code (200 OK or 206 Partial Content)
       res.status(upstreamRes.statusCode || 200);
 

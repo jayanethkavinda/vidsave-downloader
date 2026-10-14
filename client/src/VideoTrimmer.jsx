@@ -48,13 +48,17 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
 
   const ytVideoId = videoInfo?.videoId || extractYouTubeId(videoInfo?.webpageUrl);
   
-  // High-speed lightweight 360p/480p preview for in-browser video playback (TikTok, Instagram, Facebook, etc.)
-  const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
-    ? (videoInfo?.previewStreamUrl 
-        ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
-        : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`)
-    : null;
+  const [useFallbackPreview, setUseFallbackPreview] = useState(false);
   const [streamError, setStreamError] = useState(false);
+
+  // High-speed lightweight 360p preview or Zero-load Live Range Proxy for in-browser video playback
+  const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
+    ? (useFallbackPreview
+        ? `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`
+        : (videoInfo?.previewStreamUrl 
+            ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+            : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`))
+    : null;
 
   // Format seconds to mm:ss.s or mm:ss
   const formatTime = (seconds, includeDecimals = true) => {
@@ -384,8 +388,13 @@ export default function VideoTrimmer({ videoInfo, onBack }) {
                 preload="metadata"
                 referrerPolicy="no-referrer"
                 onError={() => {
-                  console.warn('Proxy video stream failed, falling back to simulated preview');
-                  setStreamError(true);
+                  if (!useFallbackPreview && videoInfo?.previewStreamUrl?.includes('/api/proxy-stream')) {
+                    console.warn('Proxy stream error, seamlessly falling back to /api/preview');
+                    setUseFallbackPreview(true);
+                  } else {
+                    console.warn('Video preview failed, falling back to visual range card');
+                    setStreamError(true);
+                  }
                 }}
                 onTimeUpdate={() => {
                   if (videoElementRef.current) {

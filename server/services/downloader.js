@@ -371,10 +371,22 @@ export async function getVideoInfo(url) {
 
     // Dedicated preview URL for in-browser HTML5 preview (TikTok, Instagram, Facebook, etc.)
     const isYt = isYouTubeUrl(rawInfo.webpage_url || url);
-    const directStreamUrl = rawInfo.url || (formats.find(f => f.directUrl && f.hasVideo)?.directUrl) || null;
-    const previewStreamUrl = !isYt 
-      ? `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}` 
-      : null;
+    const directStreamUrl = rawInfo.url || (formats.find(f => f.directUrl && f.hasVideo && !f.directUrl.includes('.m3u8'))?.directUrl) || null;
+    
+    // Smart Strategy:
+    // If video is > 10 minutes (600s) and directStreamUrl is available:
+    // Use zero-load /api/proxy-stream with HTTP Range pass-through (0 server storage, instant playback)
+    // If video is <= 10 minutes (or directStreamUrl not available):
+    // Use lightweight 360p /api/preview (1-2MB, 100% reliable)
+    let previewStreamUrl = null;
+    if (!isYt) {
+      const durationSec = rawInfo.duration || 0;
+      if (durationSec > 600 && directStreamUrl) {
+        previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}`;
+      } else {
+        previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
+      }
+    }
 
     const cleanInfo = {
       id: rawInfo.id,
