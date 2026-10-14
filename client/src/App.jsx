@@ -44,6 +44,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [downloadingFormat, setDownloadingFormat] = useState(null);
   const [downloadingSubId, setDownloadingSubId] = useState(null);
+  const [copiedAttribution, setCopiedAttribution] = useState(false);
   const [subSearch, setSubSearch] = useState('');
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
@@ -416,6 +417,66 @@ export default function App() {
         setDownloadingSubId(null);
       }, 1500);
     }
+  };
+
+  // Generate standardized TASL (Title, Author, Source, License) attribution text
+  const generateAttributionText = (info) => {
+    if (!info) return '';
+    const title = info.title || 'Untitled Media';
+    const author = info.uploader || 'Creator';
+    const sourceUrl = info.webpageUrl || url;
+    const platform = info.extractor || 'Web Media';
+    const date = new Date().toISOString().split('T')[0];
+
+    return `=====================================================
+CREATOR ATTRIBUTION & LICENSE CREDIT (TASL Standard)
+=====================================================
+Title: ${title}
+Author / Creator: ${author}
+Source URL: ${sourceUrl}
+Platform: ${platform}
+Accessed Date: ${date}
+Attribution Standard: TASL (Title, Author, Source, License)
+Downloaded via: VidSave - Free Universal Media Downloader
+Website: https://vidsave-downloader.web.app
+
+-----------------------------------------------------
+QUICK CREDIT (For YouTube Description / TikTok / Instagram):
+"Video by ${author} via ${platform} (${sourceUrl})"
+-----------------------------------------------------`;
+  };
+
+  // Copy attribution text to clipboard
+  const handleCopyAttribution = async () => {
+    if (!videoInfo) return;
+    try {
+      const text = generateAttributionText(videoInfo);
+      await navigator.clipboard.writeText(text);
+      setCopiedAttribution(true);
+      setTimeout(() => setCopiedAttribution(false), 2000);
+    } catch (e) {
+      console.warn('Clipboard copy error:', e);
+    }
+  };
+
+  // Download attribution credit as a .TXT file
+  const handleDownloadAttribution = () => {
+    if (!videoInfo) return;
+    const text = generateAttributionText(videoInfo);
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeTitle = (videoInfo.title || 'Attribution')
+      .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
+      .trim()
+      .substring(0, 50) || 'Attribution';
+
+    a.href = blobUrl;
+    a.download = `${safeTitle}_Attribution.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
   };
 
   const platforms = [
@@ -831,6 +892,43 @@ export default function App() {
                     </table>
                   </div>
                 )}
+              </div>
+
+              {/* ⚖️ Auto-Attribution & TASL Credit Generator */}
+              <div className="attribution-card">
+                <div className="attribution-header">
+                  <div className="attribution-title-wrap">
+                    <ShieldCheck size={20} className="attribution-badge-icon" />
+                    <div>
+                      <h4 className="attribution-heading">Creator Attribution & Fair Use Credit (TASL)</h4>
+                      <p className="attribution-subheading">
+                        Ethical copyright attribution text ready for social media, YouTube descriptions, or research blogs
+                      </p>
+                    </div>
+                  </div>
+                  <div className="attribution-actions">
+                    <button
+                      type="button"
+                      onClick={handleCopyAttribution}
+                      className="btn-attribution-action"
+                      title="Copy attribution text to clipboard"
+                    >
+                      {copiedAttribution ? <CheckCircle size={15} color="#10b981" /> : <Clipboard size={15} />}
+                      {copiedAttribution ? 'Copied!' : 'Copy Attribution'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadAttribution}
+                      className="btn-attribution-action btn-attribution-download"
+                      title="Download attribution as .TXT file"
+                    >
+                      <Download size={15} /> Download .TXT
+                    </button>
+                  </div>
+                </div>
+                <div className="attribution-snippet-box">
+                  <code>{generateAttributionText(videoInfo)}</code>
+                </div>
               </div>
             </div>
           )}

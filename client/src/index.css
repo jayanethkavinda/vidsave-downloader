@@ -1320,3 +1320,118 @@ button {
   color: var(--cyan-primary);
   text-decoration: underline;
 }
+
+/* =========================================================
+   ⚖️ Auto-Attribution Text Generator & Fair Dealing Credit
+   ========================================================= */
+
+.attribution-card {
+  margin-top: 1.75rem;
+  padding: 1.25rem 1.4rem;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  text-align: left;
+  transition: all 0.25s ease;
+}
+
+[data-theme='light'] .attribution-card {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.attribution-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.attribution-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.attribution-badge-icon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.attribution-heading {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 2px;
+}
+
+.attribution-subheading {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.attribution-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.btn-attribution-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--btn-action-bg);
+  color: var(--text-main);
+  border: 1px solid var(--btn-action-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-attribution-action:hover {
+  background: var(--cyan-gradient);
+  border-color: var(--cyan-primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-attribution-download {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.btn-attribution-download:hover {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.attribution-snippet-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  max-height: 120px;
+}
+
+[data-theme='light'] .attribution-snippet-box {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.attribution-snippet-box code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-main);
+  white-space: pre;
+  display: block;
+}
+
