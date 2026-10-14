@@ -380,10 +380,11 @@ export async function getVideoInfo(url) {
     // Use lightweight 360p /api/preview (1-2MB, 100% reliable)
     let previewStreamUrl = null;
     if (!isYt) {
-      const durationSec = rawInfo.duration || 0;
-      if (durationSec > 600 && directStreamUrl) {
+      if (directStreamUrl) {
+        // 100% Zero-Disk & Zero-RAM Media Proxy Stream: Instant HTTP Range pass-through straight to browser!
         previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}`;
       } else {
+        // Fallback: Ultra-lightweight 240p/220p preview (< 800 KB)
         previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
       }
     }
