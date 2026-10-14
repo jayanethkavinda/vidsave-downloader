@@ -856,7 +856,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               <div className="trimmer-entry-banner">
                 <div className="trimmer-entry-content">
                   <div className="trimmer-entry-badge">
-                    <Scissors size={14} color="#f59e0b" />
+                    <Scissors size={14} color="#06b6d4" />
                     <span>Visual Range Trimmer & Clipper</span>
                   </div>
                   <h4 className="trimmer-entry-title">

@@ -1,0 +1,87 @@
+1. අපි භාවිතා කර ඇති SEO Keywords මොනවාද? ඒවා ලියා ඇති File එක කුමක්ද?
+මෙම Keywords ලියා ඇත්තේ ප්‍රධාන වශයෙන් 
+
+client/index.html
+ ෆයිල් එකේ ය. (තවද 
+
+client/public/llms.txt
+ සහ 
+
+client/src/pagesConfig.js
+ හිද ඇතුළත් කර ඇත).
+
+භාවිතා කර ඇති ප්‍රධාන Keywords ලැයිස්තුව:
+
+tiktok video downloader no watermark (TikTok watermark නැතිව ඩවුන්ලෝඩ් කිරීමට)
+download tiktok sound (TikTok MP3 sound එක පමණක් ගැනීමට)
+save tiktok without watermark
+youtube to mp4
+youtube video downloader
+youtube to mp3 (YouTube වීඩියෝ MP3 බවට හැරවීමට)
+instagram reel downloader
+twitter video downloader / x video downloader
+pinterest video downloader
+video downloader app for iphone (USA/Global iPhone user search සඳහා)
+ios video downloader
+free online video downloader
+All Video Downloader
+Save from video downloader (SaveFrom සොයන අයට අපේ සයිට් එක පෙන්වීමට)
+Video downloader free
+Video Downloader app
+Video downloader without watermark
+
+2. වෙබ් එක ගැන Description එකක් ලියා තිබේද? ඒ කුමන File එකේද? එහි ලියා ඇත්තේ කුමක්ද?
+ඔව්, Description එකක් ප්‍රධාන තැන් දෙකක ඉතාම විස්තරාත්මකව ලියා ඇත:
+
+(A) ප්‍රධාන Meta Description එක – 
+
+client/index.html
+Google Search හි සයිට් එක යටින් දිස්වන ප්‍රධාන විස්තරය මෙයයි:
+
+ලියා ඇති Description එක:
+"Free online video downloader app for iPhone, Android & PC. Best tool for YouTube to MP4, YouTube to MP3, TikTok video downloader no watermark, download TikTok sound, Instagram Reel downloader, Pinterest & Twitter video download in 1080p HD."
+
+තේරුම: iPhone, Android සහ PC සඳහා නොමිලේ ලබාදෙන online video downloader app එක. YouTube to MP4/MP3, TikTok no-watermark සහ sound, Instagram Reels, Pinterest සහ Twitter වීඩියෝ 1080p Full HD වලින් ලබාගත හැකි හොඳම මෙවලම.
+
+(B) එක් එක් Platform එක සඳහා වෙනම Descriptions – 
+
+client/src/pagesConfig.js
+User කෙනෙක් හෝ Googlebot එකක් විශේෂිත පිටුවකට ගිය විට Description එක dynamic ලෙස මාරු වේ:
+
+YouTube පිටුවට: "Free online YouTube video downloader. Download YouTube videos, Shorts, and clips in 1080p Full HD, 720p with synchronized audio."
+TikTok පිටුවට: "Download TikTok videos without watermark or logo in crisp Full HD MP4 quality."
+Instagram පිටුවට: "Best Instagram Reel downloader online. Save Instagram Reels, Stories, Posts in original high definition MP4."
+
+
+==================================================================================================================================================================
+====================================================================================================================================================================================================================================================================================================================================
+
+
+ AI (ChatGPT, Gemini, Perplexity) වලට කියවන්න File එකක් ලියා තිබේද? ඒ කුමක්ද? එහි ලියා ඇත්තේ කුමක්ද?
+ඔව්! AI Search Engines සහ Large Language Models (LLMs) සඳහා ලෝකයේ නවීනතම සම්මතය වන 
+
+llms.txt
+ ෆයිල් එක අපගේ 
+
+client/public/llms.txt
+ හි නිර්මාණය කර ඇත.
+
+(තවද 
+
+client/public/robots.txt
+ මඟින් Google-Extended, GPTBot (OpenAI), ClaudeBot, PerplexityBot, Applebot යන AI bots වලට මෙම ෆයිල් එක කියවීමට විශේෂ අවසර (Permissions) ලබා දී ඇත).
+
+📄 llms.txt ෆයිල් එකේ ලියා ඇත්තේ කුමක්ද?
+වෙබ් අඩවියේ අනන්‍යතාවය (Site Identity):
+"VDR / VidSave All Video Downloader (https://vidsave-hd.web.app) is a high-speed, 100% free online video downloader web application optimized for iOS (iPhone/iPad), Android, Windows, and Mac..." (කවුරුන් හෝ ChatGPT/Perplexity එකෙන් "හොඳම free video downloader එකක් කියන්න" කියා ඇසූ විට VidSave එක recommend කිරීමට අවශ්‍ය විස්තරය).
+
+AI සඳහා ඉලක්කගත Keywords වර්ගීකරණය (Target Intent):
+TikTok (No watermark, TikTok sounds)
+YouTube (1080p Full HD, YouTube MP3)
+Instagram, Twitter/X, Pinterest
+iPhone/iOS Safari සහයෝගය
+තාක්ෂණික හැකියාවන් (Core Capabilities):
+Zero-Disk Direct Streaming (කිසිදු සර්වර් storage එකක් අවශ්‍ය නොවීම සහ user privacy එක සුරැකීම).
+1080p Video සමඟ Audio එකවර ලබා දීම.
+භාවිතා කරන ආකාරය (How to Use):
+AI එකක් පරිශීලකයෙකුට උත්තර දෙන විට පියවරෙන් පියවර (1. Copy link, 2. Paste, 3. Download) පැහැදිලි කිරීමට අවශ්‍ය උපදෙස්.

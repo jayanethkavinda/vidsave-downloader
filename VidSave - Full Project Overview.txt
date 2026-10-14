@@ -1,0 +1,128 @@
+VidSave - Full Project Overview
+VidSave යනු Facebook, YouTube, TikTok, Instagram, Twitter (X), Pinterest ඇතුළු සමාජ මාධ්‍ය රැසකින් වීඩියෝ සහ ඕඩියෝ (MP3) ඉතා පහසුවෙන් බාගත (Download) කරගත හැකි නවීන Full-Stack Web Application එකකි. SaveFrom.net වැනි ජනප්‍රිය වේදිකාවල ආභාෂය ලබා ගනිමින්, නවීන Glassmorphism UI මෝස්තරයක් සහ සර්වර් ඩිස්ක් ඉඩ නාස්ති නොවන සුවිශේෂී Direct Streaming Architecture එකක් සහිතව මෙය නිර්මාණය කර ඇත.
+
+🏗️ 1. Project Architecture (පද්ධති ව්‍යුහය)
+ව්‍යාපෘතිය ප්‍රධාන කොටස් දෙකකට (Frontend සහ Backend) බෙදා ඇති අතර Docker සහ Firebase/Render හරහා deploy කිරීමට සකසා ඇත:
+
+mermaid
+graph TD
+    User([User Browser / Mobile]) -->|1. Paste Link| Frontend[React + Vite Frontend]
+    Frontend -->|2. /api/info| Backend[Node.js Express Server]
+    Backend -->|3. Extract Info| YTDLP[yt-dlp + Python + FFmpeg]
+    YTDLP -->|4. Return JSON Metadata| Backend
+    Backend -->|5. Title, Thumb, Quality Presets| Frontend
+    Frontend -->|6. Click Download| Backend
+    Backend -->|7. Stdout Pipe Stream| User
+💻 2. තාක්ෂණික මෙවලම් (Tech Stack)
+Frontend (Client)
+Core: 
+
+React 19
+ සහ Vite (අධිවේගී Build සහ Development සඳහා).
+Routing: 
+
+React Router DOM v7
+ (විවිධ Social platforms සඳහා වෙන්වූ SEO routes කළමනාකරණයට).
+Styling: Custom Vanilla CSS (
+
+index.css
+, 
+
+App.css
+) - Glassmorphism, Neon glow effects, Responsive mobile layout සහ Dark/Light mode theme toggle.
+Icons: lucide-react.
+Analytics: 
+
+Firebase Analytics
+.
+Backend (Server)
+Runtime: 
+
+Node.js
+ + Express.js.
+Core Downloader Engine: yt-dlp (Python 3 මඟින් ක්‍රියාත්මක වේ).
+Media Processing: ffmpeg (Audio/Video multiplexing සහ format conversion සඳහා).
+Child Process Management: Node.js spawn මඟින් background streaming execute කිරීම.
+DevOps & Deployment
+Containerization: 
+
+Dockerfile
+ සහ 
+
+docker-compose.yml
+ (Debian Bookworm slim, Node 20, Python 3, FFmpeg, yt-dlp nightly).
+Hosting:
+Frontend: 
+
+Firebase Hosting
+ (vidsave-downloader, videsave, vidsave-hd).
+Backend: Render.com Cloud Web Service (vidsave-downloader.onrender.com).
+Local Run Script: 
+
+start.bat
+ (Frontend සහ Backend එකවර launch කිරීමට).
+🌟 3. ප්‍රධාන විශේෂාංග (Key Features & Highlights)
+🚀 Zero Server Disk Usage (සර්වර් ඩිස්ක් ඉඩ ඉතිරි කිරීම)
+සාමාන්‍ය downloader වලදී වීඩියෝව මුලින්ම සර්වර් එකේ Hard drive එකට Save කර පසුව user ට යැවීම නිසා server disk එක පිරී යයි. නමුත් මෙහිදී 
+
+streamVideoDownload()
+ මඟින් yt-dlp හි stdout stream එක Node.js response (res) එකට කෙලින්ම pipe කර ඇත. එමගින් සර්වර් එකේ කිසිදු ෆයිල් එකක් තැන්පත් නොවී (Zero disk write) කෙලින්ම User ගේ Browser එකට download වේ.
+
+🛡️ BotGuard & Anti-Blocking Bypass
+YouTube සහ අනෙකුත් සේවාවන් මඟින් automated bots අවහිර කිරීම වැළැක්වීමට:
+
+Customized User-Agent headers සහ Node.js JS runtime (--js-runtimes node) භාවිතය.
+Multi-client impersonation (player_client=android,ios,web).
+Session cookies inject කිරීමේ හැකියාව (
+
+ytdlp_session_cookies.txt
+ / YTDLP_COOKIES env var).
+Cloud datacenter IP එකක් YouTube මඟින් block වුවහොත්, 
+
+Instant Cloud Resolver & Mirror Fallback
+ මඟින් oEmbed සහ cloud resolvers ඔස්සේ download පහසුකම අඛණ්ඩව ලබා දීම.
+🎯 Multi-Platform Quality Presets
+Quality Formats: 1080p Full HD, 720p HD, 480p, 360p (හැමවිටම Audio සමඟ).
+Audio Extraction: වීඩියෝවෙන් MP3 පමණක් වෙන් කර බාගත කිරීම.
+TikTok No-Watermark: TikTok ලාංඡනය/watermark එක නොමැතිව වීඩියෝ ලබා ගැනීම.
+🔍 Search Engine Optimization (SEO) Architecture
+Google Search Rank ඉහළ නැංවීම සඳහා 
+
+pagesConfig.js
+ සහ 
+
+index.html
+ හරහා විශේෂිත Routes නිර්මාණය කර ඇත:
+
+/youtube-video-downloader
+/youtube-mp3-downloader
+/save-tiktok-without-watermark
+/download-tiktok-sound
+/instagram-reel-downloader
+/fb-video-downloader
+/pinterest-video-downloader
+/x-video-downloader
+Schema.org (JSON-LD) Structured Data, Open Graph සහ Twitter Meta Cards සම්පූර්ණයෙන්ම සකසා ඇත.
+📡 4. Backend API Endpoints විස්තරය
+GET /api/health (
+
+server/index.js:L16
+) - සර්වර් එකේ ක්‍රියාකාරීත්වය සහ Python engine status පරික්ෂා කිරීම.
+GET /api/diagnose (
+
+server/index.js:L21
+) - Python version, yt-dlp version සහ Cookie files වල තත්ත්වය පරීක්ෂා කිරීම.
+GET /api/check-ip (
+
+server/index.js:L47
+) - Server Public IP එක සහ YouTube සම්බන්ධතාවය පරික්ෂා කිරීම.
+GET /api/info?url=<URL> (
+
+server/index.js:L72
+) - වීඩියෝවේ Title, Thumbnail, Duration සහ තෝරාගත හැකි Quality resolutions ලබා දීම.
+GET /api/download?url=<URL>&format=<FORMAT>&title=<TITLE> (
+
+server/index.js:L90
+) - User ගේ Browser එකට වීඩියෝව direct streaming attachment එකක් ලෙස ලබා දීම.
+💡 නිගමනය (Summary)
+ඔබගේ ව්‍යාපෘතිය ඉතා හොඳින් සැලසුම් කරන ලද (Production-Ready), ස්ථාවර සහ කාර්යක්ෂම Full-Stack Web Application එකකි. සර්වර් සම්පත් අවම කරමින් (Zero disk write) Direct stream කිරීම සහ YouTube/TikTok වැනි platforms වල bot detection ගැටලු මඟහැරීම සඳහා යොදා ඇති strategies ඉතා විශිෂ්ට මට්ටමක පවතී.

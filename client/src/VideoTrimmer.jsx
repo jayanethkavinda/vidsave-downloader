@@ -169,6 +169,10 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const handleVideoCanPlay = () => {
     setVideoLoading(false);
     if (videoElementRef.current) {
+      if (videoElementRef.current.currentTime < startTime || videoElementRef.current.currentTime >= endTime) {
+        videoElementRef.current.currentTime = startTime;
+        setCurrentTime(startTime);
+      }
       const playPromise = videoElementRef.current.play();
       if (playPromise !== undefined) {
         playPromise
@@ -250,12 +254,14 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       ytIntervalRef.current = setInterval(() => {
         if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function') {
           const t = ytPlayerRef.current.getCurrentTime();
-          setCurrentTime(t);
-          if (t >= endTime) {
+          if (t < startTime || t >= endTime) {
             ytPlayerRef.current.seekTo(startTime, true);
+            setCurrentTime(startTime);
+          } else {
+            setCurrentTime(t);
           }
         }
-      }, 100);
+      }, 50);
     } else {
       if (ytIntervalRef.current) clearInterval(ytIntervalRef.current);
     }
@@ -310,16 +316,23 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     }
   }, [isPlaying, ytVideoId, previewVideoUrl, streamError, startTime, endTime]);
 
-  // Seek video to specific time
+  const selectedLength = (endTime - startTime).toFixed(1);
+  const leftPercent = (startTime / duration) * 100;
+  const rightPercent = (endTime / duration) * 100;
+  const widthPercent = Math.max(0.1, rightPercent - leftPercent);
+  const clipDuration = Math.max(0.1, endTime - startTime);
+  const cropProgress = Math.max(0, Math.min(1, (currentTime - startTime) / clipDuration));
+
+  // Seek video strictly within start and end cut points
   const seekTo = useCallback((t) => {
-    const clamped = Math.max(0, Math.min(duration, t));
+    const clamped = Math.max(startTime, Math.min(endTime, t));
     setCurrentTime(clamped);
     if (ytPlayerRef.current && typeof ytPlayerRef.current.seekTo === 'function') {
       ytPlayerRef.current.seekTo(clamped, true);
     } else if (videoElementRef.current && !streamError) {
       videoElementRef.current.currentTime = clamped;
     }
-  }, [duration, streamError]);
+  }, [startTime, endTime, streamError]);
 
   // Handle timeline dragging (mouse & touch)
   const handleTimelineMove = useCallback((clientX) => {
@@ -329,11 +342,11 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     const targetSeconds = parseFloat((ratio * duration).toFixed(1));
 
     if (draggingHandle.current === 'left') {
-      const newStart = Math.min(targetSeconds, endTime - 0.5);
+      const newStart = Math.max(0, Math.min(targetSeconds, endTime - 0.5));
       setStartTime(newStart);
       seekTo(newStart);
     } else if (draggingHandle.current === 'right') {
-      const newEnd = Math.max(targetSeconds, startTime + 0.5);
+      const newEnd = Math.min(duration, Math.max(targetSeconds, startTime + 0.5));
       setEndTime(newEnd);
       seekTo(newEnd);
     }
@@ -372,7 +385,9 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     const rect = timelineRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const clickedSec = parseFloat((ratio * duration).toFixed(1));
-    seekTo(clickedSec);
+    // Playhead strictly remains inside start and end boundaries
+    const clamped = Math.max(startTime, Math.min(endTime, clickedSec));
+    seekTo(clamped);
   };
 
   // Fine tune adjustments by 0.1s only
@@ -464,22 +479,18 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     };
   }, []);
 
-  const selectedLength = (endTime - startTime).toFixed(1);
-  const leftPercent = (startTime / duration) * 100;
-  const rightPercent = (endTime / duration) * 100;
-  const widthPercent = rightPercent - leftPercent;
-  const playheadPercent = Math.min(100, Math.max(0, (currentTime / duration) * 100));
+
 
   return (
     <div className="trimmer-view-container">
-      {/* 🔝 Sticky Top Nav inside Trimmer (Top Save Button Removed as Requested) */}
+      {/* 🔝 Sticky Top Nav inside Trimmer */}
       <div className="trimmer-top-nav">
         <button type="button" onClick={onBack} className="btn-trim-back">
           <ArrowLeft size={18} />
           <span>Full Downloader</span>
         </button>
         <div className="trimmer-media-title" title={videoInfo?.title}>
-          <Scissors size={15} color="#f59e0b" style={{ flexShrink: 0 }} />
+          <Scissors size={15} color="#06b6d4" style={{ flexShrink: 0 }} />
           <span>{videoInfo?.title ? videoInfo.title : 'Clip & Trim Video'}</span>
         </div>
       </div>
@@ -525,7 +536,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       {!videoInfo ? (
         <div className="trimmer-empty-state">
           <div className="trimmer-empty-icon-wrap">
-            <Scissors size={38} color="#f59e0b" />
+            <Scissors size={38} color="#06b6d4" />
           </div>
           <h3 className="trimmer-empty-title">Paste a Video Link Above to Start Trimming</h3>
           <p className="trimmer-empty-desc">
@@ -535,7 +546,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       ) : (
         /* Main Trimming Workspace */
         <div className="trimmer-workspace">
-          {/* Video Player Display Frame with Yellow Crop Border */}
+          {/* Video Player Display Frame with Cyan Crop Border */}
           <div className="trimmer-player-wrapper">
             <div className="trimmer-player-frame">
               {ytVideoId ? (
@@ -544,7 +555,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                 <>
                   {videoLoading && (
                     <div className="trimmer-video-loader">
-                      <Zap size={22} className="spin" color="#f59e0b" />
+                      <Zap size={22} className="spin" color="#06b6d4" />
                       <span>Loading Fast Preview Stream...</span>
                     </div>
                   )}
@@ -576,9 +587,11 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     onTimeUpdate={() => {
                       if (videoElementRef.current) {
                         const t = videoElementRef.current.currentTime;
-                        setCurrentTime(t);
-                        if (t >= endTime) {
+                        if (t < startTime || t >= endTime) {
                           videoElementRef.current.currentTime = startTime;
+                          setCurrentTime(startTime);
+                        } else {
+                          setCurrentTime(t);
                         }
                       }
                     }}
@@ -616,12 +629,12 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
             </button>
           </div>
 
-          {/* 🎬 Visual Timeline Filmstrip with Draggable Yellow Handles */}
+          {/* 🎬 Visual Timeline Filmstrip with Draggable Cyan Handles */}
           <div className="trimmer-timeline-section">
             <div className="trimmer-timeline-header">
               <span className="timeline-hint">
-                <Sparkles size={14} color="#f59e0b" />
-                Drag yellow handles to adjust start and end cut points
+                <Sparkles size={14} color="#06b6d4" />
+                Drag handles to adjust start and end cut points
               </span>
               <span className="timeline-selected-duration">
                 Selected Clip: <strong>{selectedLength}s</strong>
@@ -646,7 +659,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                 ))}
               </div>
 
-              {/* Draggable Yellow Crop Selection Box */}
+              {/* Draggable Cyan Crop Selection Box */}
               <div
                 className="trimmer-crop-box"
                 style={{
@@ -669,6 +682,15 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                   {selectedLength}s
                 </div>
 
+                {/* Playhead Needle Indicator strictly positioned between the inner boundaries of both handles */}
+                <div
+                  className="trimmer-playhead"
+                  style={{ left: `calc(21px + (100% - 42px) * ${cropProgress})` }}
+                >
+                  <div className="playhead-top-notch"></div>
+                  <div className="playhead-line"></div>
+                </div>
+
                 {/* Right Handle */}
                 <div
                   className="trimmer-handle trimmer-handle-right"
@@ -678,15 +700,6 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                 >
                   <div className="handle-grip-bar"></div>
                 </div>
-              </div>
-
-              {/* Playhead Needle Indicator */}
-              <div
-                className="trimmer-playhead"
-                style={{ left: `${playheadPercent}%` }}
-              >
-                <div className="playhead-top-notch"></div>
-                <div className="playhead-line"></div>
               </div>
             </div>
           </div>
@@ -861,14 +874,6 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
           {/* ⚖️ Auto-Attribution & Fair Use Credit (TASL) Component */}
           <TaslAttributionCard videoInfo={videoInfo} />
-
-          {/* Trimmer Info Footer Note */}
-          <div className="trimmer-info-note">
-            <Sparkles size={14} color="#06b6d4" />
-            <span>
-              <strong>Zero Server Storage & High Speed:</strong> Cut sections are directly streamed to your browser via native stream cutting, so you get exact clips with zero storage wait!
-            </span>
-          </div>
         </div>
       )}
     </div>

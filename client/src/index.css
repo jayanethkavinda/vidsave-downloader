@@ -198,9 +198,9 @@ button {
 }
 
 .nav-mode-btn.trim-active {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--cyan-gradient);
   color: #ffffff;
-  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.4);
+  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
 }
 
 .logo {
@@ -1510,21 +1510,21 @@ button {
 .trimmer-entry-banner {
   margin: 1.5rem 0;
   padding: 1.25rem 1.5rem;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.12) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(14, 165, 233, 0.12) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.35);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  box-shadow: 0 4px 20px -2px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.15);
   transition: all var(--transition-fast);
 }
 
 [data-theme='light'] .trimmer-entry-banner {
-  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
-  border-color: #fde68a;
-  box-shadow: 0 4px 15px rgba(217, 119, 6, 0.1);
+  background: linear-gradient(135deg, #ecfeff 0%, #e0f2fe 100%);
+  border-color: #a5f3fc;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.1);
 }
 
 .trimmer-entry-content {
@@ -1535,8 +1535,8 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(245, 158, 11, 0.2);
-  color: #d97706;
+  background: rgba(6, 182, 212, 0.2);
+  color: #0284c7;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -1547,8 +1547,8 @@ button {
 }
 
 [data-theme='dark'] .trimmer-entry-badge {
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.25);
+  color: #38bdf8;
+  background: rgba(6, 182, 212, 0.25);
 }
 
 .trimmer-entry-title {
@@ -1570,7 +1570,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 0.85rem 1.4rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--cyan-gradient);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
@@ -1578,15 +1578,15 @@ button {
   font-size: 0.95rem;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
   transition: all var(--transition-fast);
   flex-shrink: 0;
 }
 
 .btn-launch-trimmer:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
-  background: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.45);
+  background: var(--cyan-gradient-hover);
 }
 
 /* Dedicated Trimmer View Container */
@@ -1659,7 +1659,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 0.55rem 1.1rem;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--cyan-gradient);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
@@ -1682,7 +1682,7 @@ button {
   gap: 1.5rem;
 }
 
-/* Player Frame with Yellow Selection Outline */
+/* Player Frame with Cyan Selection Outline */
 .trimmer-player-wrapper {
   display: flex;
   justify-content: center;
@@ -1697,11 +1697,11 @@ button {
   width: 100%;
   max-width: 620px;
   aspect-ratio: 16 / 9;
-  border: 2.5px solid #f59e0b;
+  border: 2.5px solid #06b6d4;
   border-radius: 10px;
   overflow: hidden;
   background: #000000;
-  box-shadow: 0 0 25px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 25px rgba(6, 182, 212, 0.25);
 }
 
 .trimmer-yt-iframe,
@@ -1731,12 +1731,12 @@ button {
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
-  color: #fbbf24;
+  color: #38bdf8;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  border: 1px solid rgba(6, 182, 212, 0.4);
 }
 
 /* Playback Control Bar */
@@ -1843,7 +1843,7 @@ button {
 }
 
 .timeline-selected-duration strong {
-  color: #f59e0b;
+  color: #06b6d4;
 }
 
 /* Timeline Track */
@@ -1879,14 +1879,15 @@ button {
   border-right: 1px solid rgba(0, 0, 0, 0.4);
 }
 
-/* CapCut Draggable Yellow Selection Frame */
+/* CapCut Draggable Cyan Selection Frame */
 .trimmer-crop-box {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-top: 3.5px solid #f59e0b;
-  border-bottom: 3.5px solid #f59e0b;
-  background: rgba(245, 158, 11, 0.18);
+  min-width: 46px;
+  border-top: 3.5px solid #06b6d4;
+  border-bottom: 3.5px solid #06b6d4;
+  background: rgba(6, 182, 212, 0.18);
   pointer-events: none;
   z-index: 5;
   box-sizing: border-box;
@@ -1900,8 +1901,8 @@ button {
   position: absolute;
   top: -4px;
   bottom: -4px;
-  width: 22px;
-  background: #f59e0b;
+  width: 20px;
+  background: #06b6d4;
   pointer-events: auto;
   cursor: ew-resize;
   display: flex;
@@ -1916,7 +1917,7 @@ button {
 
 .trimmer-handle:hover,
 .trimmer-handle:active {
-  background: #fbbf24;
+  background: #38bdf8;
   transform: scaleY(1.06);
 }
 
@@ -1936,7 +1937,7 @@ button {
 .handle-grip-bar {
   width: 3px;
   height: 24px;
-  background: #1e1b18;
+  background: #082f49;
   border-radius: 2px;
 }
 
@@ -1946,7 +1947,7 @@ button {
   bottom: 6px;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
-  color: #fbbf24;
+  color: #38bdf8;
   font-size: 0.75rem;
   font-weight: 800;
   padding: 1px 7px;
@@ -2385,8 +2386,8 @@ button {
 }
 
 .trimmer-input-wrapper:focus-within {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  border-color: #06b6d4;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.18);
 }
 
 [data-theme='light'] .trimmer-input-wrapper {
@@ -2395,7 +2396,7 @@ button {
 }
 
 .trimmer-input-icon {
-  color: #f59e0b;
+  color: #06b6d4;
   flex-shrink: 0;
 }
 
@@ -2430,8 +2431,8 @@ button {
 }
 
 .btn-trimmer-paste:hover {
-  color: #f59e0b;
-  border-color: #f59e0b;
+  color: #06b6d4;
+  border-color: #06b6d4;
 }
 
 .btn-trimmer-load {
@@ -2441,12 +2442,12 @@ button {
   padding: 0.65rem 1.4rem;
   font-size: 0.92rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: var(--cyan-gradient);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
   transition: all 0.2s ease;
   flex-shrink: 0;
   white-space: nowrap;
@@ -2454,7 +2455,8 @@ button {
 
 .btn-trimmer-load:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45);
+  box-shadow: 0 6px 18px rgba(6, 182, 212, 0.45);
+  background: var(--cyan-gradient-hover);
 }
 
 .btn-trimmer-load:disabled {

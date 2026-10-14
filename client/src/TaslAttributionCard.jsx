@@ -68,7 +68,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
           <div>
             <h4 className="attribution-heading">Creator Attribution & Fair Use Credit (TASL)</h4>
             <p className="attribution-subheading">
-              Ethical copyright attribution text ready for social media, YouTube descriptions, or research blogs
+              Please kindly credit and support the original creator when sharing or using this media on social media, YouTube, or blogs.
             </p>
           </div>
         </div>
