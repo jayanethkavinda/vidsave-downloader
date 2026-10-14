@@ -244,7 +244,11 @@ export default function App() {
           setVideoInfo(fallbackInfo);
           return;
         }
-        throw new Error(data.error || 'Failed to fetch video details.');
+        let cleanMsg = data.error || 'Failed to fetch video details.';
+        if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(cleanMsg)) {
+          cleanMsg = 'This Instagram Reel/Post is Age-Restricted, Private, or requires an Instagram login to view.';
+        }
+        throw new Error(cleanMsg);
       }
 
       setVideoInfo(data);
@@ -254,7 +258,11 @@ export default function App() {
         const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId);
         setVideoInfo(fallbackInfo);
       } else {
-        setError(err.message || 'Could not reach backend server or video link is invalid/private.');
+        let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
+        if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(msg)) {
+          msg = 'This Instagram Reel/Post is Age-Restricted, Private, or requires an Instagram login to view.';
+        }
+        setError(msg);
       }
     } finally {
       setLoading(false);
