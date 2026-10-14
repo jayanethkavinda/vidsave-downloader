@@ -19,19 +19,11 @@ WORKDIR /app
 COPY server/package*.json ./server/
 RUN cd server && npm install
 
-# Copy client dependencies & build
-COPY client/package*.json ./client/
-RUN cd client && npm install
-
-# Copy full application code
+# Copy server application code
 COPY server ./server
-COPY client ./client
 
-# Build client production bundle
-RUN cd client && npm run build
-
-# Expose API and Frontend Ports
-EXPOSE 5000 3000
+# Expose API Port
+EXPOSE 5000
 
 ENV PORT=5000
 ENV NODE_ENV=production
