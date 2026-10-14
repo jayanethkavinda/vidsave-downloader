@@ -710,10 +710,10 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', r
   if (isAudio) {
     formatArg = 'bestaudio/best';
   } else if (isYt) {
-    formatArg = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+    formatArg = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
   } else {
-    // TikTok, Instagram, Twitter, Facebook: Direct single-stream, zero complex merging (prevents code -11)
-    formatArg = 'best[height<=1080]/best[ext=mp4]/best';
+    // TikTok, Instagram, Twitter, Facebook: Full 1080p HD support for both horizontal and vertical videos
+    formatArg = 'bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best[width<=1080]/best';
   }
 
   const args = [

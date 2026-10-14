@@ -321,7 +321,7 @@ app.get('/api/preview', async (req, res) => {
   // Quickly download lightweight 360p/480p preview stream (takes 1-3 seconds, ~1-2 MB, zero transcoding)
   const args = [
     '-m', 'yt_dlp',
-    '-f', 'best[height<=480][ext=mp4]/best[height<=480]/best[ext=mp4]/best',
+    '-f', 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/best[width<=480]/best',
     '--no-playlist',
     '--no-warnings',
     '--no-part',
