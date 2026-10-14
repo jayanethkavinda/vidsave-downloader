@@ -36,6 +36,10 @@ app.get('/api/diagnose', async (req, res) => {
     const { execSync } = await import('child_process');
     const pyVer = execSync('python3 --version || python --version', { encoding: 'utf8' }).trim();
     const ytdlpVer = execSync('python3 -m yt_dlp --version || python -m yt_dlp --version', { encoding: 'utf8' }).trim();
+    let ffmpegVer = 'unknown';
+    try {
+      ffmpegVer = execSync('/usr/bin/ffmpeg -version || ffmpeg -version', { encoding: 'utf8' }).split('\n')[0];
+    } catch (_) {}
     const fs = await import('fs');
     const path = await import('path');
     const hasCookieFile = fs.existsSync(path.resolve('ytdlp_session_cookies.txt'));
@@ -45,6 +49,7 @@ app.get('/api/diagnose', async (req, res) => {
     res.json({
       pyVer,
       ytdlpVer,
+      ffmpegVer,
       hasCookieFile,
       cookieSize,
       hasLegacy,

@@ -21,19 +21,24 @@ function getPythonCommand() {
 export const PYTHON_BIN = getPythonCommand();
 console.log(`[Downloader Engine] Using Python binary: "${PYTHON_BIN}"`);
 
-// Automatically detect robust ffmpeg path from ffmpeg-static or imageio_ffmpeg
-let ffmpegPath = (ffmpegStatic && fs.existsSync(ffmpegStatic)) ? ffmpegStatic : '';
+// Automatically detect robust ffmpeg path:
+// On Linux/Docker (Render), ALWAYS use the native system /usr/bin/ffmpeg (apt installed) to avoid ffmpeg-static SIGSEGV code -11
+// On Windows, use ffmpeg-static (ffmpeg.exe)
+let ffmpegPath = '';
+if (process.platform === 'linux') {
+  if (fs.existsSync('/usr/bin/ffmpeg')) {
+    ffmpegPath = '/usr/bin/ffmpeg';
+  } else {
+    try {
+      const candidate = execSync('which ffmpeg', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
+      if (candidate && fs.existsSync(candidate)) ffmpegPath = candidate;
+    } catch (_) {}
+  }
+}
+
 if (!ffmpegPath) {
-  try {
-    const candidate = execSync(`${PYTHON_BIN} -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"`, { 
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
-    }).trim();
-    if (candidate && fs.existsSync(candidate)) {
-      ffmpegPath = candidate;
-    }
-  } catch (e) {
-    ffmpegPath = '';
+  if (ffmpegStatic && fs.existsSync(ffmpegStatic)) {
+    ffmpegPath = ffmpegStatic;
   }
 }
 console.log(`[Downloader Engine] Using FFmpeg binary: "${ffmpegPath || 'system PATH'}"`);
