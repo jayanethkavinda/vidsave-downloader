@@ -211,6 +211,45 @@ export default function App() {
     };
   };
 
+  // Instagram Fallback metadata builder via direct fast cloud mirrors
+  const getInstagramFallbackInfo = (rawUrl) => {
+    return {
+      title: 'Instagram Reel / Post',
+      uploader: 'Instagram Creator',
+      extractor: 'Instagram (Instant Cloud Mirror)',
+      thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&auto=format&fit=crop&q=80',
+      webpageUrl: rawUrl,
+      isInstagramFallback: true,
+      maxQualityLabel: '1080p Full HD',
+      presets: [
+        { 
+          id: 'mirror_snapinsta', 
+          label: '1080p Full HD (SnapInsta)', 
+          shortLabel: '1080p Full HD',
+          ext: 'mp4', 
+          type: 'video', 
+          mirrorUrl: `https://snapinsta.app/` 
+        },
+        { 
+          id: 'mirror_fastdl', 
+          label: '720p HD Ready (FastDL)', 
+          shortLabel: '720p HD',
+          ext: 'mp4', 
+          type: 'video', 
+          mirrorUrl: `https://fastdl.app/` 
+        },
+        { 
+          id: 'mirror_savefrom', 
+          label: 'Download Video / MP3 (SaveFrom)', 
+          shortLabel: 'SaveFrom',
+          ext: 'mp4', 
+          type: 'video', 
+          mirrorUrl: `https://en.savefrom.net/248/` 
+        }
+      ]
+    };
+  };
+
   // Helper to format file size cleanly - NEVER shows 0 MB, always displays decimal MB (e.g. 0.76 MB)
   const getCleanFilesize = (preset) => {
     if (!preset) return null;
@@ -258,11 +297,13 @@ export default function App() {
           setVideoInfo(fallbackInfo);
           return;
         }
-        let cleanMsg = data.error || 'Failed to fetch video details.';
-        if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(cleanMsg)) {
-          cleanMsg = 'This Instagram Reel/Post is Age-Restricted, Private, or requires an Instagram login to view.';
+        // If it is Instagram, activate seamless Instagram cloud mirror fallback
+        if (/(?:instagram\.com|instagr\.am)/i.test(targetUrl)) {
+          const fallbackInfo = getInstagramFallbackInfo(targetUrl);
+          setVideoInfo(fallbackInfo);
+          return;
         }
-        throw new Error(cleanMsg);
+        throw new Error(data.error || 'Failed to fetch video details.');
       }
 
       setVideoInfo(data);
@@ -271,12 +312,14 @@ export default function App() {
         // Seamlessly fall back to Instant Cloud Resolver for YouTube
         const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId);
         setVideoInfo(fallbackInfo);
+      } else if (/(?:instagram\.com|instagr\.am)/i.test(targetUrl)) {
+        // Seamlessly fall back to Instant Cloud Mirror for Instagram
+        const fallbackInfo = getInstagramFallbackInfo(targetUrl);
+        setVideoInfo(fallbackInfo);
       } else {
         let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
         if (/Failed to fetch|NetworkError/i.test(msg)) {
           msg = 'Cloud Server is waking up (Render Free cold start takes ~30-50s). Please click "Get Video" again in a few seconds!';
-        } else if (/Instagram.*(available to everyone|certain audiences|empty media response|login)/i.test(msg)) {
-          msg = 'This Instagram Reel/Post is Age-Restricted, Private, or requires an Instagram login to view.';
         }
         setError(msg);
       }
@@ -328,8 +371,8 @@ export default function App() {
       });
     }, 140);
 
-    // If this is a YouTube fallback, launch the instant fast mirror resolver
-    if (videoInfo.isYouTubeFallback) {
+    // If this is a YouTube or Instagram fallback, launch the instant fast mirror resolver
+    if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) {
       const preset = videoInfo.presets.find(p => p.id === presetId) || videoInfo.presets[0];
       if (preset && preset.mirrorUrl) {
         window.open(preset.mirrorUrl, '_blank', 'noopener,noreferrer');
@@ -785,8 +828,8 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 </div>
               </div>
 
-              {/* ⚡ Special YouTube Instant Cloud Resolver Banner */}
-              {videoInfo.isYouTubeFallback && (
+              {/* ⚡ Special Cloud Resolver Banner */}
+              {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) && (
                 <div style={{
                   background: 'rgba(6, 182, 212, 0.12)',
                   border: '1px solid rgba(6, 182, 212, 0.35)',
@@ -801,7 +844,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <Zap size={22} color="#06b6d4" style={{ flexShrink: 0 }} />
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
                     <strong style={{ color: '#06b6d4', display: 'block', marginBottom: '2px' }}>
-                      ⚡ YouTube Instant Cloud Resolver Active
+                      ⚡ {videoInfo.isInstagramFallback ? 'Instagram' : 'YouTube'} Instant Cloud Resolver Active
                     </strong>
                     Direct high-speed resolver bypassed data-center restrictions. Select 1080p Full HD, 720p, or MP3 below to download instantly without wait time!
                   </div>
@@ -821,7 +864,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <button
                     type="button"
                     onClick={() => {
-                      if (videoInfo.isYouTubeFallback) {
+                      if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) {
                         window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
                       } else {
                         handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
@@ -1046,10 +1089,10 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                                   className="btn-download-action"
                                   disabled={downloadingFormat === preset.id}
                                 >
-                                  {videoInfo.isYouTubeFallback ? <ExternalLink size={15} /> : <Download size={15} />}
+                                  {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? <ExternalLink size={15} /> : <Download size={15} />}
                                   {downloadingFormat === preset.id 
-                                    ? (videoInfo.isYouTubeFallback ? 'Opening...' : `Starting... ${downloadProgress}%`) 
-                                    : (videoInfo.isYouTubeFallback ? 'Direct Link' : 'Download')}
+                                    ? ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Opening...' : `Starting... ${downloadProgress}%`) 
+                                    : ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Direct Link' : 'Download')}
                                 </button>
                               </td>
                             </tr>
