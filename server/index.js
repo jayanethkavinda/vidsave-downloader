@@ -9,10 +9,13 @@ import {
 import { 
   getVideoInfo, 
   streamVideoDownload, 
-  streamTrimmedDownload, 
   convertVttToSrt,
   isYouTubeUrl 
 } from './services/downloader.js';
+import { 
+  streamTrimmedDownload, 
+  handlePreviewStream 
+} from './services/trimmer.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -210,7 +213,7 @@ app.get('/api/subtitle', async (req, res) => {
   }
 });
 
-// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (SSRF Protected)
+// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (SSRF & Referer Protected)
 app.get('/api/proxy-stream', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL required');
@@ -220,8 +223,17 @@ app.get('/api/proxy-stream', async (req, res) => {
     const { default: https } = await import('https');
     const { default: http } = await import('http');
     const client = safeStreamUrl.startsWith('https') ? https : http;
-    const headers = { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' };
+    const headers = { 
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36', 
+      'Accept': '*/*' 
+    };
     if (req.headers.range) headers['Range'] = req.headers.range;
+
+    // Critical Referers to prevent 403 Forbidden on Twitter, TikTok, Instagram & Facebook
+    if (safeStreamUrl.includes('tiktokcdn.com') || safeStreamUrl.includes('tiktok.com')) headers['Referer'] = 'https://www.tiktok.com/';
+    else if (safeStreamUrl.includes('twimg.com') || safeStreamUrl.includes('twitter.com') || safeStreamUrl.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
+    else if (safeStreamUrl.includes('instagram.com') || safeStreamUrl.includes('cdninstagram.com')) headers['Referer'] = 'https://www.instagram.com/';
+    else if (safeStreamUrl.includes('fbcdn.net') || safeStreamUrl.includes('facebook.com')) headers['Referer'] = 'https://www.facebook.com/';
 
     const proxyReq = client.get(safeStreamUrl, { headers }, proxyRes => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -237,6 +249,18 @@ app.get('/api/proxy-stream', async (req, res) => {
     });
   } catch (_) {
     if (!res.headersSent) res.status(400).end();
+  }
+});
+
+// 7. Dedicated Low-Res Range-Enabled Preview Stream (Full Audio + Video with 0-Lag Seeking)
+app.get('/api/preview', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).send('URL required');
+  try {
+    const safeUrl = await assertSafeUrl(url);
+    await handlePreviewStream(safeUrl, req, res);
+  } catch (err) {
+    if (!res.headersSent) res.status(400).json({ error: err.message });
   }
 });
 

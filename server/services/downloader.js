@@ -350,13 +350,10 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated preview stream
+  // Dedicated preview stream for Trimmer HTML5 player (Audio + Video with Range support)
   let previewStreamUrl = null;
   if (!isYt) {
-    const directUrl = rawInfo.url || (videoFormats.find(f => f.url && !f.url.includes('.m3u8'))?.url) || null;
-    if (directUrl) {
-      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directUrl)}`;
-    }
+    previewStreamUrl = `/api/preview?url=${encodeURIComponent(url)}`;
   }
 
   return {
@@ -573,69 +570,7 @@ export function streamVideoDownload(url, formatPreset, res) {
   runTempDownload();
 }
 
-/**
- * Video & Audio Segment Trimmer Download Stream
- */
-export function streamTrimmedDownload(url, startSec, endSec, type, formatPreset, res) {
-  const isAudio = type === 'audio' || type === 'mp3';
-  const ext = isAudio ? 'mp3' : 'mp4';
-  const tempFile = path.join(os.tmpdir(), `vidsave_trim_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
 
-  const formatSelector = isAudio ? 'bestaudio/best' : (formatPreset === '1080' ? 'bestvideo[height<=1080]+bestaudio/best' : 'bestvideo+bestaudio/best');
-  const postArgs = isAudio 
-    ? `ffmpeg:-ss ${startSec} -to ${endSec} -vn -acodec libmp3lame -b:a 192k`
-    : `ffmpeg:-ss ${startSec} -to ${endSec} -c:v copy -c:a copy`;
-
-  const args = [
-    '-m', 'yt_dlp',
-    '-f', formatSelector,
-    '--postprocessor-args', postArgs,
-    '-o', tempFile,
-    ...buildYtdlpArgs(url),
-    '--',
-    url
-  ];
-
-  console.log(`[Trimmer Engine] Cutting ${startSec}s to ${endSec}s (${type}) -> ${tempFile}`);
-  const child = spawn(PYTHON_BIN, args, { windowsHide: true, detached: process.platform !== 'win32' });
-
-  const watchdog = setTimeout(() => {
-    killProcessTree(child);
-    cleanup();
-  }, 6 * 60 * 1000);
-
-  const cleanup = () => {
-    clearTimeout(watchdog);
-    try {
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile);
-    } catch (_) {}
-  };
-
-  res.on('close', () => {
-    clearTimeout(watchdog);
-    if (!res.writableFinished) killProcessTree(child);
-    cleanup();
-  });
-
-  child.on('close', code => {
-    clearTimeout(watchdog);
-    if (code !== 0 || !fs.existsSync(tempFile)) {
-      if (!res.headersSent) res.status(500).json({ error: 'Trim processing failed.' });
-      cleanup();
-      return;
-    }
-
-    try {
-      const stats = fs.statSync(tempFile);
-      res.setHeader('Content-Length', stats.size);
-      const stream = fs.createReadStream(tempFile);
-      stream.pipe(res);
-      stream.on('close', cleanup);
-    } catch (_) {
-      cleanup();
-    }
-  });
-}
 
 /**
  * Subtitle format converter (VTT to SRT)
