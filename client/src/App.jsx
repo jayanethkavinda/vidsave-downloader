@@ -54,6 +54,7 @@ export default function App() {
   const [downloadError, setDownloadError] = useState('');
   const [downloadingSubId, setDownloadingSubId] = useState(null);
   const [subSearch, setSubSearch] = useState('');
+  const [subPage, setSubPage] = useState(1);
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
@@ -728,6 +729,10 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
     s.language.toLowerCase().includes(subSearch.toLowerCase()) ||
     s.code.toLowerCase().includes(subSearch.toLowerCase())
   );
+  const SUBTITLES_PER_PAGE = 10;
+  const totalSubPages = Math.ceil(filteredSubtitles.length / SUBTITLES_PER_PAGE) || 1;
+  const currentSubPage = Math.min(Math.max(1, subPage), totalSubPages);
+  const paginatedSubtitles = filteredSubtitles.slice((currentSubPage - 1) * SUBTITLES_PER_PAGE, currentSubPage * SUBTITLES_PER_PAGE);
 
 
   return (
@@ -1210,14 +1215,19 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               </div>
 
               {/* 📑 Dedicated Subtitles & Closed Captions Section */}
-              <div className="subtitles-section" style={{ textAlign: 'left', marginTop: '0.75rem' }}>
-                <div className="format-tabs" style={{ marginBottom: '1.25rem' }}>
-                  <div
-                    className="tab-btn active"
-                    style={{ cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
-                  >
-                    <Subtitles size={16} /> Subtitles & Captions ({subtitles.length})
+              {/* 📑 Dedicated Subtitles & Closed Captions Section */}
+              <div id="subtitles-section" className="subtitles-section" style={{ textAlign: 'left', marginTop: '1.25rem' }}>
+                <div className="subtitles-box-header">
+                  <div className="subtitles-header-left">
+                    <Subtitles size={18} className="sub-header-icon" />
+                    <span className="sub-header-title">Subtitles & Closed Captions</span>
+                    <span className="sub-header-counter">{filteredSubtitles.length}</span>
                   </div>
+                  {totalSubPages > 1 && (
+                    <div className="sub-header-page-tag">
+                      Page {currentSubPage} of {totalSubPages}
+                    </div>
+                  )}
                 </div>
 
                 {subtitles.length === 0 ? (
@@ -1235,11 +1245,22 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           type="text"
                           placeholder="Search language (e.g. Sinhala, English, Tamil, Spanish, French)..."
                           value={subSearch}
-                          onChange={(e) => setSubSearch(e.target.value)}
+                          onChange={(e) => {
+                            setSubSearch(e.target.value);
+                            setSubPage(1);
+                          }}
                           className="sub-search-input"
                         />
                         {subSearch && (
-                          <button onClick={() => setSubSearch('')} className="sub-search-clear">✕</button>
+                          <button
+                            onClick={() => {
+                              setSubSearch('');
+                              setSubPage(1);
+                            }}
+                            className="sub-search-clear"
+                          >
+                            ✕
+                          </button>
                         )}
                       </div>
                     )}
@@ -1266,58 +1287,90 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       </div>
                     </div>
 
-                    <div className="quality-table-wrapper">
-                      <table className="quality-table">
-                        <tbody>
-                          {filteredSubtitles.map((sub) => {
-                            const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
-                            const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
+                    {/* 📋 Subtitles List (Compact 1-row layout, 50% height reduction on mobile, 10px minimum gap) */}
+                    <div className="subtitles-list">
+                      {paginatedSubtitles.map((sub) => {
+                        const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
+                        const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
 
-                            return (
-                              <tr key={sub.id} className="quality-row">
-                                <td className="quality-cell" style={{ fontWeight: '600' }}>
-                                  <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
-                                    {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
-                                    <span>{sub.language}</span>
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
-                                      ({sub.isAuto ? 'Auto CC' : 'Official'})
-                                    </span>
-                                  </span>
-                                </td>
-                                <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                  <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
-                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
-                                    • {sub.code.toUpperCase()}
-                                  </span>
-                                </td>
-                                <td className="quality-cell" style={{ textAlign: 'right' }}>
-                                  <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                    <button
-                                      onClick={() => handleDownloadSub(sub, 'srt')}
-                                      className="btn-download-action btn-sub-action"
-                                      disabled={isDownloadingSrt || isDownloadingVtt}
-                                      title={`Download ${sub.language} subtitle as .SRT file`}
-                                    >
-                                      <Download size={14} />
-                                      {isDownloadingSrt ? 'Saving...' : '.SRT'}
-                                    </button>
-                                    <button
-                                      onClick={() => handleDownloadSub(sub, 'vtt')}
-                                      className="btn-download-action btn-sub-action btn-sub-vtt"
-                                      disabled={isDownloadingSrt || isDownloadingVtt}
-                                      title={`Download ${sub.language} subtitle as .VTT file`}
-                                    >
-                                      <Download size={14} />
-                                      {isDownloadingVtt ? 'Saving...' : '.VTT'}
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                        return (
+                          <div key={sub.id} className="subtitle-card-row">
+                            {/* Left: Language Topic & Type Badge */}
+                            <div className="sub-topic-group">
+                              <span className={`sub-status-dot ${sub.isAuto ? 'auto' : 'manual'}`}>
+                                {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
+                              </span>
+                              <span className="sub-lang-name" title={sub.language}>
+                                {sub.language}
+                              </span>
+                              <span className={`sub-type-tag ${sub.isAuto ? 'tag-auto' : 'tag-official'}`}>
+                                {sub.isAuto ? 'Auto CC' : 'Official'}
+                              </span>
+                              <span className="sub-code-pill">
+                                {sub.code.toUpperCase()}
+                              </span>
+                            </div>
+
+                            {/* Right: Distinctly Bordered Download Buttons */}
+                            <div className="sub-actions-group">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadSub(sub, 'srt')}
+                                className="btn-sub-dl btn-sub-srt"
+                                disabled={isDownloadingSrt || isDownloadingVtt}
+                                title={`Download ${sub.language} subtitle as .SRT file`}
+                              >
+                                <Download size={13} />
+                                <span>{isDownloadingSrt ? 'Saving...' : '.SRT'}</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadSub(sub, 'vtt')}
+                                className="btn-sub-dl btn-sub-vtt"
+                                disabled={isDownloadingSrt || isDownloadingVtt}
+                                title={`Download ${sub.language} subtitle as .VTT file`}
+                              >
+                                <Download size={13} />
+                                <span>{isDownloadingVtt ? 'Saving...' : '.VTT'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+
+                    {/* 📄 Pagination (10 by 10 with Previous and Next) */}
+                    {totalSubPages > 1 && (
+                      <div className="subtitles-pagination">
+                        <button
+                          type="button"
+                          className="btn-pagination"
+                          disabled={currentSubPage <= 1}
+                          onClick={() => {
+                            setSubPage((p) => Math.max(1, p - 1));
+                            const el = document.getElementById('subtitles-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                        >
+                          ‹ Previous
+                        </button>
+                        <span className="pagination-info">
+                          Page <strong>{currentSubPage}</strong> of <strong>{totalSubPages}</strong> ({filteredSubtitles.length} total)
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-pagination"
+                          disabled={currentSubPage >= totalSubPages}
+                          onClick={() => {
+                            setSubPage((p) => Math.min(totalSubPages, p + 1));
+                            const el = document.getElementById('subtitles-section');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          }}
+                        >
+                          Next ›
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
