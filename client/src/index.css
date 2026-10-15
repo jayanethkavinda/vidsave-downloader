@@ -919,6 +919,111 @@ button {
   box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4);
 }
 
+/* 🎵 Mobile-Only Quick MP3 Audio Download Action (Hidden on Desktop by default) */
+.btn-quick-mp3-mobile {
+  display: none !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 460px;
+  min-height: 52px;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-size: 0.96rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+[data-theme='light'] .btn-quick-mp3-mobile {
+  background: #ffffff;
+  color: #be185d;
+  border: 1.5px solid #f472b6;
+  box-shadow: 0 3px 12px rgba(219, 39, 119, 0.08);
+}
+
+[data-theme='dark'] .btn-quick-mp3-mobile {
+  background: rgba(236, 72, 153, 0.1);
+  color: #f472b6;
+  border: 1.5px solid rgba(244, 114, 182, 0.4);
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.15);
+}
+
+.btn-quick-mp3-mobile:hover:not(:disabled),
+.btn-quick-mp3-mobile:active:not(:disabled) {
+  background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.35) !important;
+}
+
+.btn-quick-mp3-mobile:hover:not(:disabled) .mp3-icon,
+.btn-quick-mp3-mobile:hover:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-icon,
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-size-tag {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+}
+
+.btn-quick-mp3-mobile:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-quick-mp3-mobile.overlimit {
+  background: rgba(234, 179, 8, 0.12) !important;
+  border-color: rgba(234, 179, 8, 0.35) !important;
+  color: #eab308 !important;
+}
+
+.btn-mp3-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.mp3-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.btn-quick-mp3-mobile:active .mp3-icon {
+  transform: scale(1.15);
+}
+
+.mp3-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.mp3-size-tag {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1.3;
+}
+
+[data-theme='light'] .mp3-size-tag {
+  background: rgba(219, 39, 119, 0.1);
+  color: #be185d;
+}
+
+[data-theme='dark'] .mp3-size-tag {
+  background: rgba(244, 114, 182, 0.2);
+  color: #f9a8d4;
+}
+
+.text-pink {
+  color: #ec4899;
+}
+
 .featured-left {
   text-align: left;
 }
@@ -1457,8 +1562,12 @@ button {
   }
   .featured-download-box {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     text-align: center;
+    gap: 0.85rem;
+  }
+  .btn-quick-mp3-mobile {
+    display: inline-flex !important;
   }
   .featured-left {
     text-align: center;

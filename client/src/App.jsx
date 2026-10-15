@@ -714,6 +714,14 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
   const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) || safeBestPreset;
   const videoPresets = allVideoPresets.filter(p => p.id !== (selectedPreset?.id || 'best_with_audio'));
   const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
+  const bestAudioPreset = audioPresets[0] || (videoInfo?.presets || []).find(p => p.type === 'audio' || p.ext === 'mp3') || {
+    id: 'audio_best',
+    label: 'MP3 Audio (High Quality)',
+    shortLabel: 'MP3',
+    ext: 'mp3',
+    type: 'audio',
+    filesizeFormatted: ''
+  };
   const subtitles = videoInfo?.subtitles || [];
   const filteredSubtitles = subtitles.filter(s =>
     !subSearch.trim() ||
@@ -1129,6 +1137,63 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                     );
                   })()}
                 </div>
+
+                {/* 🎵 Mobile-Only Quick MP3 Audio Download Button (UI/UX Optimized) */}
+                {bestAudioPreset && (() => {
+                  const isAudioOver = bestAudioPreset.exceedsLimit || (bestAudioPreset.filesize && bestAudioPreset.filesize > maxLimitBytes);
+                  const audioSize = getCleanFilesize(bestAudioPreset);
+                  const isAudioDownloading = downloadingFormat === (bestAudioPreset.id || 'audio_best');
+
+                  if (isAudioOver) {
+                    return (
+                      <button
+                        type="button"
+                        disabled={true}
+                        className="btn-quick-mp3-mobile overlimit"
+                        title={`Audio exceeds ${maxLimitLabel} limit`}
+                      >
+                        <div className="btn-mp3-content">
+                          <Clock size={17} style={{ color: '#eab308', flexShrink: 0 }} />
+                          <span className="mp3-title">Waiting MP3 Audio</span>
+                          <span className="mp3-size-tag">(Coming Soon)</span>
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
+                          const audioMirror = bestAudioPreset.mirrorUrl || videoInfo.presets?.find(p => p.type === 'audio')?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl;
+                          window.open(audioMirror, '_blank', 'noopener,noreferrer');
+                        } else {
+                          handleDownload(bestAudioPreset.id || 'audio_best', 'mp3');
+                        }
+                      }}
+                      disabled={downloadingFormat !== null}
+                      className="btn-quick-mp3-mobile"
+                      title={`Download MP3 Audio (${audioSize || 'High Quality'})`}
+                    >
+                      {isAudioDownloading ? (
+                        <div className="btn-mp3-content">
+                          <Zap size={17} className="spin text-pink" />
+                          <span className="mp3-title">Downloading MP3...</span>
+                          <span className="mp3-size-tag">{downloadProgress}%</span>
+                        </div>
+                      ) : (
+                        <div className="btn-mp3-content">
+                          <Music size={17} className="mp3-icon" />
+                          <span className="mp3-title">Download MP3 Audio</span>
+                          {audioSize && (
+                            <span className="mp3-size-tag">({audioSize})</span>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })()}
 
                 {/* ✂️ Trim & Crop Video Button directly under the download button */}
                 <button
