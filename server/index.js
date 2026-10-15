@@ -26,9 +26,19 @@ import {
   buildYtdlpArgs,
   PYTHON_BIN
 } from './services/downloader.js';
+import {
+  assertSafeUrl,
+  safeFetch,
+  isMediaContentType,
+  heavyConcurrencyGuard,
+  killProcessTree
+} from './services/security.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Trust reverse proxy (Render cloud load balancer)
+app.set('trust proxy', 1);
 
 app.use(cors({
   origin: '*',
@@ -37,13 +47,25 @@ app.use(cors({
 
 app.use(express.json());
 
+// Concurrency Cap: Prevent simultaneous heavy FFmpeg / yt-dlp tasks from exhausting Render 512MB RAM
+app.use(['/api/download', '/api/trim', '/api/preview', '/api/proxy-stream'], heavyConcurrencyGuard);
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', engine: 'yt-dlp + python3', timestamp: new Date() });
 });
 
-// Diagnostic Endpoint
-app.get('/api/diagnose', async (req, res) => {
+// Admin Authorization Guard for diagnostic endpoints
+const adminAuthGuard = (req, res, next) => {
+  const adminSecret = process.env.ADMIN_SECRET_KEY;
+  if (!adminSecret || req.headers['x-admin-key'] !== adminSecret) {
+    return res.status(403).json({ error: 'Forbidden: Admin authorization required' });
+  }
+  next();
+};
+
+// Diagnostic Endpoint (Protected)
+app.get('/api/diagnose', adminAuthGuard, async (req, res) => {
   try {
     const { execSync } = await import('child_process');
     const pyVer = execSync('python3 --version || python --version', { encoding: 'utf8' }).trim();
@@ -73,23 +95,12 @@ app.get('/api/diagnose', async (req, res) => {
   }
 });
 
-// Server IP & YouTube Status Check Endpoint
-app.get('/api/check-ip', async (req, res) => {
+// Server IP Check Endpoint (Protected)
+app.get('/api/check-ip', adminAuthGuard, async (req, res) => {
   try {
     const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json()).catch(() => ({ ip: 'Unknown' }));
-    let ytStatus = 'Unknown';
-    try {
-      const ytRes = await fetch('https://www.youtube.com', {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-      });
-      ytStatus = `HTTP ${ytRes.status} ${ytRes.statusText}`;
-    } catch (e) {
-      ytStatus = `Error: ${e.message}`;
-    }
-
     res.json({
       serverIp: ipRes.ip,
-      youtubeStatus: ytStatus,
       isDatacenter: true,
       timestamp: new Date()
     });
@@ -98,27 +109,35 @@ app.get('/api/check-ip', async (req, res) => {
   }
 });
 
-// Diagnostic endpoint to test Instagram Fallback directly
-app.get('/api/test-snap', async (req, res) => {
+// Diagnostic endpoint to test Fallback directly (Protected)
+app.get('/api/test-snap', adminAuthGuard, async (req, res) => {
   const testUrl = req.query.url || 'https://www.instagram.com/reel/DeQ3rBVSU8Q/';
   try {
+    const safeUrl = await assertSafeUrl(testUrl);
     const { snapsave } = await import('snapsave-media-downloader');
-    const out = await snapsave(testUrl);
+    const out = await snapsave(safeUrl);
     res.json({ success: true, out });
   } catch (e) {
-    res.status(500).json({ success: false, error: e.message, stack: e.stack });
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
 // Video Metadata Endpoint
 app.get('/api/info', async (req, res) => {
   const { url } = req.query;
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Valid URL is required' });
+  }
+
+  let safeUrl;
+  try {
+    safeUrl = await assertSafeUrl(url);
+  } catch (urlErr) {
+    return res.status(400).json({ error: urlErr.message });
   }
 
   try {
-    const info = await getVideoInfo(url);
+    const info = await getVideoInfo(safeUrl);
     res.json(info);
   } catch (error) {
     console.error('Info extraction error:', error.message);
@@ -129,19 +148,30 @@ app.get('/api/info', async (req, res) => {
 });
 
 // Direct Download Stream Endpoint (Zero Disk Storage)
-app.get('/api/download', (req, res) => {
+app.get('/api/download', async (req, res) => {
   const { url, format = 'best', title = 'video' } = req.query;
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Valid URL is required' });
   }
 
+  let safeUrl;
+  try {
+    safeUrl = await assertSafeUrl(url);
+  } catch (urlErr) {
+    return res.status(400).json({ error: urlErr.message });
+  }
+
+  const rawFormat = typeof format === 'string' ? format : 'best';
+  const cleanFormat = /^[a-zA-Z0-9_+\-.:]{1,50}$/.test(rawFormat) ? rawFormat : 'best';
+
   // Clean filename for HTTP Content-Disposition
-  const sanitizedTitle = (title || 'video')
+  const rawTitle = typeof title === 'string' ? title : 'video';
+  const sanitizedTitle = rawTitle
     .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
     .trim()
     .substring(0, 80) || 'media';
 
-  const isAudio = format === 'audio_best' || format === 'mp3' || (format.includes('audio') && !format.includes('best_with_audio'));
+  const isAudio = cleanFormat === 'audio_best' || cleanFormat === 'mp3' || (cleanFormat.includes('audio') && !cleanFormat.includes('best_with_audio'));
   const ext = isAudio ? 'mp3' : 'mp4';
   const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 
@@ -152,23 +182,25 @@ app.get('/api/download', (req, res) => {
   );
   res.setHeader('Content-Type', mimeType);
 
-  streamVideoDownload(url, format, res);
+  streamVideoDownload(safeUrl, cleanFormat, res);
 });
 
 // Dedicated Subtitle Download Stream Endpoint (.SRT & .VTT)
 app.get('/api/subtitle', async (req, res) => {
   const { url, lang = 'en', ext = 'srt', title = 'subtitles' } = req.query;
-  if (!url) {
+  if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Subtitle URL is required' });
   }
 
+  const cleanLang = (typeof lang === 'string' ? lang : 'en').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 10) || 'en';
   const cleanExt = (ext === 'vtt') ? 'vtt' : 'srt';
-  const sanitizedTitle = (title || 'video')
+  const rawTitle = typeof title === 'string' ? title : 'video';
+  const sanitizedTitle = rawTitle
     .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
     .trim()
     .substring(0, 80) || 'media';
 
-  const filename = `${sanitizedTitle}_${lang}.${cleanExt}`;
+  const filename = `${sanitizedTitle}_${cleanLang}.${cleanExt}`;
 
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
   res.setHeader('Content-Type', cleanExt === 'vtt' ? 'text/vtt; charset=utf-8' : 'text/plain; charset=utf-8');
@@ -185,7 +217,8 @@ app.get('/api/subtitle', async (req, res) => {
     };
 
     let rawText = '';
-    const upstreamRes = await fetch(subUrl, { headers });
+    // SSRF-Safe fetch with redirect validation
+    const upstreamRes = await safeFetch(subUrl, { headers });
     
     if (upstreamRes.ok) {
       rawText = await upstreamRes.text();
@@ -242,17 +275,28 @@ except Exception as e:
 });
 
 // Video & Audio Segment Trimmer Download Stream (Zero Disk Storage)
-app.get('/api/trim', (req, res) => {
+app.get('/api/trim', async (req, res) => {
   const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
-  if (!url) {
-    return res.status(400).json({ error: 'URL is required' });
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'Valid URL is required' });
+  }
+
+  let safeUrl;
+  try {
+    safeUrl = await assertSafeUrl(url);
+  } catch (urlErr) {
+    return res.status(400).json({ error: urlErr.message });
   }
 
   const isAudio = type === 'audio' || type === 'mp3';
   const ext = isAudio ? 'mp3' : 'mp4';
   const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 
-  const sanitizedTitle = (title || 'clip')
+  const rawFormat = typeof format === 'string' ? format : 'best';
+  const cleanFormat = /^[a-zA-Z0-9_+\-.:]{1,50}$/.test(rawFormat) ? rawFormat : 'best';
+
+  const rawTitle = typeof title === 'string' ? title : 'clip';
+  const sanitizedTitle = rawTitle
     .replace(/[^\w\s\u0D80-\u0DFF.-]/gi, '')
     .trim()
     .substring(0, 70) || 'trimmed_clip';
@@ -262,25 +306,31 @@ app.get('/api/trim', (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`);
   res.setHeader('Content-Type', mimeType);
 
-  streamTrimmedDownload(url, start, end, type, format, res);
+  streamTrimmedDownload(safeUrl, start, end, type, cleanFormat, res);
 });
 
 // Zero-Load Media Proxy Stream with HTTP Range pass-through for in-browser Trimmer preview (TikTok, Instagram, Facebook, etc.)
 app.get('/api/proxy-stream', async (req, res) => {
   const { url, referer } = req.query;
-  if (!url) {
-    return res.status(400).send('URL is required');
+  if (!url || typeof url !== 'string') {
+    return res.status(400).send('Valid URL is required');
+  }
+
+  let safeTargetUrl;
+  try {
+    safeTargetUrl = await assertSafeUrl(decodeURIComponent(url));
+  } catch (urlErr) {
+    return res.status(400).send(`Invalid URL: ${urlErr.message}`);
   }
 
   try {
-    const targetUrl = decodeURIComponent(url);
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       'Accept': '*/*',
       'Accept-Encoding': 'identity;q=1, *;q=0',
     };
 
-    if (referer) {
+    if (referer && typeof referer === 'string') {
       headers['Referer'] = decodeURIComponent(referer);
     }
     if (req.headers.range) {
@@ -289,13 +339,29 @@ app.get('/api/proxy-stream', async (req, res) => {
 
     const { default: https } = await import('https');
     const { default: http } = await import('http');
-    const client = targetUrl.startsWith('https') ? https : http;
+    const client = safeTargetUrl.startsWith('https') ? https : http;
 
-    const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
-      // If upstream issues a redirect, follow it cleanly
+    const upstreamReq = client.get(safeTargetUrl, { headers }, async (upstreamRes) => {
+      // Follow redirects with SSRF re-validation
       if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
-        return res.redirect(upstreamRes.statusCode, upstreamRes.headers.location);
+        try {
+          const redirectTarget = await assertSafeUrl(new URL(upstreamRes.headers.location, safeTargetUrl).href);
+          return res.redirect(upstreamRes.statusCode, redirectTarget);
+        } catch (_) {
+          return res.status(403).send('Redirect to restricted network address blocked');
+        }
       }
+
+      // Enforce Content-Type allowlist (block Reflected XSS)
+      const ct = upstreamRes.headers['content-type'] || '';
+      if (!isMediaContentType(ct)) {
+        upstreamReq.destroy();
+        return res.status(415).send('Unsupported media content-type');
+      }
+
+      // Standard media security headers
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox;");
 
       // Forward status code (200 OK or 206 Partial Content)
       res.status(upstreamRes.statusCode || 200);
@@ -308,7 +374,6 @@ app.get('/api/proxy-stream', async (req, res) => {
         }
       });
 
-      res.setHeader('Access-Control-Allow-Origin', '*');
       upstreamRes.pipe(res);
     });
 
@@ -329,16 +394,22 @@ app.get('/api/proxy-stream', async (req, res) => {
 // High-Speed Lightweight Video Preview Endpoint (Serves 1-2 MB low-res MP4 with full Range/seeking support)
 app.get('/api/preview', async (req, res) => {
   const { url } = req.query;
-  if (!url) {
-    return res.status(400).send('URL is required');
+  if (!url || typeof url !== 'string') {
+    return res.status(400).send('Valid URL is required');
   }
 
-  const hash = crypto.createHash('md5').update(url).digest('hex');
+  let safeTargetUrl;
+  try {
+    safeTargetUrl = await assertSafeUrl(url);
+  } catch (urlErr) {
+    return res.status(400).send(`Invalid URL: ${urlErr.message}`);
+  }
+
+  const hash = crypto.createHash('md5').update(safeTargetUrl).digest('hex');
   const tempFile = path.join(os.tmpdir(), `vidsave_prev_${hash}.mp4`);
 
   // If already cached on disk, send instantly!
   if (fs.existsSync(tempFile) && fs.statSync(tempFile).size > 10000) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
     return res.sendFile(tempFile);
   }
 
@@ -350,17 +421,27 @@ app.get('/api/preview', async (req, res) => {
     '--no-warnings',
     '--no-part',
     '--socket-timeout', '15',
-    ...buildYtdlpArgs(url, true),
+    ...buildYtdlpArgs(safeTargetUrl, true),
     '-o', tempFile,
-    url
+    '--',
+    safeTargetUrl
   ];
 
-  console.log(`[Preview Generator] Generating lightweight in-browser preview for: ${url}`);
-  const child = spawn(PYTHON_BIN, args, { windowsHide: true });
+  console.log(`[Preview Generator] Generating lightweight in-browser preview for: ${safeTargetUrl}`);
+  const child = spawn(PYTHON_BIN, args, {
+    windowsHide: true,
+    detached: process.platform !== 'win32'
+  });
+
+  const watchdog = setTimeout(() => {
+    killProcessTree(child);
+    try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (_) {}
+  }, 45 * 1000);
+  if (watchdog.unref) watchdog.unref();
 
   child.on('close', (code) => {
+    clearTimeout(watchdog);
     if (code === 0 && fs.existsSync(tempFile) && fs.statSync(tempFile).size > 5000) {
-      res.setHeader('Access-Control-Allow-Origin', '*');
       // Auto-cleanup after 20 minutes
       setTimeout(() => {
         try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (_) {}
@@ -375,8 +456,9 @@ app.get('/api/preview', async (req, res) => {
   });
 
   req.on('close', () => {
+    clearTimeout(watchdog);
     if (!res.headersSent && child && !child.killed) {
-      try { child.kill('SIGTERM'); } catch (_) {}
+      killProcessTree(child);
     }
   });
 });

@@ -15,6 +15,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import ffmpegStatic from 'ffmpeg-static';
+import { killProcessTree } from './security.js';
 
 // Automatically detect Python command (python3 on Linux/Render, python on Windows)
 function getPythonCommand() {
@@ -367,6 +368,7 @@ const trimInstagramDirectFallback = trimDirectCloudFallback;
 export function buildYtdlpArgs(url = '', useCookies = true) {
   const args = [
     '--ignore-config',
+    '--no-exec',
     '--no-warnings',
     '--no-playlist',
     '--no-check-formats',
@@ -410,6 +412,7 @@ function execYtdlpJson(url, extraArgs = [], useCookies = true) {
       '--dump-single-json',
       ...buildYtdlpArgs(url, useCookies),
       ...extraArgs,
+      '--',
       url,
     ];
 
@@ -767,14 +770,22 @@ export function streamVideoDownload(url, formatPreset, res) {
       );
     }
 
-    args.push('-o', tempFile, ...buildYtdlpArgs(url), url);
+    args.push('-o', tempFile, ...buildYtdlpArgs(url), '--', url);
 
     console.log(`[Download Stream] Processing ${formatPreset} download into temp container: ${tempFile}`);
 
     const child = spawn(PYTHON_BIN, args, {
       windowsHide: true,
+      detached: process.platform !== 'win32',
       stdio: ['ignore', 'pipe', 'pipe']
     });
+
+    const watchdog = setTimeout(() => {
+      console.warn(`[Download Watchdog] Download timed out after 10 mins: ${url}`);
+      killProcessTree(child);
+      cleanup();
+    }, 10 * 60 * 1000);
+    if (watchdog.unref) watchdog.unref();
 
     child.stderr.on('data', (data) => {
       const msg = data.toString();
@@ -784,6 +795,7 @@ export function streamVideoDownload(url, formatPreset, res) {
     });
 
     const cleanup = () => {
+      clearTimeout(watchdog);
       try {
         if (fs.existsSync(tempFile)) {
           fs.unlinkSync(tempFile);
@@ -798,8 +810,9 @@ export function streamVideoDownload(url, formatPreset, res) {
     };
 
     res.on('close', () => {
-      if (!child.killed) {
-        try { child.kill('SIGKILL'); } catch (e) {}
+      clearTimeout(watchdog);
+      if (!res.writableFinished) {
+        killProcessTree(child);
       }
       cleanup();
     });
@@ -879,7 +892,7 @@ export function streamVideoDownload(url, formatPreset, res) {
       }
     }
 
-    const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), url];
+    const gArgs = ['-m', 'yt_dlp', '-g', '-f', singleFormat, ...buildYtdlpArgs(url, true), '--', url];
     console.log(`[Zero-Disk Stream] Resolving direct CDN URL for ${url} (format: ${singleFormat})`);
     const resolver = spawn(PYTHON_BIN, gArgs, { windowsHide: true });
     let resolvedUrl = '';
@@ -988,8 +1001,13 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
     return String(t).trim();
   };
 
-  const startSec = Math.max(0, parseFloat(startTime) || 0);
-  const endSec = Math.max(startSec + 1, parseFloat(endTime) || (startSec + 10));
+  const rawStart = parseFloat(startTime);
+  const rawEnd = parseFloat(endTime);
+  const startSec = Math.max(0, isFinite(rawStart) ? rawStart : 0);
+  const requestedEnd = isFinite(rawEnd) ? rawEnd : (startSec + 10);
+  // Cap max trim segment duration to 10 minutes (600s) to prevent memory & CPU DoS
+  const maxCap = startSec + 600;
+  const endSec = Math.min(maxCap, Math.max(startSec + 1, requestedEnd));
 
   const startStr = formatTime(startSec);
   const endStr = formatTime(endSec);
@@ -1034,9 +1052,22 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
   }
 
   args.push(...buildYtdlpArgs(url, true));
-  args.push('-o', tempFile, url);
+  args.push('-o', tempFile, '--', url);
+
+  const child = spawn(PYTHON_BIN, args, {
+    windowsHide: true,
+    detached: process.platform !== 'win32'
+  });
+
+  const watchdog = setTimeout(() => {
+    console.warn(`[Trimmer Watchdog] Trim timed out after 6 mins: ${url}`);
+    killProcessTree(child);
+    cleanup();
+  }, 6 * 60 * 1000);
+  if (watchdog.unref) watchdog.unref();
 
   const cleanup = () => {
+    clearTimeout(watchdog);
     try {
       if (fs.existsSync(tempFile)) {
         fs.unlinkSync(tempFile);
@@ -1046,10 +1077,14 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
     }
   };
 
-  res.on('close', cleanup);
+  res.on('close', () => {
+    clearTimeout(watchdog);
+    if (!res.writableFinished) {
+      killProcessTree(child);
+    }
+    cleanup();
+  });
   res.on('finish', cleanup);
-
-  const child = spawn(PYTHON_BIN, args, { windowsHide: true });
   let stderrLog = '';
 
   child.stderr.on('data', (d) => {
