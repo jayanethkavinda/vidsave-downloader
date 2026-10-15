@@ -15,5 +15,8 @@
     "express": "^4.19.2",
     "ffmpeg-static": "^5.3.0",
     "snapsave-media-downloader": "^2.5.1"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

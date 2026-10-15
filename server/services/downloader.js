@@ -1,3 +1,15 @@
+import zlib from 'node:zlib';
+if (!zlib.createZstdDecompress) {
+  zlib.createZstdDecompress = function() {};
+}
+if (!zlib.createZstdCompress) {
+  zlib.createZstdCompress = function() {};
+}
+if (!zlib.constants) zlib.constants = {};
+if (zlib.constants.ZSTD_d_windowLogMax === undefined) {
+  zlib.constants.ZSTD_d_windowLogMax = 23;
+}
+
 import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
