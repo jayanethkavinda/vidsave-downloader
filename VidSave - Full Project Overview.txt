@@ -102,7 +102,7 @@ index.html
 /fb-video-downloader
 /pinterest-video-downloader
 /x-video-downloader
-Schema.org (JSON-LD) Structured Data, Open Graph සහ Twitter Meta Cards සම්පූර්ණයෙන්ම සකසා ඇත.
+Schema.org (JSON-LD) Structured Data, Open Graph සහ Twitter Meta Cards ස්පූර්ණයෙන්ම සකසා ඇත.
 📡 4. Backend API Endpoints විස්තරය
 GET /api/health (
 
