@@ -211,44 +211,63 @@ export default function App() {
     };
   };
 
-  // Instagram Fallback metadata builder via direct fast cloud mirrors
-  const getInstagramFallbackInfo = (rawUrl) => {
+  // Instagram, Facebook, TikTok, Twitter Social Fallback metadata builder via direct fast cloud mirrors
+  const getSocialFallbackInfo = (rawUrl) => {
+    let platform = 'Social';
+    let defaultTitle = 'Social Media Video';
+    let presets = [];
+
+    if (/(?:instagram\.com|instagr\.am)/i.test(rawUrl)) {
+      platform = 'Instagram';
+      defaultTitle = 'Instagram Reel / Post';
+      presets = [
+        { id: 'mirror_snapinsta', label: '1080p Full HD (SnapInsta)', shortLabel: '1080p Full HD', ext: 'mp4', type: 'video', mirrorUrl: `https://snapinsta.app/` },
+        { id: 'mirror_fastdl', label: '720p HD Ready (FastDL)', shortLabel: '720p HD', ext: 'mp4', type: 'video', mirrorUrl: `https://fastdl.app/` },
+        { id: 'mirror_savefrom', label: 'Download Video / MP3 (SaveFrom)', shortLabel: 'SaveFrom', ext: 'mp4', type: 'video', mirrorUrl: `https://en.savefrom.net/248/` }
+      ];
+    } else if (/(?:facebook\.com|fb\.watch)/i.test(rawUrl)) {
+      platform = 'Facebook';
+      defaultTitle = 'Facebook Video';
+      presets = [
+        { id: 'mirror_snapsave', label: '1080p Full HD (SnapSave)', shortLabel: '1080p Full HD', ext: 'mp4', type: 'video', mirrorUrl: `https://snapsave.app/` },
+        { id: 'mirror_fdown', label: '720p HD (FDown)', shortLabel: '720p HD', ext: 'mp4', type: 'video', mirrorUrl: `https://fdown.net/` },
+        { id: 'mirror_savefrom', label: 'Download Video / MP3 (SaveFrom)', shortLabel: 'SaveFrom', ext: 'mp4', type: 'video', mirrorUrl: `https://en.savefrom.net/248/` }
+      ];
+    } else if (/tiktok\.com/i.test(rawUrl)) {
+      platform = 'TikTok';
+      defaultTitle = 'TikTok Video';
+      presets = [
+        { id: 'mirror_snaptik', label: 'HD No Watermark (SnapTik)', shortLabel: 'HD (No Watermark)', ext: 'mp4', type: 'video', mirrorUrl: `https://snaptik.app/` },
+        { id: 'mirror_ssstik', label: 'MP4 Video (SSSTik)', shortLabel: 'MP4 Video', ext: 'mp4', type: 'video', mirrorUrl: `https://ssstik.io/` },
+        { id: 'mirror_savefrom', label: 'Download Video / MP3 (SaveFrom)', shortLabel: 'SaveFrom', ext: 'mp4', type: 'video', mirrorUrl: `https://en.savefrom.net/248/` }
+      ];
+    } else if (/(?:twitter\.com|x\.com)/i.test(rawUrl)) {
+      platform = 'Twitter';
+      defaultTitle = 'Twitter (X) Video';
+      presets = [
+        { id: 'mirror_twvid', label: 'HD Quality (TwitterVid)', shortLabel: 'HD Video', ext: 'mp4', type: 'video', mirrorUrl: `https://twittervid.com/` },
+        { id: 'mirror_ssstwitter', label: 'MP4 Video (SSSTwitter)', shortLabel: 'MP4 Video', ext: 'mp4', type: 'video', mirrorUrl: `https://ssstwitter.com/` },
+        { id: 'mirror_savefrom', label: 'Download Video / MP3 (SaveFrom)', shortLabel: 'SaveFrom', ext: 'mp4', type: 'video', mirrorUrl: `https://en.savefrom.net/248/` }
+      ];
+    } else {
+      presets = [
+        { id: 'mirror_savefrom', label: 'Download Video / MP3 (SaveFrom)', shortLabel: 'SaveFrom', ext: 'mp4', type: 'video', mirrorUrl: `https://en.savefrom.net/248/` }
+      ];
+    }
+
     return {
-      title: 'Instagram Reel / Post',
-      uploader: 'Instagram Creator',
-      extractor: 'Instagram (Instant Cloud Mirror)',
+      title: defaultTitle,
+      uploader: `${platform} Creator`,
+      extractor: `${platform} (Instant Cloud Mirror)`,
       thumbnail: 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&auto=format&fit=crop&q=80',
       webpageUrl: rawUrl,
-      isInstagramFallback: true,
+      isSocialFallback: true,
+      platformName: platform,
       maxQualityLabel: '1080p Full HD',
-      presets: [
-        { 
-          id: 'mirror_snapinsta', 
-          label: '1080p Full HD (SnapInsta)', 
-          shortLabel: '1080p Full HD',
-          ext: 'mp4', 
-          type: 'video', 
-          mirrorUrl: `https://snapinsta.app/` 
-        },
-        { 
-          id: 'mirror_fastdl', 
-          label: '720p HD Ready (FastDL)', 
-          shortLabel: '720p HD',
-          ext: 'mp4', 
-          type: 'video', 
-          mirrorUrl: `https://fastdl.app/` 
-        },
-        { 
-          id: 'mirror_savefrom', 
-          label: 'Download Video / MP3 (SaveFrom)', 
-          shortLabel: 'SaveFrom',
-          ext: 'mp4', 
-          type: 'video', 
-          mirrorUrl: `https://en.savefrom.net/248/` 
-        }
-      ]
+      presets
     };
   };
+  const getInstagramFallbackInfo = getSocialFallbackInfo;
 
   // Helper to format file size cleanly - NEVER shows 0 MB, always displays decimal MB (e.g. 0.76 MB)
   const getCleanFilesize = (preset) => {
@@ -297,9 +316,9 @@ export default function App() {
           setVideoInfo(fallbackInfo);
           return;
         }
-        // If it is Instagram, activate seamless Instagram cloud mirror fallback
-        if (/(?:instagram\.com|instagr\.am)/i.test(targetUrl)) {
-          const fallbackInfo = getInstagramFallbackInfo(targetUrl);
+        // If it is Instagram, Facebook, TikTok, or Twitter, activate seamless cloud mirror fallback
+        if (/(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(targetUrl)) {
+          const fallbackInfo = getSocialFallbackInfo(targetUrl);
           setVideoInfo(fallbackInfo);
           return;
         }
@@ -312,9 +331,9 @@ export default function App() {
         // Seamlessly fall back to Instant Cloud Resolver for YouTube
         const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId);
         setVideoInfo(fallbackInfo);
-      } else if (/(?:instagram\.com|instagr\.am)/i.test(targetUrl)) {
-        // Seamlessly fall back to Instant Cloud Mirror for Instagram
-        const fallbackInfo = getInstagramFallbackInfo(targetUrl);
+      } else if (/(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(targetUrl)) {
+        // Seamlessly fall back to Instant Cloud Mirror for Social platforms
+        const fallbackInfo = getSocialFallbackInfo(targetUrl);
         setVideoInfo(fallbackInfo);
       } else {
         let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
@@ -829,7 +848,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               </div>
 
               {/* ⚡ Special Cloud Resolver Banner */}
-              {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) && (
+              {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) && (
                 <div style={{
                   background: 'rgba(6, 182, 212, 0.12)',
                   border: '1px solid rgba(6, 182, 212, 0.35)',
@@ -844,7 +863,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <Zap size={22} color="#06b6d4" style={{ flexShrink: 0 }} />
                   <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
                     <strong style={{ color: '#06b6d4', display: 'block', marginBottom: '2px' }}>
-                      ⚡ {videoInfo.isInstagramFallback ? 'Instagram' : 'YouTube'} Instant Cloud Resolver Active
+                      ⚡ {videoInfo.platformName || (videoInfo.isInstagramFallback ? 'Instagram' : 'YouTube')} Instant Cloud Resolver Active
                     </strong>
                     Direct high-speed resolver bypassed data-center restrictions. Select 1080p Full HD, 720p, or MP3 below to download instantly without wait time!
                   </div>
@@ -864,7 +883,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <button
                     type="button"
                     onClick={() => {
-                      if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) {
+                      if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
                         window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
                       } else {
                         handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');

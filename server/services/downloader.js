@@ -110,20 +110,46 @@ export function isInstagramUrl(rawUrl) {
   return /(?:instagram\.com|instagr\.am)/i.test(rawUrl);
 }
 
+// Helper to detect if URL is supported by SnapSave cloud scraper engine (Instagram, Facebook, TikTok, Twitter/X)
+export function isScraperSupportedUrl(rawUrl) {
+  if (!rawUrl) return false;
+  return /(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(rawUrl);
+}
+
 /**
- * Free Instant Instagram Fallback Resolver (No cookies or login required)
+ * Free Instant Multi-Platform Cloud Scraper Fallback Resolver (No cookies, login or proxy required)
+ * Supports Instagram, Facebook, TikTok, and Twitter (X)
  */
-async function resolveInstagramFallback(url) {
+async function resolveCloudScraperFallback(url) {
   try {
     const { default: snapsaveModule, snapsave } = await import('snapsave-media-downloader');
     const fn = snapsave || snapsaveModule;
     const result = await fn(url);
     if (!result || !result.success || !result.data?.media?.length) {
-      throw new Error('No media returned by Instagram Cloud Resolver');
+      throw new Error('No media returned by Cloud Scraper Resolver');
     }
     const media = result.data.media.find(m => m.type === 'video' || (m.url && m.url.includes('.mp4'))) || result.data.media[0];
     const directStreamUrl = media.url;
-    const thumbnail = media.thumbnail || null;
+    const thumbnail = media.thumbnail || (result.data.thumbnail || null);
+
+    let platform = 'Social';
+    let defaultTitle = 'Social Media Video';
+    if (/(?:instagram\.com|instagr\.am)/i.test(url)) {
+      platform = 'Instagram';
+      defaultTitle = 'Instagram Reel';
+    } else if (/(?:facebook\.com|fb\.watch)/i.test(url)) {
+      platform = 'Facebook';
+      defaultTitle = 'Facebook Video';
+    } else if (/tiktok\.com/i.test(url)) {
+      platform = 'TikTok';
+      defaultTitle = 'TikTok Video';
+    } else if (/(?:twitter\.com|x\.com)/i.test(url)) {
+      platform = 'Twitter';
+      defaultTitle = 'Twitter (X) Video';
+    }
+
+    const title = result.data?.title || result.data?.description || defaultTitle;
+    const uploader = result.data?.author || `${platform} Creator`;
 
     const bestPreset = {
       id: 'best_with_audio',
@@ -159,15 +185,15 @@ async function resolveInstagramFallback(url) {
     };
 
     const cleanInfo = {
-      id: 'ig_' + Date.now(),
-      title: 'Instagram Reel',
-      description: 'Instagram Reel (Resolved via Cloud Fallback Engine)',
+      id: `${platform.toLowerCase()}_${Date.now()}`,
+      title,
+      description: `${title} (Resolved via ${platform} Cloud Fallback Engine)`,
       thumbnail,
       duration: 30,
       durationFormatted: '0:30',
-      uploader: 'Instagram Creator',
+      uploader,
       webpageUrl: url,
-      extractor: 'Instagram (Cloud Fallback)',
+      extractor: `${platform} (Cloud Fallback)`,
       maxQualityLabel: 'Best HD',
       maxHeight: 1080,
       bestPreset,
@@ -181,15 +207,16 @@ async function resolveInstagramFallback(url) {
 
     return cleanInfo;
   } catch (err) {
-    console.error('[Instagram Fallback Resolver Error]:', err.message);
+    console.error(`[${url} Cloud Fallback Resolver Error]:`, err.message);
     throw err;
   }
 }
+const resolveInstagramFallback = resolveCloudScraperFallback;
 
 /**
- * Direct Stream Instagram Fallback for downloads
+ * Direct Stream Cloud Scraper Fallback for downloads (Instagram, Facebook, TikTok, Twitter)
  */
-async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld) {
+async function streamDirectCloudFallback(url, formatPreset, res, cleanupOld) {
   if (cleanupOld) cleanupOld();
   try {
     const { default: snapsaveModule, snapsave } = await import('snapsave-media-downloader');
@@ -197,7 +224,7 @@ async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld)
     const result = await fn(url);
     if (!result || !result.success || !result.data?.media?.length) {
       if (!res.headersSent) {
-        return res.status(500).json({ error: 'Failed to extract Instagram stream via fallback.' });
+        return res.status(500).json({ error: 'Failed to extract media stream via fallback.' });
       }
       return;
     }
@@ -206,7 +233,7 @@ async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld)
     const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3' || (formatPreset && formatPreset.includes('audio') && !formatPreset.includes('best_with_audio'));
 
     if (isAudio && ffmpegPath) {
-      console.log('[Instagram Fallback Stream] Transcoding direct Instagram stream to MP3 via FFmpeg...');
+      console.log('[Cloud Fallback Stream] Transcoding direct stream to MP3 via FFmpeg...');
       res.setHeader('Content-Type', 'audio/mpeg');
       const ffmpeg = spawn(ffmpegPath, [
         '-reconnect', '1',
@@ -230,7 +257,7 @@ async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld)
     }
 
     // Direct MP4 Video Stream
-    console.log('[Instagram Fallback Stream] Piping direct Instagram MP4 video stream to browser...');
+    console.log('[Cloud Fallback Stream] Piping direct MP4 video stream to browser...');
     const { default: https } = await import('https');
     const { default: http } = await import('http');
     const client = directUrl.startsWith('https') ? https : http;
@@ -252,7 +279,7 @@ async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld)
     });
 
     upstreamReq.on('error', (err) => {
-      console.error('[Instagram Pipe Error]', err.message);
+      console.error('[Cloud Stream Pipe Error]', err.message);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to pipe video stream: ' + err.message });
       }
@@ -262,17 +289,18 @@ async function streamDirectInstagramFallback(url, formatPreset, res, cleanupOld)
       upstreamReq.destroy();
     });
   } catch (err) {
-    console.error('[streamDirectInstagramFallback Error]', err.message);
+    console.error('[streamDirectCloudFallback Error]', err.message);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Instagram streaming fallback failed: ' + err.message });
+      res.status(500).json({ error: 'Media streaming fallback failed: ' + err.message });
     }
   }
 }
+const streamDirectInstagramFallback = streamDirectCloudFallback;
 
 /**
- * Direct Stream Trimmer Instagram Fallback
+ * Direct Stream Trimmer Cloud Fallback (Instagram, Facebook, TikTok, Twitter)
  */
-async function trimInstagramDirectFallback(url, startSec, endSec, isAudio, tempFile, res, cleanupOld) {
+async function trimDirectCloudFallback(url, startSec, endSec, isAudio, tempFile, res, cleanupOld) {
   if (cleanupOld) cleanupOld();
   try {
     const { default: snapsaveModule, snapsave } = await import('snapsave-media-downloader');
@@ -280,7 +308,7 @@ async function trimInstagramDirectFallback(url, startSec, endSec, isAudio, tempF
     const result = await fn(url);
     if (!result || !result.success || !result.data?.media?.length) {
       if (!res.headersSent) {
-        return res.status(500).json({ error: 'Failed to extract Instagram stream for trimmer.' });
+        return res.status(500).json({ error: 'Failed to extract stream for trimmer.' });
       }
       return;
     }
@@ -300,13 +328,13 @@ async function trimInstagramDirectFallback(url, startSec, endSec, isAudio, tempF
       ffmpegArgs.push('-c:v', 'copy', '-c:a', 'copy', tempFile);
     }
 
-    console.log(`[Trimmer Instagram Fallback] Running direct FFmpeg cut on ${directUrl.slice(0, 40)}...`);
+    console.log(`[Trimmer Cloud Fallback] Running direct FFmpeg cut on ${directUrl.slice(0, 40)}...`);
     const proc = spawn(ffmpegPath, ffmpegArgs, { windowsHide: true });
 
     proc.on('close', (code) => {
       if (code !== 0 || !fs.existsSync(tempFile)) {
         if (!res.headersSent) {
-          res.status(500).json({ error: 'Failed to cut Instagram clip via FFmpeg.' });
+          res.status(500).json({ error: 'Failed to cut media clip via FFmpeg.' });
         }
         try { fs.unlinkSync(tempFile); } catch (e) {}
         return;
@@ -325,12 +353,13 @@ async function trimInstagramDirectFallback(url, startSec, endSec, isAudio, tempF
       }
     });
   } catch (err) {
-    console.error('[trimInstagramDirectFallback Error]', err.message);
+    console.error('[trimDirectCloudFallback Error]', err.message);
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Instagram trim fallback failed: ' + err.message });
+      res.status(500).json({ error: 'Media trim fallback failed: ' + err.message });
     }
   }
 }
+const trimInstagramDirectFallback = trimDirectCloudFallback;
 
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
@@ -429,15 +458,15 @@ export async function getVideoInfo(url) {
   } catch (err1) {
     console.warn('[Downloader Engine] Primary extraction attempt failed, trying fallback client...', err1.stderr || err1);
 
-    // If Instagram URL, immediately activate zero-login Instant Cloud Fallback Resolver
-    if (isInstagramUrl(url)) {
-      console.log('[Downloader Engine] Instagram extraction failed, switching to Instant SnapSave Resolver...');
+    // If Instagram, Facebook, TikTok, or Twitter (X) URL, immediately activate zero-login Instant Cloud Fallback Resolver
+    if (isScraperSupportedUrl(url)) {
+      console.log(`[Downloader Engine] yt-dlp extraction failed for ${url}, switching to Instant Cloud Fallback Resolver...`);
       try {
-        return await resolveInstagramFallback(url);
-      } catch (igErr) {
-        console.error('[Downloader Engine] SnapSave fallback also failed:', igErr.message);
+        return await resolveCloudScraperFallback(url);
+      } catch (cloudErr) {
+        console.error('[Downloader Engine] Cloud scraper fallback also failed:', cloudErr.message);
       }
-      const cleanErr = (err1.stderr || 'Instagram extraction blocked by login requirements').trim();
+      const cleanErr = (err1.stderr || 'Media extraction blocked by platform requirements').trim();
       throw new Error(cleanErr);
     }
 
@@ -790,9 +819,9 @@ export function streamVideoDownload(url, formatPreset, res) {
 
       if (code !== 0 || !fs.existsSync(actualFile)) {
         console.error(`[Download Stream] yt-dlp execution failed with exit code ${code}`);
-        if (isInstagramUrl(url)) {
-          console.log('[Download Stream] yt-dlp failed for Instagram, falling back to direct stream pipeline...');
-          return streamDirectInstagramFallback(url, formatPreset, res, cleanup);
+        if (isScraperSupportedUrl(url)) {
+          console.log(`[Download Stream] yt-dlp failed for ${url}, falling back to direct cloud stream pipeline...`);
+          return streamDirectCloudFallback(url, formatPreset, res, cleanup);
         }
         if (!res.headersSent) {
           res.status(500).json({ error: 'Download processing failed. Please check the video link.' });
@@ -1030,9 +1059,9 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
   child.on('close', (code) => {
     if (code !== 0 || !fs.existsSync(tempFile)) {
       console.error('[Trimmer Failed]', stderrLog);
-      if (isInstagramUrl(url)) {
-        console.log('[Trimmer Engine] yt-dlp failed for Instagram, falling back to direct stream trimming via FFmpeg...');
-        return trimInstagramDirectFallback(url, startSec, endSec, isAudio, tempFile, res, cleanup);
+      if (isScraperSupportedUrl(url)) {
+        console.log(`[Trimmer Engine] yt-dlp failed for ${url}, falling back to direct stream trimming via FFmpeg...`);
+        return trimDirectCloudFallback(url, startSec, endSec, isAudio, tempFile, res, cleanup);
       }
       if (!res.headersSent) {
         res.status(500).json({ error: `Trimmer processing failed: ${stderrLog.slice(-300)}` });
