@@ -27,6 +27,7 @@ import {
   PYTHON_BIN
 } from './services/downloader.js';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import {
   assertSafeUrl,
   safeFetch,
@@ -79,6 +80,28 @@ app.use(express.json());
 
 // Concurrency Cap: Prevent simultaneous heavy FFmpeg / yt-dlp tasks from exhausting Render 512MB RAM
 app.use(['/api/download', '/api/trim', '/api/preview', '/api/proxy-stream'], heavyConcurrencyGuard);
+
+// Rate Limiter for Video Search & Info: Strictly 8 searches per 1 minute per IP
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute (60 seconds)
+  max: 8, // Maximum 8 searches per minute per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many search requests. Please wait a minute before searching again.'
+  }
+});
+
+// Rate Limiter for Video Downloads & Trims: 8 downloads per 1 minute per IP
+const downloadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many download requests. Please wait a minute before starting another download.'
+  }
+});
 
 // Health Check
 app.get('/api/health', (req, res) => {
@@ -152,8 +175,8 @@ app.get('/api/test-snap', adminAuthGuard, async (req, res) => {
   }
 });
 
-// Video Metadata Endpoint
-app.get('/api/info', async (req, res) => {
+// Video Metadata Endpoint (Rate limited to 8 searches per minute per IP)
+app.get('/api/info', searchLimiter, async (req, res) => {
   const { url } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Valid URL is required' });
@@ -177,8 +200,8 @@ app.get('/api/info', async (req, res) => {
   }
 });
 
-// Direct Download Stream Endpoint (Zero Disk Storage)
-app.get('/api/download', async (req, res) => {
+// Direct Download Stream Endpoint (Zero Disk Storage - Rate limited to 8 per minute per IP)
+app.get('/api/download', downloadLimiter, async (req, res) => {
   const { url, format = 'best', title = 'video' } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Valid URL is required' });
@@ -304,8 +327,8 @@ except Exception as e:
   }
 });
 
-// Video & Audio Segment Trimmer Download Stream (Zero Disk Storage)
-app.get('/api/trim', async (req, res) => {
+// Video & Audio Segment Trimmer Download Stream (Zero Disk Storage - Rate limited to 8 per minute per IP)
+app.get('/api/trim', downloadLimiter, async (req, res) => {
   const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Valid URL is required' });
