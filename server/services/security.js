@@ -14,6 +14,8 @@ const ALLOWED_PLATFORM_DOMAINS = [
   /^(?:[a-zA-Z0-9-]+\.)*instagram\.com$/i,
   /^instagr\.am$/i,
   /^(?:[a-zA-Z0-9-]+\.)*tiktok\.com$/i,
+  /^vt\.tiktok\.com$/i,
+  /^(?:[a-zA-Z0-9-]+\.)*tt\.site$/i,
   /^(?:[a-zA-Z0-9-]+\.)*pinterest\.com$/i,
   /^pin\.it$/i,
   /^(?:[a-zA-Z0-9-]+\.)*twitter\.com$/i,

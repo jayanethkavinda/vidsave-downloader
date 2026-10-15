@@ -475,19 +475,20 @@ export default function App() {
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
       const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
 
-      // Trigger Native Browser Download via Hidden Iframe (Keeps main page completely calm, zero tab reload)
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.top = '-9999px';
-      iframe.style.left = '-9999px';
-      iframe.style.width = '1px';
-      iframe.style.height = '1px';
-      iframe.style.opacity = '0';
-      iframe.style.border = 'none';
-      iframe.src = downloadUrl;
-      document.body.appendChild(iframe);
+      // Trigger Native Chrome Download directly into Downloads folder
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
 
-      // Keep showing realistic preparation/loading until the browser receives the stream (around 12-16s on free tier)
+      setTimeout(() => {
+        try {
+          if (link.parentNode) link.parentNode.removeChild(link);
+        } catch (_) {}
+      }, 5000);
+
+      // Keep showing realistic loading bar while the server prepares and browser receives file
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
@@ -495,13 +496,8 @@ export default function App() {
         setTimeout(() => {
           setDownloadingFormat(null);
           setDownloadProgress(0);
-          try {
-            if (iframe && iframe.parentNode) {
-              iframe.parentNode.removeChild(iframe);
-            }
-          } catch (_) {}
         }, 3000);
-      }, 14000);
+      }, 12000);
     } catch (err) {
       if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
       console.error('Download trigger error:', err);
