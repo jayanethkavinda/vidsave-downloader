@@ -55,6 +55,7 @@ export default function App() {
   const [downloadingSubId, setDownloadingSubId] = useState(null);
   const [subSearch, setSubSearch] = useState('');
   const [subPage, setSubPage] = useState(1);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(currentPage.defaultTab || 'video');
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
@@ -1220,14 +1221,9 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 <div className="subtitles-box-header">
                   <div className="subtitles-header-left">
                     <Subtitles size={18} className="sub-header-icon" />
-                    <span className="sub-header-title">Subtitles & Closed Captions</span>
+                    <span className="sub-header-title">Subtitles</span>
                     <span className="sub-header-counter">{filteredSubtitles.length}</span>
                   </div>
-                  {totalSubPages > 1 && (
-                    <div className="sub-header-page-tag">
-                      Page {currentSubPage} of {totalSubPages}
-                    </div>
-                  )}
                 </div>
 
                 {subtitles.length === 0 ? (
@@ -1265,26 +1261,36 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       </div>
                     )}
 
-                    {/* 💡 Subtitles Format Selection Guide */}
-                    <div className="sub-format-guide-card">
-                      <div className="sub-guide-header">
-                        <Subtitles size={16} color="#06b6d4" />
-                        <span>Which Subtitle Format Should You Choose?</span>
-                      </div>
-                      <div className="sub-guide-list">
-                        <div className="sub-guide-item">
-                          <span className="sub-guide-badge srt">.SRT</span>
-                          <span className="sub-guide-text">
-                            <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
-                          </span>
+                    {/* 💡 Subtitles Format Selection Guide (Collapsible Dropdown Accordion) */}
+                    <div className={`sub-format-guide-card ${isGuideOpen ? 'open' : ''}`}>
+                      <button
+                        type="button"
+                        className="sub-guide-header-btn"
+                        onClick={() => setIsGuideOpen(!isGuideOpen)}
+                        aria-expanded={isGuideOpen}
+                      >
+                        <div className="sub-guide-header-title">
+                          <Subtitles size={16} color="#06b6d4" />
+                          <span>Which Subtitle Format Should You Choose?</span>
                         </div>
-                        <div className="sub-guide-item">
-                          <span className="sub-guide-badge vtt">.VTT</span>
-                          <span className="sub-guide-text">
-                            <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
-                          </span>
+                        <ChevronDown size={17} className={`sub-guide-chevron ${isGuideOpen ? 'rotate' : ''}`} />
+                      </button>
+                      {isGuideOpen && (
+                        <div className="sub-guide-list">
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge srt">.SRT</span>
+                            <span className="sub-guide-text">
+                              <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
+                            </span>
+                          </div>
+                          <div className="sub-guide-item">
+                            <span className="sub-guide-badge vtt">.VTT</span>
+                            <span className="sub-guide-text">
+                              <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     {/* 📋 Subtitles List (Compact 1-row layout, 50% height reduction on mobile, 10px minimum gap) */}

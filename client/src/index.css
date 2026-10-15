@@ -1234,8 +1234,30 @@ button {
 }
 
 /* =========================================================
-   📑 Modern Subtitles & Captions Section (Integrated Table Aesthetic)
+   📑 Modern Subtitles Section (Unified Outer Table Card Container)
    ========================================================= */
+
+.subtitles-section {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 1.35rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+[data-theme='light'] .subtitles-section {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme='dark'] .subtitles-section {
+  background: rgba(17, 24, 39, 0.75);
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.4);
+}
 
 .subtitles-box-header {
   display: flex;
@@ -1271,13 +1293,13 @@ button {
 
 .sub-header-title {
   font-weight: 800;
-  font-size: 1.02rem;
+  font-size: 1.08rem;
   color: var(--text-main);
   letter-spacing: -0.01em;
 }
 
 .sub-header-counter {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 800;
   background: rgba(6, 182, 212, 0.15);
   color: var(--cyan-primary);
@@ -1286,14 +1308,114 @@ button {
   border: 1px solid rgba(6, 182, 212, 0.3);
 }
 
-.sub-header-page-tag {
-  font-size: 0.8rem;
+/* 💡 Subtitles Format Selection Guide Accordion Dropdown */
+.sub-format-guide-card {
+  background: rgba(6, 182, 212, 0.05);
+  border: 1.5px solid rgba(6, 182, 212, 0.22);
+  border-radius: var(--radius-md);
+  margin-bottom: 1.15rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+[data-theme='light'] .sub-format-guide-card {
+  background: rgba(2, 132, 199, 0.04);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+.sub-guide-header-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: background-color 0.2s ease;
+}
+
+.sub-guide-header-btn:hover {
+  background: rgba(6, 182, 212, 0.08);
+}
+
+.sub-guide-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-main);
+}
+
+.sub-guide-chevron {
+  color: var(--cyan-primary);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.sub-guide-chevron.rotate {
+  transform: rotate(180deg);
+}
+
+.sub-guide-list {
+  padding: 0.35rem 1rem 0.85rem;
+  border-top: 1px solid rgba(6, 182, 212, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  animation: menuFadeIn 0.2s ease-out;
+}
+
+.sub-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.sub-guide-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.sub-guide-badge.srt {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+  border: 1px solid rgba(2, 132, 199, 0.3);
+}
+
+[data-theme='dark'] .sub-guide-badge.srt {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.sub-guide-badge.vtt {
+  background: rgba(147, 51, 234, 0.12);
+  color: #9333ea;
+  border: 1px solid rgba(147, 51, 234, 0.3);
+}
+
+[data-theme='dark'] .sub-guide-badge.vtt {
+  background: rgba(192, 132, 252, 0.18);
+  color: #c084fc;
+  border-color: rgba(192, 132, 252, 0.35);
+}
+
+.sub-guide-text {
   color: var(--text-muted);
-  background: var(--bg-card);
-  padding: 0.2rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-glass);
+  font-size: 0.86rem;
+}
+
+.sub-guide-text strong {
+  color: var(--text-main);
+  margin-right: 4px;
 }
 
 /* 📋 Subtitles List & Compact Single-Row Card */
@@ -1926,44 +2048,63 @@ button {
     padding: 0.65rem;
   }
 
-  /* Compact Single-Line Subtitle Cards for Mobile (50% Height Reduction, 10px Gap) */
-  .subtitle-card-row {
-    flex-direction: row !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    padding: 0.45rem 0.65rem !important;
-    min-height: 44px !important;
-    gap: 10px !important; /* Strict 10px minimum gap as requested */
+  /* 📱 Mobile 2-Line Subtitle Cards: Line 1 = Full Topic, Line 2 = Buttons on Right */
+  .subtitles-section {
+    padding: 0.9rem 0.85rem !important;
+    border-radius: var(--radius-md) !important;
   }
 
+  .subtitle-card-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    padding: 0.65rem 0.85rem !important;
+    min-height: auto !important;
+    gap: 0.55rem !important;
+  }
+
+  /* Line 1: Full Language Topic across top */
   .sub-topic-group {
-    gap: 0.35rem;
-    min-width: 0;
-    flex: 1;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 0.45rem !important;
+    flex-wrap: wrap !important;
   }
 
   .sub-lang-name {
-    font-size: 0.84rem;
-    max-width: 110px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.95rem !important;
+    max-width: none !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-weight: 700 !important;
   }
 
   .sub-type-tag {
-    font-size: 0.68rem;
-    padding: 0.1rem 0.35rem;
+    font-size: 0.7rem !important;
+    padding: 0.12rem 0.45rem !important;
   }
 
   .sub-code-pill {
-    font-size: 0.68rem;
-    padding: 0.1rem 0.35rem;
+    font-size: 0.72rem !important;
+    padding: 0.12rem 0.45rem !important;
+  }
+
+  /* Line 2: Buttons aligned to the right */
+  .sub-actions-group {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    gap: 0.55rem !important;
   }
 
   .btn-sub-dl {
-    padding: 0.28rem 0.52rem;
-    font-size: 0.78rem;
-    min-height: 30px;
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.82rem !important;
+    min-height: 32px !important;
   }
 
   .steps-grid {
