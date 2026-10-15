@@ -440,23 +440,31 @@ export default function App() {
     setDownloadingFormat(presetId);
     setDownloadSuccess(false);
     setDownloadError('');
-    setDownloadProgress(20);
+    setDownloadProgress(10);
+
+    const isHighRes = ['4320', '2160', '1440', '1080'].includes(String(presetId));
+    const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+    const isSlowMux = isHighRes || isYt;
+
+    // Smooth, realistic progress animation:
+    // Takes ~16-20s for high-res muxing (2K/4K/1080p), or ~4-6s for direct streams
+    const intervalMs = isSlowMux ? 280 : 160;
+    const maxHoldProgress = 92;
 
     if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
     downloadProgressTimerRef.current = setInterval(() => {
       setDownloadProgress((prev) => {
-        if (prev >= 95) return prev;
-        const jump = Math.floor(Math.random() * 8) + 4;
-        return Math.min(96, prev + jump);
+        if (prev >= maxHoldProgress) return prev;
+        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 6) + 3);
+        return Math.min(maxHoldProgress, prev + jump);
       });
-    }, 140);
+    }, intervalMs);
 
-    const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
     const preset = videoInfo.presets?.find(p => p.id === presetId) || videoInfo.presets?.[0];
     const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
     const isOverLimit = preset?.exceedsLimit || (preset?.filesize && preset.filesize > maxLimitBytes);
 
-    // If this is a YouTube/Social fallback, or exceeds max file limit (1.5GB YouTube / 3.0GB Other), launch instant cloud mirror
+    // If this is a YouTube/Social fallback, or exceeds max file limit, launch instant cloud mirror
     if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback || isOverLimit) {
       const mirrorUrl = preset?.mirrorUrl || (isYt ? `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=${encodeURIComponent(videoInfo.webpageUrl || url)}` : null);
       if (mirrorUrl) {
@@ -488,7 +496,8 @@ export default function App() {
         } catch (_) {}
       }, 5000);
 
-      // Keep showing realistic loading bar while the server prepares and browser receives file
+      // Calibrate completion trigger
+      const waitTime = isSlowMux ? 18000 : 7000;
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
@@ -496,8 +505,9 @@ export default function App() {
         setTimeout(() => {
           setDownloadingFormat(null);
           setDownloadProgress(0);
-        }, 3000);
-      }, 12000);
+          setDownloadSuccess(false);
+        }, 3500);
+      }, waitTime);
     } catch (err) {
       if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
       console.error('Download trigger error:', err);
@@ -1042,13 +1052,33 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                         >
                           {downloadingFormat === (selectedPreset?.id || 'best_with_audio') ? (
                             <div className="btn-split-content">
-                              <div className="btn-split-line1">
-                                <Zap size={17} className="spin text-cyan" />
-                                <span>Downloading {qTag}...</span>
-                              </div>
-                              <div className="btn-split-line2">
-                                {downloadProgress}% completed
-                              </div>
+                              {downloadSuccess ? (
+                                <>
+                                  <div className="btn-split-line1" style={{ color: '#10b981' }}>
+                                    <CheckCircle size={17} />
+                                    <span>Download Started!</span>
+                                  </div>
+                                  <div className="btn-split-line2" style={{ color: '#10b981' }}>
+                                    Saved to your Downloads
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="btn-split-line1">
+                                    <Zap size={17} className="spin text-cyan" />
+                                    <span>
+                                      {downloadProgress >= 80 ? `Sending ${qTag}...` : `Downloading ${qTag}...`}
+                                    </span>
+                                  </div>
+                                  <div className="btn-split-line2">
+                                    {downloadProgress >= 80
+                                      ? 'Transferring to browser...'
+                                      : (downloadProgress >= 35 && ['4320', '2160', '1440', '1080'].includes(String(selectedPreset?.id))
+                                          ? 'Merging Video & Audio...'
+                                          : `${downloadProgress}% processed`)}
+                                  </div>
+                                </>
+                              )}
                             </div>
                           ) : (
                             <div className="btn-split-content">
