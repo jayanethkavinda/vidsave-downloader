@@ -26,8 +26,24 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
+// Allowed Frontend Origins Whitelist
+const ALLOWED_ORIGINS = [
+  'https://vidsave-downloader.web.app',
+  'https://videsave.web.app',
+  'https://vidsave-hd.web.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or direct browser downloads)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Access from this origin is unauthorized.'));
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Range']
 }));
@@ -119,17 +135,32 @@ app.get('/api/trim', downloadLimiter, heavyConcurrencyGuard, async (req, res) =>
   const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
-    const isAudio = type === 'audio' || type === 'mp3';
+
+    // Enforce trimmer duration safety limits (Prevents long freezing jobs on 0.1 CPU)
+    const numStart = Math.max(0, parseFloat(start) || 0);
+    const numEnd = Math.max(numStart + 0.1, parseFloat(end) || 10);
+    const clipDuration = numEnd - numStart;
+    const MAX_TRIM_DURATION_SEC = 600; // Max 10 minutes per clip
+
+    if (clipDuration > MAX_TRIM_DURATION_SEC) {
+      return res.status(400).json({ error: `Clip duration exceeds maximum limit of 10 minutes (${MAX_TRIM_DURATION_SEC}s).` });
+    }
+
+    // Format parameter allowlist
+    const validFormats = ['best', '1080', '720', '480', '360', 'audio', 'mp3'];
+    const safeFormat = validFormats.includes(format) ? format : 'best';
+
+    const isAudio = type === 'audio' || type === 'mp3' || safeFormat === 'audio' || safeFormat === 'mp3';
     const ext = isAudio ? 'mp3' : 'mp4';
     const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 
-    const cleanTitle = `${title}_cut_${Math.round(start)}s-${Math.round(end)}s`;
+    const cleanTitle = `${title}_cut_${Math.round(numStart)}s-${Math.round(numEnd)}s`;
     const { contentDisposition } = sanitizeFilename(cleanTitle, ext);
 
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', mimeType);
 
-    streamTrimmedDownload(safeUrl, start, end, type, format, res);
+    streamTrimmedDownload(safeUrl, numStart, numEnd, type, safeFormat, res);
   } catch (err) {
     console.error('[API /api/trim Error]:', err.message);
     if (!res.headersSent) {
@@ -143,6 +174,8 @@ app.get('/api/subtitle', async (req, res) => {
   const { url, lang = 'en', ext = 'srt', title = 'subtitles' } = req.query;
   try {
     if (!url) throw new Error('Subtitle URL is required.');
+    const safeSubUrl = await assertSafeUrl(url);
+
     const cleanExt = (ext === 'vtt') ? 'vtt' : 'srt';
     const cleanTitle = `${title}_${lang}`;
     const { contentDisposition } = sanitizeFilename(cleanTitle, cleanExt);
@@ -150,7 +183,7 @@ app.get('/api/subtitle', async (req, res) => {
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', cleanExt === 'vtt' ? 'text/vtt; charset=utf-8' : 'text/plain; charset=utf-8');
 
-    let subUrl = url;
+    let subUrl = safeSubUrl;
     if (subUrl.includes('timedtext') && !subUrl.includes('fmt=')) {
       subUrl += '&fmt=vtt';
     }
@@ -177,18 +210,20 @@ app.get('/api/subtitle', async (req, res) => {
   }
 });
 
-// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview
+// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (SSRF Protected)
 app.get('/api/proxy-stream', async (req, res) => {
   const { url } = req.query;
   if (!url) return res.status(400).send('URL required');
   try {
+    const safeStreamUrl = await assertSafeUrl(url);
+
     const { default: https } = await import('https');
     const { default: http } = await import('http');
-    const client = url.startsWith('https') ? https : http;
+    const client = safeStreamUrl.startsWith('https') ? https : http;
     const headers = { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' };
     if (req.headers.range) headers['Range'] = req.headers.range;
 
-    const proxyReq = client.get(url, { headers }, proxyRes => {
+    const proxyReq = client.get(safeStreamUrl, { headers }, proxyRes => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
       proxyRes.pipe(res);
     });
@@ -201,7 +236,7 @@ app.get('/api/proxy-stream', async (req, res) => {
       proxyReq.destroy();
     });
   } catch (_) {
-    if (!res.headersSent) res.status(500).end();
+    if (!res.headersSent) res.status(400).end();
   }
 });
 
