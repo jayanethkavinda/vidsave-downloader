@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import ffmpegStatic from 'ffmpeg-static';
+import { fileURLToPath } from 'url';
 import { 
   MAX_FILESIZE_BYTES_YOUTUBE, 
   MAX_FILESIZE_BYTES_OTHER, 
@@ -40,8 +41,46 @@ if (!ffmpegPath && ffmpegStatic && fs.existsSync(ffmpegStatic)) {
 }
 console.log(`[Downloader Engine] FFmpeg binary: "${ffmpegPath || 'system PATH'}"`);
 
-// Session cookies path
-const COOKIE_FILE = path.resolve('ytdlp_session_cookies.txt');
+// Session cookies path and sync from Render Environment Variable
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const COOKIE_FILE = path.resolve(__dirname, '../ytdlp_session_cookies.txt');
+
+function syncCookiesFromEnv() {
+  const envCookies = process.env.YTDLP_COOKIES;
+  if (!envCookies) {
+    if (fs.existsSync(COOKIE_FILE)) {
+      console.log(`[Downloader Engine] Using existing cookie file at: ${COOKIE_FILE}`);
+    } else {
+      console.log(`[Downloader Engine] No YTDLP_COOKIES env var and no local cookie file found.`);
+    }
+    return;
+  }
+
+  try {
+    let content = envCookies.trim();
+    if (content.includes('\\n')) {
+      content = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
+    }
+    if (!content.includes('\t') && content.length > 50) {
+      try {
+        const decoded = Buffer.from(content, 'base64').toString('utf8');
+        if (decoded.includes('\t')) content = decoded;
+      } catch (_) {}
+    }
+
+    if (!content.startsWith('# Netscape HTTP Cookie File')) {
+      content = `# Netscape HTTP Cookie File\n# Automatically synced from YTDLP_COOKIES\n\n${content}`;
+    }
+
+    fs.writeFileSync(COOKIE_FILE, content, 'utf8');
+    console.log(`[Downloader Engine] Synchronized YTDLP_COOKIES to ${COOKIE_FILE} (${fs.statSync(COOKIE_FILE).size} bytes)`);
+  } catch (err) {
+    console.error(`[Downloader Engine] Failed to sync YTDLP_COOKIES:`, err.message);
+  }
+}
+
+syncCookiesFromEnv();
 
 // Helper to detect if URL belongs to YouTube
 export function isYouTubeUrl(rawUrl) {
@@ -109,7 +148,7 @@ export function buildYtdlpArgs(url = '', useCookies = true) {
   }
 
   // Proxy routing strictly for YouTube
-  if (process.env.YTDLP_PROXY && (!url || isYouTubeUrl(url))) {
+  if (process.env.YTDLP_PROXY && isYouTubeUrl(url)) {
     args.push('--proxy', process.env.YTDLP_PROXY);
   }
 
