@@ -33,6 +33,7 @@ import {
   safeFetch,
   isMediaContentType,
   heavyConcurrencyGuard,
+  getConcurrencyStats,
   killProcessTree
 } from './services/security.js';
 
@@ -141,7 +142,8 @@ app.get('/api/diagnose', adminAuthGuard, async (req, res) => {
       cookieSize,
       hasLegacy,
       hasEnvCookie: !!process.env.YTDLP_COOKIES,
-      envCookieLen: process.env.YTDLP_COOKIES ? process.env.YTDLP_COOKIES.length : 0
+      envCookieLen: process.env.YTDLP_COOKIES ? process.env.YTDLP_COOKIES.length : 0,
+      concurrency: getConcurrencyStats()
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

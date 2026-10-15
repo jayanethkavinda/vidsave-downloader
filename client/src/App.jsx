@@ -27,7 +27,8 @@ import {
   ExternalLink,
   Subtitles,
   Search,
-  Scissors
+  Scissors,
+  Clock
 } from 'lucide-react';
 import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 import VideoTrimmer from './VideoTrimmer.jsx';
@@ -57,7 +58,23 @@ export default function App() {
   const [openFaq, setOpenFaq] = useState(0);
   const [viewMode, setViewMode] = useState('main'); // 'main' | 'trim'
   const [selectedFullFormatId, setSelectedFullFormatId] = useState('best_with_audio');
+  const [isQualityDropdownOpen, setIsQualityDropdownOpen] = useState(false);
+  const qualityDropdownRef = useRef(null);
   const downloadProgressTimerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (qualityDropdownRef.current && !qualityDropdownRef.current.contains(e.target)) {
+        setIsQualityDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Typing animation cycling through major platforms letter by letter
   const TYPING_PLATFORMS = ['YouTube', 'Instagram', 'TikTok', 'Facebook', 'Twitter (X)', 'Pinterest'];
@@ -286,6 +303,41 @@ export default function App() {
     return null;
   };
 
+  // Helper to extract crisp clean quality tag: strictly standard tiers: "8K", "4K", "2K", "1080p", "720p", "480p", "360p", "MP3"
+  const getShortQuality = (preset) => {
+    if (!preset) return '1080p';
+    if (preset.type === 'audio' || preset.id === 'audio_best' || preset.id === 'mp3') return 'MP3';
+
+    // Direct standard ID check
+    if (preset.id === '4320') return '8K';
+    if (preset.id === '2160') return '4K';
+    if (preset.id === '1440') return '2K';
+    if (preset.id === '1080') return '1080p';
+    if (preset.id === '720') return '720p';
+    if (preset.id === '480') return '480p';
+    if (preset.id === '360') return '360p';
+
+    // Check if shortLabel is already an exact standard tier
+    if (preset.shortLabel && /^(8K|4K|2K|1080p|720p|480p|360p)$/i.test(preset.shortLabel.trim())) {
+      return preset.shortLabel.trim();
+    }
+
+    // Standard height mapping (never 900p or 600p!)
+    const h = preset.height || (preset.shortLabel && parseInt(preset.shortLabel, 10)) || 0;
+    if (h >= 3800) return '8K';
+    if (h >= 2000) return '4K';
+    if (h >= 1300) return '2K';
+    if (h >= 850) return '1080p';
+    if (h >= 550) return '720p';
+    if (h >= 400) return '480p';
+    if (h >= 240) return '360p';
+
+    const m = (preset.label || preset.shortLabel || '').match(/\b(8K|4K|2K|1080p|720p|480p|360p)\b/i);
+    if (m) return m[1];
+
+    return '1080p';
+  };
+
   // Handle URL fetch
   const handleFetchInfo = async (e, directUrl = null) => {
     if (e) e.preventDefault();
@@ -326,6 +378,13 @@ export default function App() {
       }
 
       setVideoInfo(data);
+      const isYt = /(?:youtube\.com|youtu\.be)/i.test(targetUrl);
+      const maxLimit = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+      const validPresets = (data.presets || []).filter(p => p.type === 'video');
+      const safePreset = validPresets.find(p => !p.exceedsLimit && (!p.filesize || p.filesize <= maxLimit)) || validPresets[0];
+      if (safePreset) {
+        setSelectedFullFormatId(safePreset.id);
+      }
     } catch (err) {
       if (videoId) {
         // Seamlessly fall back to Instant Cloud Resolver for YouTube
@@ -390,11 +449,16 @@ export default function App() {
       });
     }, 140);
 
-    // If this is a YouTube or Instagram fallback, launch the instant fast mirror resolver
-    if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) {
-      const preset = videoInfo.presets.find(p => p.id === presetId) || videoInfo.presets[0];
-      if (preset && preset.mirrorUrl) {
-        window.open(preset.mirrorUrl, '_blank', 'noopener,noreferrer');
+    const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+    const preset = videoInfo.presets?.find(p => p.id === presetId) || videoInfo.presets?.[0];
+    const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+    const isOverLimit = preset?.exceedsLimit || (preset?.filesize && preset.filesize > maxLimitBytes);
+
+    // If this is a YouTube/Social fallback, or exceeds max file limit (1.5GB YouTube / 3.0GB Other), launch instant cloud mirror
+    if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback || isOverLimit) {
+      const mirrorUrl = preset?.mirrorUrl || (isYt ? `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=${encodeURIComponent(videoInfo.webpageUrl || url)}` : null);
+      if (mirrorUrl) {
+        window.open(mirrorUrl, '_blank', 'noopener,noreferrer');
       }
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
@@ -640,7 +704,14 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
 
   const allVideoPresets = (videoInfo?.presets || []).filter(p => p.type === 'video');
   const dropdownVideoPresets = allVideoPresets.length > 0 ? allVideoPresets : [];
-  const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) || videoInfo?.bestPreset || dropdownVideoPresets[0];
+
+  const isYtUrl = /(?:youtube\.com|youtu\.be)/i.test(videoInfo?.webpageUrl || url);
+  const maxLimitBytes = isYtUrl ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+  const maxLimitLabel = isYtUrl ? '1.5 GB' : '3.0 GB';
+
+  // Safe best preset that does not exceed size limits
+  const safeBestPreset = dropdownVideoPresets.find(p => !p.exceedsLimit && (!p.filesize || p.filesize <= maxLimitBytes)) || dropdownVideoPresets[0];
+  const selectedPreset = dropdownVideoPresets.find(p => p.id === selectedFullFormatId) || safeBestPreset;
   const videoPresets = allVideoPresets.filter(p => p.id !== (selectedPreset?.id || 'best_with_audio'));
   const audioPresets = (videoInfo?.presets || []).filter(p => p.type === 'audio');
   const subtitles = videoInfo?.subtitles || [];
@@ -878,57 +949,185 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                   <span>This video only has <strong>({videoInfo.maxQualityLabel || 'Original Quality'})</strong> original upload quality</span>
                 </div>
 
-                {/* 📥 Split Dropdown Download Button (Matches Trim Video Page exactly as requested) */}
-                <div className="trimmer-split-btn full-video-split-btn">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
-                        window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
-                      } else {
-                        handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
-                      }
-                    }}
-                    disabled={downloadingFormat !== null}
-                    className="btn-split-action btn-full-split-action"
-                    title={`Download ${selectedPreset?.label || videoInfo.maxQualityLabel || 'Video'}`}
-                  >
-                    {downloadingFormat === (selectedPreset?.id || 'best_with_audio') ? (
-                      <>
-                        <Zap size={18} className="spin text-cyan" />
-                        <span>Starting Download... {downloadProgress}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download size={18} className="split-action-icon" />
-                        <span className="split-action-text">
-                          Download {selectedPreset?.label?.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim() || (videoInfo.maxQualityLabel ? `${videoInfo.maxQualityLabel} Full HD` : 'Best Quality')}
-                          {getCleanFilesize(selectedPreset) && (
-                            <span className="split-action-size"> (~{getCleanFilesize(selectedPreset)})</span>
-                          )}
-                        </span>
-                      </>
-                    )}
-                  </button>
-
-                  {dropdownVideoPresets.length > 1 && (
-                    <div className="split-dropdown-trigger" title="Select Video Quality">
-                      <select
-                        value={selectedFullFormatId}
-                        onChange={(e) => setSelectedFullFormatId(e.target.value)}
-                        className="split-select-native"
-                        aria-label="Select Video Quality"
-                      >
-                        {dropdownVideoPresets.map((opt) => (
-                          <option key={opt.id} value={opt.id}>
-                            {opt.label.replace(/\s*\(with\s*Audio\)/gi, '').replace(/\s*with\s*Audio/gi, '').trim()}
-                            {getCleanFilesize(opt) ? ` (~${getCleanFilesize(opt)})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown size={16} className="split-chevron-icon" />
+                {/* ⚠️ Exceeds safe limit notification */}
+                {selectedPreset && (() => {
+                  const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+                  const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+                  const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
+                  const isOver = selectedPreset.exceedsLimit || (selectedPreset.filesize && selectedPreset.filesize > maxLimitBytes);
+                  if (!isOver) return null;
+                  return (
+                    <div style={{
+                      background: 'rgba(234, 179, 8, 0.12)',
+                      border: '1px solid rgba(234, 179, 8, 0.35)',
+                      borderRadius: '10px',
+                      padding: '0.65rem 1rem',
+                      marginBottom: '0.85rem',
+                      fontSize: '0.85rem',
+                      color: '#eab308',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      textAlign: 'left'
+                    }}>
+                      <Clock size={16} style={{ flexShrink: 0 }} />
+                      <span>This quality exceeds <strong>{maxLimitLabel}</strong> limit. High-capacity downloads will be available soon (Waiting)! Please select 1080p or lower below.</span>
                     </div>
-                  )}
+                  );
+                })()}
+
+                {/* 📥 Split Dropdown Download Button Container */}
+                <div className="split-btn-container" ref={qualityDropdownRef}>
+                  <div className="trimmer-split-btn full-video-split-btn">
+                    {(() => {
+                      const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+                      const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+                      const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
+                      const isOver = selectedPreset?.exceedsLimit || (selectedPreset?.filesize && selectedPreset.filesize > maxLimitBytes);
+                      const qTag = getShortQuality(selectedPreset);
+                      const sTag = getCleanFilesize(selectedPreset);
+
+                      if (isOver) {
+                        return (
+                          <button
+                            type="button"
+                            disabled={true}
+                            className="btn-split-action btn-full-split-action"
+                            style={{
+                              opacity: 0.55,
+                              cursor: 'not-allowed',
+                              background: 'rgba(234, 179, 8, 0.12)',
+                              color: '#eab308'
+                            }}
+                            title={`Option waiting: Exceeds ${maxLimitLabel} limit`}
+                          >
+                            <div className="btn-split-content">
+                              <div className="btn-split-line1" style={{ color: '#eab308' }}>
+                                <Clock size={17} style={{ color: '#eab308', flexShrink: 0 }} />
+                                <span>Waiting {qTag}</span>
+                              </div>
+                              <div className="btn-split-line2" style={{ color: '#eab308', opacity: 0.9 }}>
+                                {sTag ? `(${sTag} — Coming Soon)` : '(Coming Soon)'}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
+                              window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
+                            } else {
+                              handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
+                            }
+                          }}
+                          disabled={downloadingFormat !== null}
+                          className="btn-split-action btn-full-split-action"
+                          title={`Download ${qTag}`}
+                        >
+                          {downloadingFormat === (selectedPreset?.id || 'best_with_audio') ? (
+                            <div className="btn-split-content">
+                              <div className="btn-split-line1">
+                                <Zap size={17} className="spin text-cyan" />
+                                <span>Downloading {qTag}...</span>
+                              </div>
+                              <div className="btn-split-line2">
+                                {downloadProgress}% completed
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="btn-split-content">
+                              <div className="btn-split-line1">
+                                <Download size={18} className="split-action-icon" />
+                                <span>Download {qTag}</span>
+                              </div>
+                              {sTag && (
+                                <div className="btn-split-line2">
+                                  ({sTag})
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })()}
+
+                    {dropdownVideoPresets.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsQualityDropdownOpen((prev) => !prev)}
+                        className="split-dropdown-trigger"
+                        aria-expanded={isQualityDropdownOpen}
+                        title="Choose Video Quality"
+                      >
+                        <ChevronDown
+                          size={18}
+                          className="split-chevron-icon"
+                          style={{
+                            transform: isQualityDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                            color: isQualityDropdownOpen ? 'var(--cyan-primary, #0284c7)' : undefined
+                          }}
+                        />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 🌟 Custom Themed Floating Dropdown Menu (Matches VidSave Design System) */}
+                  {isQualityDropdownOpen && (() => {
+                    const uniqueOptions = [];
+                    const seenQ = new Set();
+                    for (const opt of dropdownVideoPresets) {
+                      const qName = getShortQuality(opt);
+                      if (!seenQ.has(qName)) {
+                        seenQ.add(qName);
+                        uniqueOptions.push(opt);
+                      }
+                    }
+
+                    return (
+                      <div className="custom-quality-menu">
+                        <div className="custom-quality-menu-header">Available Resolutions</div>
+                        {uniqueOptions.map((opt) => {
+                          const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+                          const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+                          const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
+                          const isOptOver = opt.exceedsLimit || (opt.filesize && opt.filesize > maxLimitBytes);
+                          const optQ = getShortQuality(opt);
+                          const optSize = getCleanFilesize(opt);
+                          const isSelected = opt.id === selectedPreset?.id || optQ === getShortQuality(selectedPreset);
+
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className={`custom-quality-option ${isSelected ? 'active' : ''} ${isOptOver ? 'overlimit' : ''}`}
+                              onClick={() => {
+                                setSelectedFullFormatId(opt.id);
+                                setIsQualityDropdownOpen(false);
+                              }}
+                            >
+                              <div className="quality-opt-left">
+                                <span className="quality-opt-badge">{optQ}</span>
+                                {isOptOver && (
+                                  <span className="quality-opt-waiting">⏳ Waiting (&gt; {maxLimitLabel})</span>
+                                )}
+                                {isSelected && !isOptOver && (
+                                  <span className="quality-opt-active-check">✓ Active</span>
+                                )}
+                              </div>
+                              {optSize && (
+                                <span className="quality-opt-size">{optSize}</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* ✂️ Trim & Crop Video Button directly under the download button */}
@@ -1086,8 +1285,13 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                             .replace(/\s*with\s*Audio/gi, '')
                             .trim();
 
+                          const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
+                          const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+                          const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
+                          const isPresetOver = preset.exceedsLimit || (preset.filesize && preset.filesize > maxLimitBytes);
+
                           return (
-                            <tr key={preset.id} className="quality-row">
+                            <tr key={preset.id} className="quality-row" style={isPresetOver ? { opacity: 0.55 } : {}}>
                               <td className="quality-cell" style={{ fontWeight: '600' }}>
                                 <span className={`quality-badge ${badgeClass}`}>
                                   {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
@@ -1103,16 +1307,39 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                                 )}
                               </td>
                               <td className="quality-cell" style={{ textAlign: 'right' }}>
-                                <button
-                                  onClick={() => handleDownload(preset.id, preset.ext)}
-                                  className="btn-download-action"
-                                  disabled={downloadingFormat === preset.id}
-                                >
-                                  {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? <ExternalLink size={15} /> : <Download size={15} />}
-                                  {downloadingFormat === preset.id 
-                                    ? ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Opening...' : `Starting... ${downloadProgress}%`) 
-                                    : ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Direct Link' : 'Download')}
-                                </button>
+                                {isPresetOver ? (
+                                  <button
+                                    type="button"
+                                    disabled={true}
+                                    className="btn-download-action"
+                                    style={{
+                                      opacity: 0.6,
+                                      cursor: 'not-allowed',
+                                      background: 'rgba(234, 179, 8, 0.12)',
+                                      color: '#eab308',
+                                      border: '1px solid rgba(234, 179, 8, 0.35)',
+                                      pointerEvents: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px'
+                                    }}
+                                    title={`Option waiting: Exceeds ${maxLimitLabel} limit`}
+                                  >
+                                    <Clock size={14} />
+                                    <span>Waiting (&gt; {maxLimitLabel})</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleDownload(preset.id, preset.ext)}
+                                    className="btn-download-action"
+                                    disabled={downloadingFormat === preset.id}
+                                  >
+                                    {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? <ExternalLink size={15} /> : <Download size={15} />}
+                                    {downloadingFormat === preset.id 
+                                      ? ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Opening...' : `Starting... ${downloadProgress}%`) 
+                                      : ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Direct Link' : 'Download')}
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );

@@ -172,35 +172,82 @@ export function killProcessTree(child) {
 }
 
 /**
- * Concurrency Limiter Middleware for heavy tasks (yt-dlp, FFmpeg, transcode, video streams)
- * Limits total simultaneous jobs to MAX_ACTIVE_HEAVY to prevent Render 512MB RAM OOM crashes.
+ * Concurrency Limiter Middleware:
+ * - YouTube downloads (FFmpeg muxing / yt-dlp DASH): Max 2 concurrent tasks (fits Render 512MB RAM)
+ * - Non-YouTube streams (TikTok, Instagram, Facebook direct HTTP streams): Max 10 concurrent tasks (zero-RAM pipes)
  */
-let activeHeavyCount = 0;
-const MAX_ACTIVE_HEAVY = 2; // Render Free Tier has 512MB RAM: limit to 2 simultaneous heavy jobs
-const perIpActive = new Map();
+let activeYouTubeCount = 0;
+let activeOtherCount = 0;
+const MAX_ACTIVE_YOUTUBE = 2; // Strict limit for CPU/RAM intensive FFmpeg & yt-dlp
+const MAX_ACTIVE_OTHER = 10;  // Lightweight direct proxy/CDN streams
+
+const perIpActive = new Map(); // ip -> { youtube: number, other: number }
+
+export function isYouTubeTarget(rawUrl = '') {
+  if (!rawUrl || typeof rawUrl !== 'string') return false;
+  try {
+    const decoded = decodeURIComponent(rawUrl);
+    return /(?:youtube\.com|youtu\.be|googlevideo\.com)/i.test(decoded);
+  } catch (_) {
+    return /(?:youtube\.com|youtu\.be|googlevideo\.com)/i.test(rawUrl);
+  }
+}
+
+export function getConcurrencyStats() {
+  return {
+    youtube: { active: activeYouTubeCount, max: MAX_ACTIVE_YOUTUBE },
+    other: { active: activeOtherCount, max: MAX_ACTIVE_OTHER },
+    activeIps: perIpActive.size
+  };
+}
 
 export function heavyConcurrencyGuard(req, res, next) {
   const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
-  const ipCurrent = perIpActive.get(clientIp) || 0;
+  const targetUrl = req.query.url || req.body?.url || '';
+  const isYT = isYouTubeTarget(targetUrl);
 
-  if (activeHeavyCount >= MAX_ACTIVE_HEAVY || ipCurrent >= 1) {
-    res.set('Retry-After', '8');
-    return res.status(503).json({
-      error: 'Server is currently busy processing video downloads. Please retry in a few seconds.'
-    });
+  const ipStats = perIpActive.get(clientIp) || { youtube: 0, other: 0 };
+
+  if (isYT) {
+    if (activeYouTubeCount >= MAX_ACTIVE_YOUTUBE || ipStats.youtube >= 1) {
+      res.set('Retry-After', '8');
+      return res.status(503).json({
+        error: 'Server is currently busy processing high-quality YouTube downloads. Please retry in a few seconds.'
+      });
+    }
+    activeYouTubeCount++;
+    ipStats.youtube++;
+  } else {
+    if (activeOtherCount >= MAX_ACTIVE_OTHER || ipStats.other >= 2) {
+      res.set('Retry-After', '5');
+      return res.status(503).json({
+        error: 'Server is currently busy streaming media. Please retry in a few seconds.'
+      });
+    }
+    activeOtherCount++;
+    ipStats.other++;
   }
 
-  activeHeavyCount++;
-  perIpActive.set(clientIp, ipCurrent + 1);
+  perIpActive.set(clientIp, ipStats);
 
   let released = false;
   const release = () => {
     if (released) return;
     released = true;
-    activeHeavyCount = Math.max(0, activeHeavyCount - 1);
-    const updated = (perIpActive.get(clientIp) || 1) - 1;
-    if (updated > 0) perIpActive.set(clientIp, updated);
-    else perIpActive.delete(clientIp);
+
+    if (isYT) {
+      activeYouTubeCount = Math.max(0, activeYouTubeCount - 1);
+      ipStats.youtube = Math.max(0, ipStats.youtube - 1);
+    } else {
+      activeOtherCount = Math.max(0, activeOtherCount - 1);
+      ipStats.other = Math.max(0, ipStats.other - 1);
+    }
+
+    if (ipStats.youtube <= 0 && ipStats.other <= 0) {
+      perIpActive.delete(clientIp);
+    } else {
+      perIpActive.set(clientIp, ipStats);
+    }
   };
 
   res.once('close', release);

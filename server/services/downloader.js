@@ -56,6 +56,10 @@ if (!ffmpegPath) {
 }
 console.log(`[Downloader Engine] Using FFmpeg binary: "${ffmpegPath || 'system PATH'}"`);
 
+// Maximum file size limits: 1.5 GB for YouTube (protects 512MB RAM & 2GB temp disk), 3.0 GB for all other platforms
+export const MAX_FILESIZE_BYTES_YOUTUBE = 1.5 * 1024 * 1024 * 1024; // 1.5 GB
+export const MAX_FILESIZE_BYTES_OTHER = 3.0 * 1024 * 1024 * 1024;   // 3.0 GB
+
 const COOKIE_FILE = path.resolve('ytdlp_session_cookies.txt');
 
 // Remove legacy root cookies.txt to prevent yt-dlp from implicitly auto-loading it
@@ -529,13 +533,13 @@ export async function getVideoInfo(url) {
 
     // Standard resolution tiers: from 8K down to 360p (360p enabled for YouTube only; omitted for FB, TikTok, IG, etc.)
     const RESOLUTION_TIERS = [
-      { minHeight: 3800, id: '4320', label: '8K Ultra HD (4320p)', shortLabel: '8K Ultra HD', badge: 'ultra', estByteRate: 14 * 1024 * 1024 },
-      { minHeight: 2000, id: '2160', label: '4K Ultra HD (2160p)', shortLabel: '4K Ultra HD', badge: 'ultra', estByteRate: 5.5 * 1024 * 1024 },
-      { minHeight: 1300, id: '1440', label: '2K Quad HD (1440p)', shortLabel: '2K Quad HD', badge: 'hd', estByteRate: 2.8 * 1024 * 1024 },
-      { minHeight: 900,  id: '1080', label: '1080p Full HD', shortLabel: '1080p Full HD', badge: 'hd', estByteRate: 1.3 * 1024 * 1024 },
-      { minHeight: 600,  id: '720',  label: '720p HD', shortLabel: '720p HD', badge: 'hd', estByteRate: 0.6 * 1024 * 1024 },
-      { minHeight: 400,  id: '480',  label: '480p SD', shortLabel: '480p SD', badge: 'sd', estByteRate: 0.28 * 1024 * 1024 },
-      ...(isYt ? [{ minHeight: 250,  id: '360',  label: '360p Fast', shortLabel: '360p Fast', badge: 'sd', estByteRate: 0.14 * 1024 * 1024 }] : []),
+      { minHeight: 3800, targetHeight: 4320, id: '4320', label: '8K Ultra HD (4320p)', shortLabel: '8K', badge: 'ultra', estByteRate: 14 * 1024 * 1024 },
+      { minHeight: 2000, targetHeight: 2160, id: '2160', label: '4K Ultra HD (2160p)', shortLabel: '4K', badge: 'ultra', estByteRate: 5.5 * 1024 * 1024 },
+      { minHeight: 1300, targetHeight: 1440, id: '1440', label: '2K Quad HD (1440p)', shortLabel: '2K', badge: 'hd', estByteRate: 2.8 * 1024 * 1024 },
+      { minHeight: 900,  targetHeight: 1080, id: '1080', label: '1080p Full HD', shortLabel: '1080p', badge: 'hd', estByteRate: 1.3 * 1024 * 1024 },
+      { minHeight: 600,  targetHeight: 720,  id: '720',  label: '720p HD Ready', shortLabel: '720p', badge: 'hd', estByteRate: 0.6 * 1024 * 1024 },
+      { minHeight: 400,  targetHeight: 480,  id: '480',  label: '480p SD', shortLabel: '480p', badge: 'sd', estByteRate: 0.28 * 1024 * 1024 },
+      ...(isYt ? [{ minHeight: 250, targetHeight: 360, id: '360', label: '360p Fast', shortLabel: '360p', badge: 'sd', estByteRate: 0.14 * 1024 * 1024 }] : []),
     ];
 
     // Filter tiers that actually exist in this video
@@ -583,7 +587,7 @@ export async function getVideoInfo(url) {
           label: tier.label,
           shortLabel: tier.shortLabel,
           badge: tier.badge,
-          height: tier.minHeight,
+          height: tier.targetHeight || tier.minHeight,
           ext: 'mp4',
           type: 'video',
           filesize: totalSize,
@@ -600,7 +604,7 @@ export async function getVideoInfo(url) {
         label: fallbackTier.label,
         shortLabel: fallbackTier.shortLabel,
         badge: fallbackTier.badge,
-        height: fallbackTier.minHeight,
+        height: fallbackTier.targetHeight || fallbackTier.minHeight,
         ext: 'mp4',
         type: 'video',
         filesize: estSize,
@@ -633,6 +637,20 @@ export async function getVideoInfo(url) {
     };
 
     const presets = [bestPreset, ...matchedTiers, audioPreset];
+
+    const maxAllowedSize = isYt ? MAX_FILESIZE_BYTES_YOUTUBE : MAX_FILESIZE_BYTES_OTHER;
+    const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
+
+    presets.forEach(p => {
+      if (p.filesize && p.filesize > maxAllowedSize) {
+        p.exceedsLimit = true;
+        p.maxLimitFormatted = maxLimitLabel;
+        if (isYt) {
+          const vidId = rawInfo.id || '';
+          p.mirrorUrl = `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=https://www.youtube.com/watch?v=${vidId}`;
+        }
+      }
+    });
 
     // Formats list for advanced inspection
     const formats = [];
@@ -756,9 +774,11 @@ export function streamVideoDownload(url, formatPreset, res) {
     const tempDir = os.tmpdir();
     const tempFile = path.join(tempDir, `vidsave_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`);
 
+    const maxLimitArg = isYt ? '1536M' : '3072M';
     const args = [
       '-m', 'yt_dlp',
       '-f', formatArg,
+      '--max-filesize', maxLimitArg,
     ];
 
     if (isAudio) {
@@ -772,7 +792,7 @@ export function streamVideoDownload(url, formatPreset, res) {
 
     args.push('-o', tempFile, ...buildYtdlpArgs(url), '--', url);
 
-    console.log(`[Download Stream] Processing ${formatPreset} download into temp container: ${tempFile}`);
+    console.log(`[Download Stream] Processing ${formatPreset} download into temp container (max: ${maxLimitArg}): ${tempFile}`);
 
     const child = spawn(PYTHON_BIN, args, {
       windowsHide: true,
@@ -947,8 +967,22 @@ export function streamVideoDownload(url, formatPreset, res) {
               console.warn(`[CDN Stream] Upstream returned non-video content-type: ${upstreamRes.headers['content-type']}, falling back to yt-dlp...`);
               return runTempDownload();
             }
-            if (upstreamRes.headers['content-length'] && !res.headersSent) {
-              res.setHeader('Content-Length', upstreamRes.headers['content-length']);
+            if (upstreamRes.headers['content-length']) {
+              const cl = parseInt(upstreamRes.headers['content-length'], 10);
+              const maxAllowedBytes = isYt ? MAX_FILESIZE_BYTES_YOUTUBE : MAX_FILESIZE_BYTES_OTHER;
+              if (cl > maxAllowedBytes) {
+                console.warn(`[CDN Stream] File size ${cl} bytes exceeds limit of ${maxAllowedBytes} bytes.`);
+                upstreamReq.destroy();
+                if (!res.headersSent) {
+                  return res.status(413).json({
+                    error: `Video size exceeds the maximum allowed limit of ${isYt ? '1.5 GB' : '3.0 GB'}.`
+                  });
+                }
+                return;
+              }
+              if (!res.headersSent) {
+                res.setHeader('Content-Length', upstreamRes.headers['content-length']);
+              }
             }
             res.setHeader('Content-Type', upstreamRes.headers['content-type'] || 'video/mp4');
             upstreamRes.pipe(res);
