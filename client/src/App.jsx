@@ -475,19 +475,25 @@ export default function App() {
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
       const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
 
-      // Trigger Native Browser Download immediately (Zero RAM consumption, Native Chrome Download Manager)
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', `${cleanTitle}.${formatExt}`);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
+      // Trigger Native Browser Download via Hidden Iframe (Eliminates tab reload / spinner, Zero RAM leak, Native Chrome Download Tray)
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '1px';
+      iframe.style.height = '1px';
+      iframe.style.opacity = '0';
+      iframe.style.border = 'none';
+      iframe.src = downloadUrl;
+      document.body.appendChild(iframe);
 
       setTimeout(() => {
         try {
-          document.body.removeChild(link);
+          if (iframe && iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
         } catch (_) {}
-      }, 2000);
+      }, 60000);
 
       // Once browser starts streaming, wrap up progress to 100% and notify user
       setTimeout(() => {

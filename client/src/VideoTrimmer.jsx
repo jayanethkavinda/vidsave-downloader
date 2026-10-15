@@ -440,19 +440,25 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       const filename = `${cleanTitle}_cut_${Math.round(startTime)}s-${Math.round(endTime)}s.${ext}`;
       const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${actualType}&format=${format}&title=${encodeURIComponent(cleanTitle)}`;
 
-      // Trigger Native Browser Download immediately
-      const link = document.createElement('a');
-      link.href = trimApiUrl;
-      link.setAttribute('download', filename);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
+      // Trigger Native Browser Download via Hidden Iframe (No tab spinner / reload)
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '1px';
+      iframe.style.height = '1px';
+      iframe.style.opacity = '0';
+      iframe.style.border = 'none';
+      iframe.src = trimApiUrl;
+      document.body.appendChild(iframe);
 
       setTimeout(() => {
         try {
-          document.body.removeChild(link);
+          if (iframe && iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
         } catch (_) {}
-      }, 2000);
+      }, 60000);
 
       // Once browser starts streaming, wrap up percentage to 100% and show quick confirmation
       setTimeout(() => {
