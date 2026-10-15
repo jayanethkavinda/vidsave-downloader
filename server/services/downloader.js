@@ -386,13 +386,28 @@ export function streamVideoDownload(url, formatPreset, res) {
   const isYt = isYouTubeUrl(url);
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3';
 
-  // Build tier format selector
+  // Build strict tier format selector for both Landscape and Portrait (Reels/Shorts)
   const buildTierFormat = (target) => {
     const num = parseInt(target, 10);
-    if (num >= 1080) {
-      return `bestvideo[height>=${num}]+bestaudio/bestvideo[width>=${num}]+bestaudio/bestvideo[height<=${num}]+bestaudio/bestvideo[width<=${num}]+bestaudio/best`;
+    if (num >= 3800) {
+      return `bestvideo[height>=3800]+bestaudio/bestvideo[width>=3800]+bestaudio/bestvideo+bestaudio/best`;
     }
-    return `bestvideo[height<=${num}][height>=${Math.round(num * 0.7)}]+bestaudio/bestvideo[width<=${num}][width>=${Math.round(num * 0.7)}]+bestaudio/bestvideo[height<=${num}]+bestaudio/bestvideo[width<=${num}]+bestaudio/best[height<=${num}]/best[width<=${num}]/best`;
+    if (num >= 2000) {
+      return `bestvideo[height>=2000][height<=2160]+bestaudio/bestvideo[width>=2000][width<=2160]+bestaudio/bestvideo[height>=2000]+bestaudio/bestvideo[width>=2000]+bestaudio/best`;
+    }
+    if (num >= 1400) {
+      return `bestvideo[height>=1400][height<=1440]+bestaudio/bestvideo[width>=1400][width<=1440]+bestaudio/bestvideo[height>=1400]+bestaudio/bestvideo[width>=1400]+bestaudio/best`;
+    }
+    if (num >= 900) {
+      return `bestvideo[height>=900][height<=1080]+bestaudio/bestvideo[width>=900][width<=1080]+bestaudio/bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best`;
+    }
+    if (num >= 650) {
+      return `bestvideo[height>=650][height<=720]+bestaudio/bestvideo[width>=650][width<=720]+bestaudio/bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best`;
+    }
+    if (num >= 400) {
+      return `bestvideo[height>=400][height<=480]+bestaudio/bestvideo[width>=400][width<=480]+bestaudio/bestvideo[height<=480]+bestaudio/bestvideo[width<=480]+bestaudio/best[height<=480]/best`;
+    }
+    return `bestvideo[height<=360]+bestaudio/bestvideo[width<=360]+bestaudio/best[height<=360]/best`;
   };
 
   let formatArg;
