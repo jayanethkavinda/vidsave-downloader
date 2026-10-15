@@ -9,6 +9,11 @@ import {
   MAX_FILESIZE_BYTES_OTHER, 
   killProcessTree 
 } from './security.js';
+import { 
+  formatBytes, 
+  buildResolutionPresets, 
+  probeUrlExactBytes 
+} from './sizeCalculator.js';
 
 // Automatically detect Python executable
 function getPythonCommand() {
@@ -101,26 +106,6 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-// Format bytes into human readable MB/GB
-function formatBytes(bytes) {
-  if (!bytes || bytes <= 0) return null;
-  const mb = bytes / (1024 * 1024);
-  if (mb >= 1024) {
-    return `${(mb / 1024).toFixed(1)} GB`;
-  }
-  return `${mb.toFixed(1)} MB`;
-}
-
-// Standard Resolution Tiers
-const RESOLUTION_TIERS = [
-  { id: '4320', minHeight: 3800, targetHeight: 4320, label: '8K Ultra HD (4320p)', shortLabel: '8K Ultra HD', badge: '8k', estByteRate: 7500000 },
-  { id: '2160', minHeight: 2000, targetHeight: 2160, label: '4K Ultra HD (2160p)', shortLabel: '4K Ultra HD', badge: '4k', estByteRate: 3500000 },
-  { id: '1440', minHeight: 1400, targetHeight: 1440, label: '2K Quad HD (1440p)', shortLabel: '2K Quad HD', badge: '2k', estByteRate: 1800000 },
-  { id: '1080', minHeight: 900,  targetHeight: 1080, label: '1080p Full HD',       shortLabel: '1080p Full HD', badge: 'fhd', estByteRate: 850000 },
-  { id: '720',  minHeight: 650,  targetHeight: 720,  label: '720p HD',             shortLabel: '720p HD', badge: 'hd', estByteRate: 450000 },
-  { id: '480',  minHeight: 400,  targetHeight: 480,  label: '480p SD',             shortLabel: '480p SD', badge: 'sd', estByteRate: 250000 },
-  { id: '360',  minHeight: 0,    targetHeight: 360,  label: '360p Standard',       shortLabel: '360p SD', badge: 'sd', estByteRate: 150000 }
-];
 
 /**
  * Common yt-dlp arguments for anti-bot bypass & headers
@@ -211,14 +196,20 @@ async function resolveCloudScraperFallback(url) {
     const title = result.data?.title || result.data?.description || `${platform} Video`;
     const uploader = result.data?.author || `${platform} Creator`;
 
+    let exactFallbackBytes = 12 * 1024 * 1024;
+    if (directStreamUrl) {
+      const probed = await probeUrlExactBytes(directStreamUrl, url, 1500);
+      if (probed && probed > 0) exactFallbackBytes = probed;
+    }
+
     const bestPreset = {
       id: 'best_with_audio',
       label: 'Download Best Quality (Original Upload Quality)',
       shortLabel: 'Original Quality',
       ext: 'mp4',
       type: 'video',
-      filesize: 15 * 1024 * 1024,
-      filesizeFormatted: '15 MB',
+      filesize: exactFallbackBytes,
+      filesizeFormatted: formatBytes(exactFallbackBytes),
       isRecommended: true
     };
 
@@ -230,18 +221,19 @@ async function resolveCloudScraperFallback(url) {
       height: 720,
       ext: 'mp4',
       type: 'video',
-      filesize: 10 * 1024 * 1024,
-      filesizeFormatted: '10 MB'
+      filesize: exactFallbackBytes,
+      filesizeFormatted: formatBytes(exactFallbackBytes)
     };
 
+    const audioBytes = Math.round(exactFallbackBytes * 0.15) || (2 * 1024 * 1024);
     const audioPreset = {
       id: 'audio_best',
       label: 'MP3 Audio (High Quality)',
       shortLabel: 'MP3 Audio',
       ext: 'mp3',
       type: 'audio',
-      filesize: 3 * 1024 * 1024,
-      filesizeFormatted: '3 MB'
+      filesize: audioBytes,
+      filesizeFormatted: formatBytes(audioBytes)
     };
 
     return {
@@ -335,123 +327,25 @@ export async function getVideoInfo(url) {
   const videoFormats = rawFormats.filter(f => f.vcodec && f.vcodec !== 'none');
   const audioFormats = rawFormats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'));
 
-  const bestAudio = audioFormats.sort((a, b) => (b.tbr || b.abr || 0) - (a.tbr || a.abr || 0))[0];
-  const audioSize = bestAudio?.filesize || bestAudio?.filesize_approx || (duration ? Math.round(16000 * duration) : 0);
-
-  // Determine Original Upload Quality (Max Height)
-  let maxHeight = 0;
-  for (const f of videoFormats) {
-    const rawH = f.height || (f.format_note && parseInt(f.format_note)) || 0;
-    const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
-    if (h > maxHeight) maxHeight = h;
-  }
-  if (maxHeight === 0) maxHeight = 720;
-
-  // Build matched resolution tiers
-  const matchedTiers = [];
-  for (let i = 0; i < RESOLUTION_TIERS.length; i++) {
-    const tier = RESOLUTION_TIERS[i];
-    const upperTier = i > 0 ? RESOLUTION_TIERS[i - 1] : null;
-
-    const hasTier = videoFormats.some(f => {
-      const rawH = f.height || (f.format_note && parseInt(f.format_note)) || 0;
-      const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
-      if (upperTier) return h >= tier.minHeight && h < upperTier.minHeight;
-      return h >= tier.minHeight;
-    }) || (matchedTiers.length === 0 && maxHeight >= tier.minHeight);
-
-    if (hasTier) {
-      const matchingFormats = videoFormats.filter(f => {
-        const rawH = f.height || (f.format_note && parseInt(f.format_note)) || 0;
-        const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
-        if (upperTier) return h >= tier.minHeight && h < upperTier.minHeight;
-        return h >= tier.minHeight;
-      });
-
-      const bestFmt = matchingFormats.sort((a, b) => {
-        const aIsMp4 = a.ext === 'mp4' ? 1 : 0;
-        const bIsMp4 = b.ext === 'mp4' ? 1 : 0;
-        if (bIsMp4 !== aIsMp4) return bIsMp4 - aIsMp4;
-        const aSize = a.filesize || a.filesize_approx || 0;
-        const bSize = b.filesize || b.filesize_approx || 0;
-        return bSize - aSize;
-      })[0] || matchingFormats[0];
-
-      let vSize = bestFmt?.filesize || bestFmt?.filesize_approx;
-      if (!vSize && duration) {
-        vSize = Math.round(tier.estByteRate * duration);
-      }
-      const totalSize = vSize ? (vSize + (bestFmt?.acodec === 'none' ? (audioSize || 0) : 0)) : Math.round(tier.estByteRate * (duration || 30));
-
-      matchedTiers.push({
-        id: tier.id,
-        label: tier.label,
-        shortLabel: tier.shortLabel,
-        badge: tier.badge,
-        height: tier.targetHeight || tier.minHeight,
-        ext: 'mp4',
-        type: 'video',
-        filesize: totalSize,
-        filesizeFormatted: formatBytes(totalSize)
-      });
-    }
-  }
-
-  if (matchedTiers.length === 0) {
-    const fallbackTier = maxHeight >= 720 ? RESOLUTION_TIERS[4] : RESOLUTION_TIERS[5];
-    const estSize = Math.round(fallbackTier.estByteRate * (duration || 60));
-    matchedTiers.push({
-      id: fallbackTier.id,
-      label: fallbackTier.label,
-      shortLabel: fallbackTier.shortLabel,
-      badge: fallbackTier.badge,
-      height: fallbackTier.targetHeight || fallbackTier.minHeight,
-      ext: 'mp4',
-      type: 'video',
-      filesize: estSize,
-      filesizeFormatted: formatBytes(estSize)
-    });
-  }
-
-  const topTier = matchedTiers[0];
-  const maxQualityLabel = topTier.shortLabel;
-
-  const bestPreset = {
-    id: 'best_with_audio',
-    label: `Download Best Quality (${maxQualityLabel})`,
-    shortLabel: maxQualityLabel,
-    ext: 'mp4',
-    type: 'video',
-    filesize: topTier.filesize,
-    filesizeFormatted: topTier.filesizeFormatted,
-    isRecommended: true
-  };
-
-  const audioPreset = {
-    id: 'audio_best',
-    label: 'MP3 Audio (High Quality)',
-    shortLabel: 'MP3 Audio',
-    ext: 'mp3',
-    type: 'audio',
-    filesize: audioSize || Math.round(16000 * (duration || 60)),
-    filesizeFormatted: formatBytes(audioSize || Math.round(16000 * (duration || 60)))
-  };
-
-  const presets = [bestPreset, ...matchedTiers, audioPreset];
-
   // Apply maximum filesize limits
   const maxAllowedSize = isYt ? MAX_FILESIZE_BYTES_YOUTUBE : MAX_FILESIZE_BYTES_OTHER;
   const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
 
-  presets.forEach(p => {
-    if (p.filesize && p.filesize > maxAllowedSize) {
-      p.exceedsLimit = true;
-      p.maxLimitFormatted = maxLimitLabel;
-      if (isYt) {
-        const vidId = rawInfo.id || '';
-        p.mirrorUrl = `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=https://www.youtube.com/watch?v=${vidId}`;
-      }
-    }
+  // Build 100% accurate presets using dedicated sizeCalculator engine
+  const {
+    presets,
+    bestPreset,
+    maxQualityLabel,
+    maxHeight
+  } = await buildResolutionPresets({
+    videoFormats,
+    audioFormats,
+    duration,
+    rawInfo,
+    isYt,
+    referer: url,
+    maxAllowedSize,
+    maxLimitLabel
   });
 
   const subtitles = extractSubtitles(rawInfo);
