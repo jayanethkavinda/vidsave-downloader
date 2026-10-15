@@ -238,18 +238,6 @@ app.get('/api/download', downloadLimiter, async (req, res) => {
   );
   res.setHeader('Content-Type', mimeType);
 
-  // 🚀 Ultra-Fast Direct CDN Hand-off (Method A):
-  // For Pinterest, TikTok, Instagram, Facebook, etc., if client passes pre-resolved direct CDN stream URL,
-  // respond with instant HTTP 302 redirect directly to the CDN! (0s delay, 0 server RAM/CPU).
-  if (direct && typeof direct === 'string' && direct.startsWith('http') && !isYouTubeUrl(safeUrl) && !isAudio) {
-    try {
-      console.log(`[Direct CDN 302 Redirect] Instant redirect for ${safeUrl} -> ${direct.substring(0, 80)}...`);
-      return res.redirect(302, direct);
-    } catch (redirectErr) {
-      console.warn('[Direct CDN 302 Redirect Error] Falling back to stream:', redirectErr.message);
-    }
-  }
-
   streamVideoDownload(safeUrl, cleanFormat, res);
 });
 

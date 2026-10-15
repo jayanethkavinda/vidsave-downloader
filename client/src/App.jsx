@@ -473,10 +473,9 @@ export default function App() {
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
-      const directParam = (!isYt && preset?.directUrl) ? `&direct=${encodeURIComponent(preset.directUrl)}` : '';
-      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}${directParam}`;
+      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
 
-      // Trigger Native Browser Download via Hidden Iframe (Eliminates tab reload / spinner, Zero RAM leak, Native Chrome Download Tray)
+      // Trigger Native Browser Download via Hidden Iframe (Keeps main page completely calm, zero tab reload)
       const iframe = document.createElement('iframe');
       iframe.style.position = 'fixed';
       iframe.style.top = '-9999px';
@@ -488,15 +487,7 @@ export default function App() {
       iframe.src = downloadUrl;
       document.body.appendChild(iframe);
 
-      setTimeout(() => {
-        try {
-          if (iframe && iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe);
-          }
-        } catch (_) {}
-      }, 60000);
-
-      // Once browser starts streaming, wrap up progress to 100% and notify user
+      // Keep showing realistic preparation/loading until the browser receives the stream (around 12-16s on free tier)
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
@@ -504,8 +495,13 @@ export default function App() {
         setTimeout(() => {
           setDownloadingFormat(null);
           setDownloadProgress(0);
-        }, 1500);
-      }, 1100);
+          try {
+            if (iframe && iframe.parentNode) {
+              iframe.parentNode.removeChild(iframe);
+            }
+          } catch (_) {}
+        }, 3000);
+      }, 14000);
     } catch (err) {
       if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
       console.error('Download trigger error:', err);
