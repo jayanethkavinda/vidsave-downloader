@@ -104,7 +104,7 @@ if (fs.existsSync(COOKIE_FILE)) {
 }
 
 // Helper to detect if URL belongs to YouTube
-function isYouTubeUrl(rawUrl) {
+export function isYouTubeUrl(rawUrl) {
   if (!rawUrl) return false;
   return /(?:youtube\.com|youtu\.be)/i.test(rawUrl);
 }
@@ -164,7 +164,8 @@ async function resolveCloudScraperFallback(url) {
       type: 'video',
       filesize: 17 * 1024 * 1024,
       filesizeFormatted: '17.2 MB',
-      isRecommended: true
+      isRecommended: true,
+      directUrl: directStreamUrl || null
     };
 
     const hdPreset = {
@@ -176,7 +177,8 @@ async function resolveCloudScraperFallback(url) {
       ext: 'mp4',
       type: 'video',
       filesize: 12 * 1024 * 1024,
-      filesizeFormatted: '12.0 MB'
+      filesizeFormatted: '12.0 MB',
+      directUrl: directStreamUrl || null
     };
 
     const audioPreset = {
@@ -582,6 +584,8 @@ export async function getVideoInfo(url) {
 
         const totalSize = vSize ? (vSize + (bestFmt?.acodec === 'none' ? (audioSize || 0) : 0)) : Math.round(tier.estByteRate * (duration || 30));
 
+        const directFmtUrl = (bestFmt?.url && !bestFmt.url.includes('.m3u8')) ? bestFmt.url : null;
+
         matchedTiers.push({
           id: tier.id,
           label: tier.label,
@@ -591,7 +595,8 @@ export async function getVideoInfo(url) {
           ext: 'mp4',
           type: 'video',
           filesize: totalSize,
-          filesizeFormatted: formatBytes(totalSize)
+          filesizeFormatted: formatBytes(totalSize),
+          directUrl: directFmtUrl
         });
       }
     }
@@ -608,7 +613,8 @@ export async function getVideoInfo(url) {
         ext: 'mp4',
         type: 'video',
         filesize: estSize,
-        filesizeFormatted: formatBytes(estSize)
+        filesizeFormatted: formatBytes(estSize),
+        directUrl: null
       });
     }
 
@@ -623,7 +629,8 @@ export async function getVideoInfo(url) {
       type: 'video',
       filesize: topTier.filesize,
       filesizeFormatted: topTier.filesizeFormatted,
-      isRecommended: true
+      isRecommended: true,
+      directUrl: topTier.directUrl || rawInfo.url || null
     };
 
     const audioPreset = {

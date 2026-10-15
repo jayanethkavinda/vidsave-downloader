@@ -24,7 +24,8 @@ import {
   convertVttToSrt, 
   convertSrv1ToVtt,
   buildYtdlpArgs,
-  PYTHON_BIN
+  PYTHON_BIN,
+  isYouTubeUrl
 } from './services/downloader.js';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -204,7 +205,7 @@ app.get('/api/info', searchLimiter, async (req, res) => {
 
 // Direct Download Stream Endpoint (Zero Disk Storage - Rate limited to 8 per minute per IP)
 app.get('/api/download', downloadLimiter, async (req, res) => {
-  const { url, format = 'best', title = 'video' } = req.query;
+  const { url, format = 'best', title = 'video', direct = '' } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).json({ error: 'Valid URL is required' });
   }
@@ -236,6 +237,18 @@ app.get('/api/download', downloadLimiter, async (req, res) => {
     `attachment; filename="${asciiTitle}.${ext}"; filename*=UTF-8''${encodeURIComponent(sanitizedTitle)}.${ext}`
   );
   res.setHeader('Content-Type', mimeType);
+
+  // 🚀 Ultra-Fast Direct CDN Hand-off (Method A):
+  // For Pinterest, TikTok, Instagram, Facebook, etc., if client passes pre-resolved direct CDN stream URL,
+  // respond with instant HTTP 302 redirect directly to the CDN! (0s delay, 0 server RAM/CPU).
+  if (direct && typeof direct === 'string' && direct.startsWith('http') && !isYouTubeUrl(safeUrl) && !isAudio) {
+    try {
+      console.log(`[Direct CDN 302 Redirect] Instant redirect for ${safeUrl} -> ${direct.substring(0, 80)}...`);
+      return res.redirect(302, direct);
+    } catch (redirectErr) {
+      console.warn('[Direct CDN 302 Redirect Error] Falling back to stream:', redirectErr.message);
+    }
+  }
 
   streamVideoDownload(safeUrl, cleanFormat, res);
 });

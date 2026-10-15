@@ -473,7 +473,8 @@ export default function App() {
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
-      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
+      const directParam = (!isYt && preset?.directUrl) ? `&direct=${encodeURIComponent(preset.directUrl)}` : '';
+      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}${directParam}`;
 
       // Trigger Native Browser Download via Hidden Iframe (Eliminates tab reload / spinner, Zero RAM leak, Native Chrome Download Tray)
       const iframe = document.createElement('iframe');
