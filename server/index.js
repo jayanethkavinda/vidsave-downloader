@@ -26,6 +26,7 @@ import {
   buildYtdlpArgs,
   PYTHON_BIN
 } from './services/downloader.js';
+import helmet from 'helmet';
 import {
   assertSafeUrl,
   safeFetch,
@@ -39,6 +40,12 @@ const PORT = process.env.PORT || 5000;
 
 // Trust reverse proxy (Render cloud load balancer)
 app.set('trust proxy', 1);
+
+// Standard HTTP Security Headers (Clickjacking protection, MIME-sniffing prevention, remove X-Powered-By)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
 
 // Authorized frontend domains whitelist
 const allowedOrigins = new Set([
