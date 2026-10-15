@@ -437,21 +437,21 @@ export async function getVideoInfo(url) {
       } catch (igErr) {
         console.error('[Downloader Engine] SnapSave fallback also failed:', igErr.message);
       }
+      const cleanErr = (err1.stderr || 'Instagram extraction blocked by login requirements').trim();
+      throw new Error(cleanErr);
     }
 
-    // Attempt 2: Fallback extraction (desktop web + tv client bypass)
-    try {
-      rawInfo = await execYtdlpJson(url, ['--extractor-args', 'youtube:player_client=web,tv'], false);
-    } catch (err2) {
-      console.error('[Downloader Engine] Fallback extraction failed:', err2.stderr || err2);
-
-      if (isInstagramUrl(url)) {
-        try {
-          return await resolveInstagramFallback(url);
-        } catch (igErr) {}
+    // Attempt 2: Fallback extraction for YouTube only (desktop web + tv client bypass)
+    if (isYouTubeUrl(url)) {
+      try {
+        rawInfo = await execYtdlpJson(url, ['--extractor-args', 'youtube:player_client=web,tv'], false);
+      } catch (err2) {
+        console.error('[Downloader Engine] Fallback extraction failed:', err2.stderr || err2);
+        const cleanErr = (err2.stderr || err1.stderr || 'Failed to extract video information').trim();
+        throw new Error(cleanErr);
       }
-
-      const cleanErr = (err2.stderr || err1.stderr || 'Failed to extract video information').trim();
+    } else {
+      const cleanErr = (err1.stderr || 'Failed to extract video information').trim();
       throw new Error(cleanErr);
     }
   }
