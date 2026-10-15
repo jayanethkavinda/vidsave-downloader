@@ -40,9 +40,32 @@ const PORT = process.env.PORT || 5000;
 // Trust reverse proxy (Render cloud load balancer)
 app.set('trust proxy', 1);
 
+// Authorized frontend domains whitelist
+const allowedOrigins = new Set([
+  'https://vidsave-downloader.web.app',
+  'https://vidsave-hd.web.app',
+  'https://videsave.web.app',
+  'https://vidsave-downloader.firebaseapp.com',
+  'https://vidsave-hd.firebaseapp.com',
+  'https://videsave.firebaseapp.com',
+  'https://videodownloader-37389.web.app',
+  'https://videodownloader-37389.firebaseapp.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173'
+]);
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, curl, or direct browser address bar navigations without Origin header)
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    console.warn(`[CORS Blocked] Unauthorized request from origin: "${origin}"`);
+    return callback(new Error('CORS policy: Request from this origin is not allowed.'));
+  },
   methods: ['GET', 'POST', 'OPTIONS'],
+  credentials: true
 }));
 
 app.use(express.json());
