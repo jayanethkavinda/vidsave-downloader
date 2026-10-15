@@ -728,7 +728,6 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
     s.language.toLowerCase().includes(subSearch.toLowerCase()) ||
     s.code.toLowerCase().includes(subSearch.toLowerCase())
   );
-  const filteredPresets = activeTab === 'video' ? videoPresets : audioPresets;
 
 
   return (
@@ -1210,208 +1209,116 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                 </button>
               </div>
 
-              {/* Quality Options & Category Tabs */}
-              <div style={{ textAlign: 'left' }}>
-                <div className="format-tabs">
-                  <button
-                    className={`tab-btn ${activeTab === 'video' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('video')}
+              {/* 📑 Dedicated Subtitles & Closed Captions Section */}
+              <div className="subtitles-section" style={{ textAlign: 'left', marginTop: '0.75rem' }}>
+                <div className="format-tabs" style={{ marginBottom: '1.25rem' }}>
+                  <div
+                    className="tab-btn active"
+                    style={{ cursor: 'default', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
                   >
-                    <Film size={16} /> Video Formats ({videoPresets.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('audio')}
-                  >
-                    <Music size={16} /> Audio Only ({audioPresets.length})
-                  </button>
-                  <button
-                    className={`tab-btn ${activeTab === 'subtitles' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('subtitles')}
-                  >
-                    <Subtitles size={16} /> Subtitles ({subtitles.length})
-                  </button>
+                    <Subtitles size={16} /> Subtitles & Captions ({subtitles.length})
+                  </div>
                 </div>
 
-                {activeTab === 'subtitles' ? (
-                  subtitles.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
-                      <Subtitles size={36} style={{ opacity: 0.35, marginBottom: '0.75rem', display: 'inline-block' }} />
-                      <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>No subtitles found for this video.</p>
-                      <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>This media does not have uploaded or auto-generated captions available.</p>
-                    </div>
-                  ) : (
-                    <>
-                      {subtitles.length > 0 && (
-                        <div className="sub-search-box">
-                          <Search size={16} color="var(--text-muted)" />
-                          <input
-                            type="text"
-                            placeholder="Search language (e.g. Sinhala, English, Tamil, Spanish, French)..."
-                            value={subSearch}
-                            onChange={(e) => setSubSearch(e.target.value)}
-                            className="sub-search-input"
-                          />
-                          {subSearch && (
-                            <button onClick={() => setSubSearch('')} className="sub-search-clear">✕</button>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 💡 Subtitles Format Selection Guide */}
-                      <div className="sub-format-guide-card">
-                        <div className="sub-guide-header">
-                          <Subtitles size={16} color="#06b6d4" />
-                          <span>Which Subtitle Format Should You Choose?</span>
-                        </div>
-                        <div className="sub-guide-list">
-                          <div className="sub-guide-item">
-                            <span className="sub-guide-badge srt">.SRT</span>
-                            <span className="sub-guide-text">
-                              <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
-                            </span>
-                          </div>
-                          <div className="sub-guide-item">
-                            <span className="sub-guide-badge vtt">.VTT</span>
-                            <span className="sub-guide-text">
-                              <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="quality-table-wrapper">
-                        <table className="quality-table">
-                          <tbody>
-                            {filteredSubtitles.map((sub) => {
-                              const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
-                              const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
-
-                              return (
-                                <tr key={sub.id} className="quality-row">
-                                  <td className="quality-cell" style={{ fontWeight: '600' }}>
-                                    <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
-                                      {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
-                                      <span>{sub.language}</span>
-                                      <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
-                                        ({sub.isAuto ? 'Auto CC' : 'Official'})
-                                      </span>
-                                    </span>
-                                  </td>
-                                  <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                    <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
-                                    <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
-                                      • {sub.code.toUpperCase()}
-                                    </span>
-                                  </td>
-                                  <td className="quality-cell" style={{ textAlign: 'right' }}>
-                                    <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                      <button
-                                        onClick={() => handleDownloadSub(sub, 'srt')}
-                                        className="btn-download-action btn-sub-action"
-                                        disabled={isDownloadingSrt || isDownloadingVtt}
-                                        title={`Download ${sub.language} subtitle as .SRT file`}
-                                      >
-                                        <Download size={14} />
-                                        {isDownloadingSrt ? 'Saving...' : '.SRT'}
-                                      </button>
-                                      <button
-                                        onClick={() => handleDownloadSub(sub, 'vtt')}
-                                        className="btn-download-action btn-sub-action btn-sub-vtt"
-                                        disabled={isDownloadingSrt || isDownloadingVtt}
-                                        title={`Download ${sub.language} subtitle as .VTT file`}
-                                      >
-                                        <Download size={14} />
-                                        {isDownloadingVtt ? 'Saving...' : '.VTT'}
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )
-                ) : (
-                  <div className="quality-table-wrapper">
-                    <table className="quality-table">
-                      <tbody>
-                        {filteredPresets.map((preset) => {
-                          let badgeClass = preset.badge || 'hd';
-                          if (preset.id.includes('best') && preset.type === 'video') badgeClass = 'best';
-                          else if (preset.id === '4320' || preset.id === '2160') badgeClass = 'ultra';
-                          else if (preset.id === '480' || preset.id === '360') badgeClass = 'sd';
-                          else if (preset.type === 'audio') badgeClass = 'audio';
-
-                          const cleanLabel = (preset.label || '')
-                            .replace(/\s*\(with\s*Audio\)/gi, '')
-                            .replace(/\s*with\s*Audio/gi, '')
-                            .trim();
-
-                          const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
-                          const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
-                          const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
-                          const isPresetOver = preset.exceedsLimit || (preset.filesize && preset.filesize > maxLimitBytes);
-
-                          return (
-                            <tr key={preset.id} className="quality-row" style={isPresetOver ? { opacity: 0.55 } : {}}>
-                              <td className="quality-cell" style={{ fontWeight: '600' }}>
-                                <span className={`quality-badge ${badgeClass}`}>
-                                  {preset.type === 'audio' ? <Music size={14} /> : <Film size={14} />}
-                                  {cleanLabel}
-                                </span>
-                              </td>
-                              <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-                                <strong style={{ color: 'var(--text-main)' }}>{preset.ext.toUpperCase()}</strong>
-                                {getCleanFilesize(preset) && (
-                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontWeight: '600' }}>
-                                    • {getCleanFilesize(preset)}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="quality-cell" style={{ textAlign: 'right' }}>
-                                {isPresetOver ? (
-                                  <button
-                                    type="button"
-                                    disabled={true}
-                                    className="btn-download-action"
-                                    style={{
-                                      opacity: 0.6,
-                                      cursor: 'not-allowed',
-                                      background: 'rgba(234, 179, 8, 0.12)',
-                                      color: '#eab308',
-                                      border: '1px solid rgba(234, 179, 8, 0.35)',
-                                      pointerEvents: 'none',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '5px'
-                                    }}
-                                    title={`Option waiting: Exceeds ${maxLimitLabel} limit`}
-                                  >
-                                    <Clock size={14} />
-                                    <span>Waiting (&gt; {maxLimitLabel})</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    onClick={() => handleDownload(preset.id, preset.ext)}
-                                    className="btn-download-action"
-                                    disabled={downloadingFormat === preset.id}
-                                  >
-                                    {(videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? <ExternalLink size={15} /> : <Download size={15} />}
-                                    {downloadingFormat === preset.id 
-                                      ? ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Opening...' : `Starting... ${downloadProgress}%`) 
-                                      : ((videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback) ? 'Direct Link' : 'Download')}
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                {subtitles.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
+                    <Subtitles size={36} style={{ opacity: 0.35, marginBottom: '0.75rem', display: 'inline-block' }} />
+                    <p style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>No subtitles found for this video.</p>
+                    <p style={{ fontSize: '0.85rem', marginTop: '0.35rem' }}>This media does not have uploaded or auto-generated captions available.</p>
                   </div>
+                ) : (
+                  <>
+                    {subtitles.length > 0 && (
+                      <div className="sub-search-box">
+                        <Search size={16} color="var(--text-muted)" />
+                        <input
+                          type="text"
+                          placeholder="Search language (e.g. Sinhala, English, Tamil, Spanish, French)..."
+                          value={subSearch}
+                          onChange={(e) => setSubSearch(e.target.value)}
+                          className="sub-search-input"
+                        />
+                        {subSearch && (
+                          <button onClick={() => setSubSearch('')} className="sub-search-clear">✕</button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 💡 Subtitles Format Selection Guide */}
+                    <div className="sub-format-guide-card">
+                      <div className="sub-guide-header">
+                        <Subtitles size={16} color="#06b6d4" />
+                        <span>Which Subtitle Format Should You Choose?</span>
+                      </div>
+                      <div className="sub-guide-list">
+                        <div className="sub-guide-item">
+                          <span className="sub-guide-badge srt">.SRT</span>
+                          <span className="sub-guide-text">
+                            <strong>Universal Subtitles:</strong> Best for VLC, Windows Media Player, Smart TVs, and video editing software (Premiere Pro, CapCut, DaVinci).
+                          </span>
+                        </div>
+                        <div className="sub-guide-item">
+                          <span className="sub-guide-badge vtt">.VTT</span>
+                          <span className="sub-guide-text">
+                            <strong>Web & Mobile Captions:</strong> Optimized for web browsers, mobile video players, and HTML5 video streaming.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="quality-table-wrapper">
+                      <table className="quality-table">
+                        <tbody>
+                          {filteredSubtitles.map((sub) => {
+                            const isDownloadingSrt = downloadingSubId === `${sub.id}_srt`;
+                            const isDownloadingVtt = downloadingSubId === `${sub.id}_vtt`;
+
+                            return (
+                              <tr key={sub.id} className="quality-row">
+                                <td className="quality-cell" style={{ fontWeight: '600' }}>
+                                  <span className={`quality-badge ${sub.isAuto ? 'sub-auto' : 'sub-manual'}`}>
+                                    {sub.isAuto ? <Sparkles size={14} /> : <CheckCircle size={14} />}
+                                    <span>{sub.language}</span>
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: '4px' }}>
+                                      ({sub.isAuto ? 'Auto CC' : 'Official'})
+                                    </span>
+                                  </span>
+                                </td>
+                                <td className="quality-cell" style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                                  <strong style={{ color: 'var(--text-main)' }}>SRT / VTT</strong>
+                                  <span style={{ marginLeft: '10px', color: 'var(--cyan-primary)', fontSize: '0.82rem', fontWeight: '600' }}>
+                                    • {sub.code.toUpperCase()}
+                                  </span>
+                                </td>
+                                <td className="quality-cell" style={{ textAlign: 'right' }}>
+                                  <div style={{ display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                    <button
+                                      onClick={() => handleDownloadSub(sub, 'srt')}
+                                      className="btn-download-action btn-sub-action"
+                                      disabled={isDownloadingSrt || isDownloadingVtt}
+                                      title={`Download ${sub.language} subtitle as .SRT file`}
+                                    >
+                                      <Download size={14} />
+                                      {isDownloadingSrt ? 'Saving...' : '.SRT'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleDownloadSub(sub, 'vtt')}
+                                      className="btn-download-action btn-sub-action btn-sub-vtt"
+                                      disabled={isDownloadingSrt || isDownloadingVtt}
+                                      title={`Download ${sub.language} subtitle as .VTT file`}
+                                    >
+                                      <Download size={14} />
+                                      {isDownloadingVtt ? 'Saving...' : '.VTT'}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )}
               </div>
 
