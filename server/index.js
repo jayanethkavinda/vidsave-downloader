@@ -86,6 +86,18 @@ app.get('/api/check-ip', async (req, res) => {
   }
 });
 
+// Diagnostic endpoint to test Instagram Fallback directly
+app.get('/api/test-snap', async (req, res) => {
+  const testUrl = req.query.url || 'https://www.instagram.com/reel/DeQ3rBVSU8Q/';
+  try {
+    const { snapsave } = await import('snapsave-media-downloader');
+    const out = await snapsave(testUrl);
+    res.json({ success: true, out });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message, stack: e.stack });
+  }
+});
+
 // Video Metadata Endpoint
 app.get('/api/info', async (req, res) => {
   const { url } = req.query;
