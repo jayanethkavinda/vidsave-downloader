@@ -358,7 +358,8 @@ export async function buildResolutionPresets({
   // 4. Calculate exact sizes for all matched tiers in parallel
   const matchedTiers = await Promise.all(tierCandidates.map(async ({ tier, bestFmt }) => {
     const exactSize = await calculateExactFormatSize(bestFmt, tier, duration, audioSize, referer);
-    const directUrl = (bestFmt && bestFmt.url && bestFmt.url.startsWith('http')) ? bestFmt.url : null;
+    // Never attach standalone directUrl for YouTube video streams because YouTube video streams have no audio track
+    const directUrl = (!isYt && bestFmt && bestFmt.url && bestFmt.url.startsWith('http')) ? bestFmt.url : null;
     return {
       id: tier.id,
       label: tier.label,
@@ -386,7 +387,7 @@ export async function buildResolutionPresets({
     filesize: topTier.filesize,
     filesizeFormatted: topTier.filesizeFormatted,
     isRecommended: true,
-    directUrl: topTier.directUrl || null
+    directUrl: isYt ? null : (topTier.directUrl || null)
   };
 
   const bestAudioFmt = aFormats.find(f => f.url && f.url.startsWith('http')) || aFormats[0];

@@ -310,9 +310,8 @@ export function streamVideoDownload(url, formatPreset, res, directUrl = null) {
     }
   };
 
-  // ⚡ 1. Direct URL Parameter or 30-Minute In-Memory Media Cache for Instant Direct CDN Streaming (<1s)
-  const isHeavyYt = isYt && ['4320', '2160', '1440', '1080'].includes(String(formatPreset));
-  if (!isHeavyYt) {
+  // ⚡ 1. Direct CDN Streaming ONLY for Social Platforms (YouTube requires FFmpeg audio muxing)
+  if (!isYt) {
     if (directUrl && typeof directUrl === 'string' && directUrl.startsWith('http') && !directUrl.includes('.m3u8')) {
       console.log(`[Direct URL] Instant streaming direct CDN URL from client for ${url}`);
       return pipeDirectCdnStream(directUrl, url, isAudio ? 'mp3' : 'mp4');

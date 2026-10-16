@@ -666,7 +666,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       const isDirectFastCut = !isYt && Boolean(directCdnUrl);
 
       let trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${actualType}&format=${format}&title=${encodeURIComponent(cleanTitle)}`;
-      if (directCdnUrl) {
+      if (!isYt && directCdnUrl) {
         trimApiUrl += `&directUrl=${encodeURIComponent(directCdnUrl)}`;
       }
 

@@ -225,8 +225,8 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
 
     if (isAudio) {
       args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-    } else if (isYt) {
-      args.push('--merge-output-format', 'mp4');
+    } else {
+      args.push('--merge-output-format', 'mp4', '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac -threads 1');
     }
 
     args.push(...buildYtdlpArgs(url, true));
