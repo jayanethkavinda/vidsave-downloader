@@ -816,7 +816,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               className={`nav-mode-btn ${viewMode === 'main' ? 'active' : ''}`}
               title="Download Full HD Videos from any platform"
             >
-              <Film size={15} />
+              <Film size={18} />
               <span className="nav-btn-text-full">Full Video Downloader</span>
               <span className="nav-btn-text-short">Full Video</span>
             </button>
@@ -826,7 +826,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               className={`nav-mode-btn ${viewMode === 'trim' ? 'active trim-active' : ''}`}
               title="Trim, Cut & Crop Video Clips"
             >
-              <Scissors size={15} />
+              <Scissors size={18} />
               <span className="nav-btn-text-full">Clip & Trim Video</span>
               <span className="nav-btn-text-short">Clip & Trim</span>
             </button>
@@ -840,7 +840,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               aria-label="Toggle Theme"
             >
-              {theme === 'dark' ? <Sun size={20} color="#06b6d4" /> : <Moon size={20} color="#0284c7" />}
+              {theme === 'dark' ? <Sun size={22} color="#06b6d4" /> : <Moon size={22} color="#0284c7" />}
             </button>
           </div>
         </div>

@@ -128,7 +128,7 @@ button {
   box-shadow: var(--card-shadow);
 }
 
-/* Header & Sticky Navbar */
+/* Header & Sticky Navbar (UI/UX Industry Standard 72px Height) */
 .navbar-wrapper {
   position: sticky;
   top: 0;
@@ -139,32 +139,38 @@ button {
   background: rgba(11, 15, 25, 0.88);
   border-bottom: 1px solid var(--border-glass);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  min-height: 72px;
+  display: flex;
+  align-items: center;
 }
 
 [data-theme='light'] .navbar-wrapper {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.94);
   border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
 }
 
 .navbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.65rem 0;
-  gap: 0.75rem;
+  padding: 0.85rem 0;
+  min-height: 72px;
+  gap: 1rem;
   flex-wrap: nowrap;
+  box-sizing: border-box;
 }
 
-/* Mode Switcher Nav Buttons */
+/* Mode Switcher Nav Buttons (Standard 44px Height with High Touch Target) */
 .nav-mode-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.45rem;
   background: var(--bg-card);
-  padding: 0.22rem 0.3rem;
+  padding: 0.32rem 0.38rem;
   border-radius: var(--radius-full);
-  border: 1px solid var(--border-glass);
+  border: 1.5px solid var(--border-glass);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
   flex-shrink: 1;
 }
 
@@ -176,33 +182,30 @@ button {
 .nav-mode-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.42rem 1.05rem;
+  gap: 0.55rem;
+  padding: 0.55rem 1.35rem;
+  min-height: 44px;
   border-radius: var(--radius-full);
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: 0.94rem;
+  font-weight: 700;
   color: var(--text-muted);
   background: transparent;
   border: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .nav-mode-btn:hover {
   color: var(--text-main);
 }
 
-.nav-mode-btn.active {
-  background: var(--cyan-gradient);
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
-}
-
+.nav-mode-btn.active,
 .nav-mode-btn.trim-active {
   background: var(--cyan-gradient);
   color: #ffffff;
-  box-shadow: 0 2px 10px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.42);
 }
 
 .nav-btn-text-short {
@@ -212,33 +215,35 @@ button {
 .logo {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  font-weight: 800;
-  font-size: 1.35rem;
-  letter-spacing: -0.02em;
+  gap: 0.75rem;
+  font-weight: 850;
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  color: var(--text-main);
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   background: var(--cyan-gradient);
-  border-radius: var(--radius-md);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.4);
   flex-shrink: 0;
 }
 
 .logo-img {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   object-fit: cover;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+  box-shadow: 0 4px 16px rgba(6, 182, 212, 0.35);
   flex-shrink: 0;
-  border: 1px solid var(--border-glass);
+  border: 1.5px solid var(--border-glass);
 }
 
 .logo-text span {
@@ -286,14 +291,16 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   background: var(--bg-card);
-  border: 1px solid var(--border-glass);
+  border: 1.5px solid var(--border-glass);
   border-radius: var(--radius-full);
   color: var(--text-main);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-theme-toggle:hover {
@@ -3947,38 +3954,46 @@ button {
     display: inline;
   }
 
-  .nav-mode-switcher {
-    gap: 0.2rem;
-    padding: 0.16rem 0.22rem;
-    flex-shrink: 1;
-  }
-
-  .nav-mode-btn {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.76rem;
-    gap: 0.3rem;
+  .navbar-wrapper {
+    min-height: 66px;
   }
 
   .navbar {
+    min-height: 66px;
     flex-wrap: nowrap;
-    padding: 0.55rem 0;
-    gap: 0.4rem;
+    padding: 0.65rem 0;
+    gap: 0.65rem;
   }
 
   .logo {
-    gap: 0.35rem;
-    font-size: 1.15rem;
+    gap: 0.55rem;
+    font-size: 1.38rem;
     flex-shrink: 0;
   }
 
   .logo-img {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .nav-mode-switcher {
+    gap: 0.28rem;
+    padding: 0.25rem 0.3rem;
+    flex-shrink: 1;
+  }
+
+  .nav-mode-btn {
+    padding: 0.45rem 0.95rem;
+    min-height: 40px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    gap: 0.4rem;
   }
 
   .btn-theme-toggle {
-    width: 34px;
-    height: 34px;
+    width: 42px;
+    height: 42px;
     flex-shrink: 0;
   }
 
@@ -3997,19 +4012,52 @@ button {
 }
 
 @media (max-width: 480px) {
+  .navbar-wrapper {
+    min-height: 62px;
+  }
+
+  .navbar {
+    min-height: 62px;
+    padding: 0.55rem 0;
+    gap: 0.5rem;
+  }
+
+  .logo {
+    gap: 0.45rem;
+    font-size: 1.25rem;
+  }
+
+  .logo-img {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+  }
+
   .logo-text {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
+  }
+
+  .nav-mode-switcher {
+    gap: 0.22rem;
+    padding: 0.2rem 0.24rem;
   }
 
   .nav-mode-btn {
-    padding: 0.3rem 0.48rem;
-    font-size: 0.72rem;
-    gap: 0.22rem;
+    padding: 0.4rem 0.75rem;
+    min-height: 38px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    gap: 0.32rem;
   }
 
   .nav-mode-btn svg {
-    width: 13px;
-    height: 13px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .btn-theme-toggle {
+    width: 40px;
+    height: 40px;
   }
 
   .manual-cut-display {
@@ -4130,13 +4178,38 @@ button {
 }
 
 @media (max-width: 360px) {
+  .navbar-wrapper {
+    min-height: 58px;
+  }
+
+  .navbar {
+    min-height: 58px;
+    padding: 0.5rem 0;
+    gap: 0.35rem;
+  }
+
+  .logo-img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .logo-text {
+    font-size: 1.15rem;
+  }
+
   .logo-text span {
     display: none;
   }
 
   .nav-mode-btn {
-    padding: 0.28rem 0.42rem;
-    font-size: 0.68rem;
+    padding: 0.35rem 0.6rem;
+    min-height: 36px;
+    font-size: 0.76rem;
+  }
+
+  .btn-theme-toggle {
+    width: 36px;
+    height: 36px;
   }
 
   .trimmer-time-display {
