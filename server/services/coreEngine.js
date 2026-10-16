@@ -121,6 +121,11 @@ export function buildYtdlpArgs(url = '', useCookies = true) {
     args.push('--proxy', process.env.YTDLP_PROXY);
   }
 
+  // Fast API hostname for TikTok to prevent 403 Forbidden
+  if (/(?:tiktok\.com|vt\.tiktok\.com)/i.test(url)) {
+    args.push('--extractor-args', 'tiktok:api_hostname=api16-normal-c-useast1a.tiktokv.com');
+  }
+
   return args;
 }
 

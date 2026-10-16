@@ -10,14 +10,139 @@ import {
   MAX_FILESIZE_BYTES_YOUTUBE, 
   MAX_FILESIZE_BYTES_OTHER 
 } from './security.js';
-import { buildResolutionPresets } from './sizeCalculator.js';
+import { buildResolutionPresets, formatBytes } from './sizeCalculator.js';
 import { extractSubtitles } from './subtitleService.js';
+
+/**
+ * Dedicated Ultra-HD TikTok Cloud Resolver (TikWM HD Engine)
+ */
+export async function resolveTikTokDedicated(url) {
+  try {
+    const res = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(url)}&hd=1`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
+      }
+    });
+    const json = await res.json();
+    if (json?.code === 0 && json?.data) {
+      const d = json.data;
+      const hdUrl = d.hdplay || d.play;
+      const sdUrl = d.play;
+      const audioUrl = d.music;
+      const title = d.title || 'TikTok Video';
+      const uploader = d.author?.unique_id || d.author?.nickname || 'TikTok Creator';
+      const thumbnail = d.cover || d.origin_cover || null;
+      const duration = d.duration || 15;
+
+      const hdSize = d.hd_size || d.size || (12 * 1024 * 1024);
+      const sdSize = d.size || (6 * 1024 * 1024);
+      const audioSize = 3 * 1024 * 1024;
+
+      const hasTrue1080p = Boolean(d.hdplay && d.hd_size && d.hd_size > d.size);
+      const maxQualityLabel = hasTrue1080p ? '1080p Full HD' : '720p HD';
+      const maxHeight = hasTrue1080p ? 1080 : 720;
+
+      const bestPreset = {
+        id: 'best_with_audio',
+        label: `Download Best Quality (${maxQualityLabel})`,
+        shortLabel: maxQualityLabel,
+        ext: 'mp4',
+        type: 'video',
+        filesize: hdSize,
+        filesizeFormatted: formatBytes(hdSize),
+        isRecommended: true,
+        directUrl: hdUrl
+      };
+
+      const presets = [bestPreset];
+      if (hasTrue1080p) {
+        presets.push({
+          id: '1080',
+          label: '1080p Full HD',
+          shortLabel: '1080p Full HD',
+          badge: 'fhd',
+          height: 1080,
+          ext: 'mp4',
+          type: 'video',
+          filesize: hdSize,
+          filesizeFormatted: formatBytes(hdSize),
+          directUrl: hdUrl
+        });
+      }
+      presets.push({
+        id: '720',
+        label: '720p HD',
+        shortLabel: '720p HD',
+        badge: 'hd',
+        height: 720,
+        ext: 'mp4',
+        type: 'video',
+        filesize: hasTrue1080p ? sdSize : hdSize,
+        filesizeFormatted: formatBytes(hasTrue1080p ? sdSize : hdSize),
+        directUrl: hasTrue1080p ? sdUrl : hdUrl
+      });
+      if (hasTrue1080p || d.size) {
+        presets.push({
+          id: '480',
+          label: '480p SD',
+          shortLabel: '480p SD',
+          badge: 'sd',
+          height: 480,
+          ext: 'mp4',
+          type: 'video',
+          filesize: Math.round(sdSize * 0.7),
+          filesizeFormatted: formatBytes(Math.round(sdSize * 0.7)),
+          directUrl: sdUrl
+        });
+      }
+      presets.push({
+        id: 'audio_best',
+        label: 'MP3 Audio (High Quality)',
+        shortLabel: 'MP3 Audio',
+        ext: 'mp3',
+        type: 'audio',
+        filesize: audioSize,
+        filesizeFormatted: formatBytes(audioSize),
+        directUrl: audioUrl
+      });
+
+      return {
+        id: `tiktok_${d.id || Date.now()}`,
+        title,
+        description: `${title} (Resolved via TikTok Dedicated Engine)`,
+        thumbnail,
+        duration,
+        durationFormatted: formatDuration(duration),
+        uploader,
+        webpageUrl: url,
+        extractor: 'TikTok',
+        maxQualityLabel,
+        maxHeight,
+        bestPreset,
+        presets,
+        formats: [],
+        subtitles: [],
+        subtitlesCount: 0,
+        directStreamUrl: hdUrl,
+        previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
+      };
+    }
+  } catch (err) {
+    console.warn('[Dedicated TikTok Resolver Error]:', err.message);
+  }
+  return null;
+}
 
 /**
  * Free Instant Multi-Platform Cloud Scraper Fallback Resolver
  * (Instagram, Facebook, TikTok, Twitter/X)
  */
 export async function resolveCloudScraperFallback(url) {
+  if (/(?:tiktok\.com|vt\.tiktok\.com)/i.test(url)) {
+    const dedicated = await resolveTikTokDedicated(url);
+    if (dedicated) return dedicated;
+  }
+
   try {
     const { default: snapsaveModule, snapsave } = await import('snapsave-media-downloader');
     const fn = snapsave || snapsaveModule;
