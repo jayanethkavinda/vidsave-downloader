@@ -306,6 +306,52 @@ export default function App() {
     return null;
   };
 
+  // Helper to format audio file size strictly in MB (never in KB, e.g. 0.85 MB or 19.1 MB)
+  const getAudioFilesizeMb = (preset) => {
+    if (!preset) return null;
+
+    // 1. Raw bytes if available
+    const bytes = preset.filesize || preset.filesizeBytes;
+    if (typeof bytes === 'number' && bytes > 0) {
+      if (bytes >= 1024 * 1024 * 1024) {
+        return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+      }
+      const mb = bytes / (1024 * 1024);
+      if (mb >= 10) return mb.toFixed(1) + ' MB';
+      if (mb >= 1) return mb.toFixed(1) + ' MB';
+      const dec = mb.toFixed(2);
+      return (parseFloat(dec) > 0 ? dec : '0.01') + ' MB';
+    }
+
+    // 2. String conversion if raw bytes not available (convert KB / B to decimal MB)
+    const str = preset.filesizeFormatted;
+    if (str && typeof str === 'string') {
+      const trimmed = str.trim();
+      const kbMatch = trimmed.match(/^([\d.]+)\s*kb$/i);
+      if (kbMatch) {
+        const kb = parseFloat(kbMatch[1]);
+        if (!isNaN(kb)) {
+          const mb = (kb / 1024).toFixed(2);
+          return (parseFloat(mb) > 0 ? mb : '0.01') + ' MB';
+        }
+      }
+      const bMatch = trimmed.match(/^([\d.]+)\s*b$/i);
+      if (bMatch) {
+        const b = parseFloat(bMatch[1]);
+        if (!isNaN(b)) {
+          const mb = (b / (1024 * 1024)).toFixed(2);
+          return (parseFloat(mb) > 0 ? mb : '0.01') + ' MB';
+        }
+      }
+      if (/^0(?:\.00?)?\s*mb$/i.test(trimmed)) {
+        return null;
+      }
+      return trimmed;
+    }
+
+    return null;
+  };
+
   // Helper to extract crisp clean quality tag: strictly standard tiers: "8K", "4K", "2K", "1080p", "720p", "480p", "360p", "MP3"
   const getShortQuality = (preset) => {
     if (!preset) return '1080p';
@@ -1190,7 +1236,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
 
                   {bestAudioPreset && (() => {
                     const isAudioOver = bestAudioPreset.exceedsLimit || (bestAudioPreset.filesize && bestAudioPreset.filesize > maxLimitBytes);
-                    const audioSize = getCleanFilesize(bestAudioPreset);
+                    const audioSize = getAudioFilesizeMb(bestAudioPreset);
                     const isAudioDownloading = downloadingFormat === (bestAudioPreset.id || 'audio_best');
 
                     if (isAudioOver) {
@@ -1202,9 +1248,11 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           title={`Audio exceeds ${maxLimitLabel} limit`}
                         >
                           <div className="btn-mp3-content">
-                            <Clock size={15} style={{ color: '#eab308', flexShrink: 0 }} />
-                            <span className="mp3-title-bold">MP3</span>
-                            <span className="mp3-size-tag">(Soon)</span>
+                            <div className="btn-mp3-top-row">
+                              <Clock size={14} style={{ color: '#eab308', flexShrink: 0 }} />
+                              <span className="mp3-title-bold">MP3</span>
+                            </div>
+                            <span className="mp3-sub-size">(Soon)</span>
                           </div>
                         </button>
                       );
@@ -1228,25 +1276,29 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                         {isAudioDownloading ? (
                           <div className="btn-mp3-content">
                             {downloadSuccess ? (
-                              <>
+                              <div className="btn-mp3-top-row">
                                 <CheckCircle size={15} style={{ color: '#10b981' }} />
                                 <span className="mp3-title-bold" style={{ color: '#10b981' }}>Saved!</span>
-                              </>
+                              </div>
                             ) : (
                               <>
-                                <Zap size={15} className="spin text-violet" />
-                                <span className="mp3-title-bold">MP3...</span>
-                                <span className="mp3-size-tag">{downloadProgress}%</span>
+                                <div className="btn-mp3-top-row">
+                                  <Zap size={14} className="spin text-violet" />
+                                  <span className="mp3-title-bold">MP3...</span>
+                                </div>
+                                <span className="mp3-sub-size">{downloadProgress}%</span>
                               </>
                             )}
                           </div>
                         ) : (
                           <div className="btn-mp3-content">
-                            <Download size={15} className="mp3-download-icon" />
-                            <span className="mp3-title-bold">MP3</span>
-                            <Headphones size={15} className="mp3-headset-icon" />
+                            <div className="btn-mp3-top-row">
+                              <Download size={14} className="mp3-download-icon" />
+                              <span className="mp3-title-bold">MP3</span>
+                              <Headphones size={14} className="mp3-headset-icon" />
+                            </div>
                             {audioSize && (
-                              <span className="mp3-size-tag">({audioSize})</span>
+                              <span className="mp3-sub-size">({audioSize})</span>
                             )}
                           </div>
                         )}

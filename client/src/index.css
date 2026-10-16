@@ -889,7 +889,7 @@ button {
 /* ✂️ Secondary Action Row: 50/50 Split for Trim and Quick MP3 buttons on Desktop, Tablet & Mobile */
 .action-secondary-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 0.65rem;
   width: 100%;
@@ -907,7 +907,7 @@ button {
   flex: 1 1 50%;
   min-width: 0;
   min-height: 48px;
-  padding: 0.65rem 0.85rem;
+  padding: 0.45rem 0.65rem;
   border-radius: var(--radius-md);
   font-size: 0.92rem;
   font-weight: 700;
@@ -972,20 +972,23 @@ button {
 .btn-quick-mp3-action:hover:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-action:hover:not(:disabled) .mp3-icon,
 .btn-quick-mp3-action:hover:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-action:hover:not(:disabled) .mp3-sub-size,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-download-icon,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-icon,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-action:active:not(:disabled) .mp3-sub-size,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-download-icon,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-icon,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-mobile:hover:not(:disabled) .mp3-sub-size,
 .btn-quick-mp3-mobile:active:not(:disabled) .mp3-download-icon,
 .btn-quick-mp3-mobile:active:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-mobile:active:not(:disabled) .mp3-icon,
-.btn-quick-mp3-mobile:active:not(:disabled) .mp3-size-tag {
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-sub-size {
   color: #ffffff !important;
-  background: rgba(255, 255, 255, 0.22) !important;
 }
 
 .btn-quick-mp3-action:disabled,
@@ -1003,10 +1006,20 @@ button {
 
 .btn-mp3-content {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  width: 100%;
+  line-height: 1.1;
+}
+
+.btn-mp3-top-row {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  width: 100%;
+  line-height: 1;
 }
 
 .mp3-download-icon,
@@ -1027,11 +1040,29 @@ button {
   font-size: 0.94rem;
   letter-spacing: 0.04em;
   color: inherit;
+  line-height: 1;
 }
 
 .mp3-title {
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.mp3-sub-size {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  opacity: 0.88;
+}
+
+[data-theme='light'] .mp3-sub-size {
+  color: #6d28d9;
+}
+
+[data-theme='dark'] .mp3-sub-size {
+  color: #c4b5fd;
 }
 
 .mp3-size-tag {
@@ -3874,7 +3905,7 @@ button {
 
   .btn-launch-trimmer-clean,
   .btn-quick-mp3-action {
-    padding: 0.6rem 0.45rem !important;
+    padding: 0.45rem 0.35rem !important;
     font-size: 0.82rem;
   }
 
