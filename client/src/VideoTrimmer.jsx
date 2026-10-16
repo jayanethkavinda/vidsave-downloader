@@ -670,16 +670,17 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
         trimApiUrl += `&directUrl=${encodeURIComponent(directCdnUrl)}`;
       }
 
-      // Smooth percentage ticker: ~3-4s for direct fast cut, or ~12-14s for YouTube/yt-dlp cut
-      const intervalMs = isDirectFastCut ? 160 : 340;
-      const waitTime = isDirectFastCut ? 3800 : 13000;
+      // Realistic percentage ticker: matches ~9-11s for social, or ~15-18s for YouTube
+      const intervalMs = isYt ? 360 : 250;
+      const waitTime = isYt ? 16000 : 10000;
+      const maxHoldProgress = 92;
 
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       progressTimerRef.current = setInterval(() => {
         setDownloadProgress((prev) => {
-          if (prev >= 95) return prev;
-          const jump = isDirectFastCut ? (Math.floor(Math.random() * 8) + 4) : (Math.floor(Math.random() * 3) + 1);
-          return Math.min(95, prev + jump);
+          if (prev >= maxHoldProgress) return prev;
+          const jump = Math.floor(Math.random() * 3) + 2;
+          return Math.min(maxHoldProgress, prev + jump);
         });
       }, intervalMs);
 
@@ -1106,11 +1107,20 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                   >
                     {downloadingType === 'video' ? (
                       <div className="btn-split-content">
-                        <div className="btn-split-line1">
-                          <Zap size={15} className="spin text-cyan" />
-                          <span>MP4...</span>
-                        </div>
-                        <div className="btn-split-line2">{downloadProgress}%</div>
+                        {downloadSuccess ? (
+                          <div className="btn-split-line1" style={{ color: '#10b981' }}>
+                            <CheckCircle size={16} />
+                            <span style={{ fontWeight: 600 }}>Saved!</span>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="btn-split-line1">
+                              <Zap size={15} className="spin text-cyan" />
+                              <span>Trimming...</span>
+                            </div>
+                            <div className="btn-split-line2">{downloadProgress}%</div>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="btn-split-content">
