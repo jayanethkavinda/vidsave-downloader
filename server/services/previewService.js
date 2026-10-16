@@ -45,8 +45,12 @@ export async function streamVideoPreview(safeTargetUrl, req, res) {
   const jobState = { clients, child: null };
   pendingJobs.set(hash, jobState);
 
-  // Format preference: 240p or 360p progressive MP4 with audio
-  const formatFilter = 'worst[height<=240][ext=mp4]/worst[width<=240][ext=mp4]/worstvideo[height<=240]+worstaudio/worstvideo[width<=240]+worstaudio/worst[height<=360][ext=mp4]/worst[width<=360][ext=mp4]/worst[height<=480]/worst';
+  const isTikTok = /tiktok\.com/i.test(safeTargetUrl);
+
+  // Format preference: Clean H.264 no-watermark stream for TikTok, ultra-fast 240p/360p for others
+  const formatFilter = isTikTok
+    ? 'best[vcodec^=avc][format_id!*=watermark][ext=mp4]/best[vcodec^=avc][format_id!*=watermark]/best[vcodec^=avc]/best[ext=mp4]/best'
+    : 'worst[height<=240][ext=mp4]/worst[width<=240][ext=mp4]/worstvideo[height<=240]+worstaudio/worstvideo[width<=240]+worstaudio/worst[height<=360][ext=mp4]/worst[width<=360][ext=mp4]/worst[height<=480]/worst';
 
   const args = [
     '-m', 'yt_dlp',

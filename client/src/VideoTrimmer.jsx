@@ -30,8 +30,8 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
   const duration = Math.max(1, parseFloat(videoInfo?.duration) || 60);
 
-  // Initial cut range: 0 to min(15, duration)
-  const initialEnd = Math.min(15, duration);
+  // Initial cut range: 0 to min(10, duration)
+  const initialEnd = Math.min(10, duration);
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(initialEnd);
   const [currentTime, setCurrentTime] = useState(0);
@@ -60,7 +60,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       setInputUrl(initialVideoInfo.webpageUrl || '');
       const d = Math.max(1, parseFloat(initialVideoInfo.duration) || 60);
       setStartTime(0);
-      setEndTime(Math.min(15, d));
+      setEndTime(Math.min(10, d));
       setCurrentTime(0);
       setIsPlaying(true);
     }
@@ -119,7 +119,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       setVideoInfo(data);
       const newDuration = Math.max(1, parseFloat(data.duration) || 60);
       setStartTime(0);
-      setEndTime(Math.min(15, newDuration));
+      setEndTime(Math.min(10, newDuration));
       setCurrentTime(0);
       setIsPlaying(true); // Automatically play on load!
       setUseFallbackPreview(false);
