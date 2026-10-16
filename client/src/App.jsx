@@ -1458,7 +1458,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           ‹ Previous
                         </button>
                         <span className="pagination-info">
-                          Page <strong>{currentSubPage}</strong> of <strong>{totalSubPages}</strong> ({filteredSubtitles.length} total)
+                          <strong>{currentSubPage}</strong> of <strong>{totalSubPages}</strong>
                         </span>
                         <button
                           type="button"

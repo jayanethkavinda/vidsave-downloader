@@ -1957,6 +1957,7 @@ button {
   font-size: 0.9rem;
   transition: all 0.2s ease;
   margin-right: 4px;
+  flex-shrink: 0;
 }
 
 .btn-clear:hover {
@@ -2374,7 +2375,8 @@ button {
 .attribution-actions {
   display: inline-flex;
   gap: 0.5rem;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .btn-attribution-action {

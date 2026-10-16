@@ -80,7 +80,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
             title="Copy attribution text to clipboard"
           >
             {copied ? <CheckCircle size={15} color="#10b981" /> : <Clipboard size={15} />}
-            {copied ? 'Copied!' : 'Copy Attribution'}
+            {copied ? 'Copied!' : 'Copy'}
           </button>
           <button
             type="button"

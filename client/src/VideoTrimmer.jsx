@@ -742,7 +742,20 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
               onPaste={handleInputPaste}
               className="trimmer-url-input"
             />
-            {!inputUrl.trim() && (
+            {inputUrl.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setInputUrl('');
+                  setExtractError('');
+                }}
+                className="btn-clear"
+                title="Clear input"
+                aria-label="Clear input"
+              >
+                ✕
+              </button>
+            ) : (
               <button type="button" onClick={handlePasteUrl} className="btn-trimmer-paste">
                 <Clipboard size={14} /> Paste
               </button>
