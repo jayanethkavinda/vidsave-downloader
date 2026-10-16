@@ -411,19 +411,7 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        // If it is YouTube or a YouTube bot challenge error, activate seamless cloud fallback
-        if (videoId || (data.error && /bot|sign in|youtube|extractor/i.test(data.error))) {
-          const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId || 'video');
-          setVideoInfo(fallbackInfo);
-          return;
-        }
-        // If it is Instagram, Facebook, TikTok, or Twitter, activate seamless cloud mirror fallback
-        if (/(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(targetUrl)) {
-          const fallbackInfo = getSocialFallbackInfo(targetUrl);
-          setVideoInfo(fallbackInfo);
-          return;
-        }
-        throw new Error(data.error || 'Failed to fetch video details.');
+        throw new Error(data.error || 'Failed to fetch video details. Please try again.');
       }
 
       setVideoInfo(data);
@@ -435,21 +423,11 @@ export default function App() {
         setSelectedFullFormatId(safePreset.id);
       }
     } catch (err) {
-      if (videoId) {
-        // Seamlessly fall back to Instant Cloud Resolver for YouTube
-        const fallbackInfo = await getYouTubeFallbackInfo(targetUrl, videoId);
-        setVideoInfo(fallbackInfo);
-      } else if (/(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(targetUrl)) {
-        // Seamlessly fall back to Instant Cloud Mirror for Social platforms
-        const fallbackInfo = getSocialFallbackInfo(targetUrl);
-        setVideoInfo(fallbackInfo);
-      } else {
-        let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
-        if (/Failed to fetch|NetworkError/i.test(msg)) {
-          msg = 'Cloud Server is waking up (Render Free cold start takes ~30-50s). Please click "Get Video" again in a few seconds!';
-        }
-        setError(msg);
+      let msg = err.message || 'Could not reach backend server or video link is invalid/private.';
+      if (/Failed to fetch|NetworkError/i.test(msg)) {
+        msg = 'Cloud Server is waking up (Render Free cold start takes ~30-50s). Please click "Get Video" again in a few seconds!';
       }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -511,17 +489,11 @@ export default function App() {
     const maxLimitBytes = isYt ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
     const isOverLimit = preset?.exceedsLimit || (preset?.filesize && preset.filesize > maxLimitBytes);
 
-    // If this is a YouTube/Social fallback, or exceeds max file limit, launch instant cloud mirror
-    if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback || isOverLimit) {
-      const mirrorUrl = preset?.mirrorUrl || (isYt ? `https://en.savefrom.net/1-youtube-video-downloader-4v1/?url=${encodeURIComponent(videoInfo.webpageUrl || url)}` : null);
-      if (mirrorUrl) {
-        window.open(mirrorUrl, '_blank', 'noopener,noreferrer');
-      }
-      setTimeout(() => {
-        if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
-        setDownloadingFormat(null);
-        setDownloadProgress(0);
-      }, 1500);
+    if (isOverLimit) {
+      if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
+      setDownloadError(`This file exceeds the server maximum download limit (${isYt ? '1.5 GB' : '3.0 GB'}).`);
+      setDownloadingFormat(null);
+      setDownloadProgress(0);
       return;
     }
 
@@ -1093,11 +1065,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                         <button
                           type="button"
                           onClick={() => {
-                            if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
-                              window.open(selectedPreset?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl, '_blank', 'noopener,noreferrer');
-                            } else {
-                              handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
-                            }
+                            handleDownload(selectedPreset?.id || 'best_with_audio', selectedPreset?.ext || 'mp4');
                           }}
                           disabled={downloadingFormat !== null}
                           className="btn-split-action btn-full-split-action"
@@ -1269,12 +1237,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       <button
                         type="button"
                         onClick={() => {
-                          if (videoInfo.isYouTubeFallback || videoInfo.isInstagramFallback || videoInfo.isSocialFallback) {
-                            const audioMirror = bestAudioPreset.mirrorUrl || videoInfo.presets?.find(p => p.type === 'audio')?.mirrorUrl || videoInfo.presets[0]?.mirrorUrl;
-                            window.open(audioMirror, '_blank', 'noopener,noreferrer');
-                          } else {
-                            handleDownload(bestAudioPreset.id || 'audio_best', 'mp3');
-                          }
+                          handleDownload(bestAudioPreset.id || 'audio_best', 'mp3');
                         }}
                         disabled={downloadingFormat !== null}
                         className="btn-quick-mp3-action"

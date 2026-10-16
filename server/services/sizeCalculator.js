@@ -300,7 +300,7 @@ export async function buildResolutionPresets({
     : allFormats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'));
 
   // 1. Calculate Audio Size first
-  const { audioSize } = await calculateAudioSize(aFormats, duration, referer);
+  const { bestAudio, audioSize } = await calculateAudioSize(aFormats, duration, referer);
 
   // 2. Determine Max Quality Height (support both horizontal & vertical videos)
   let maxHeight = 0;
