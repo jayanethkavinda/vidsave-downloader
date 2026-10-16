@@ -150,6 +150,32 @@ const smartTrimConcurrencyGuard = (req, res, next) => {
   next();
 };
 
+// 🛡️ Guard for /api/preview
+let activePreviewJobs = 0;
+const MAX_CONCURRENT_PREVIEW = 3;
+
+const smartPreviewConcurrencyGuard = (req, res, next) => {
+  if (activePreviewJobs >= MAX_CONCURRENT_PREVIEW) {
+    return res.status(503).json({
+      error: 'Preview service is currently busy. Please try again in a few seconds!'
+    });
+  }
+  activePreviewJobs++;
+  let released = false;
+  const release = () => {
+    if (!released) {
+      released = true;
+      activePreviewJobs = Math.max(0, activePreviewJobs - 1);
+    }
+  };
+  res.on('finish', release);
+  res.on('close', release);
+  next();
+};
+
+// Backwards compatibility alias
+const heavyConcurrencyGuard = smartPreviewConcurrencyGuard;
+
 // Rate Limiters
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -288,7 +314,7 @@ app.get('/api/subtitle', async (req, res) => {
 });
 
 // 6. High-Speed Lightweight Video Preview Endpoint (Serves 1-2 MB low-res MP4 with sound and full Range/seeking support)
-app.get('/api/preview', heavyConcurrencyGuard, async (req, res) => {
+app.get('/api/preview', smartPreviewConcurrencyGuard, async (req, res) => {
   const { url } = req.query;
   if (!url || typeof url !== 'string') {
     return res.status(400).send('Valid URL is required');
