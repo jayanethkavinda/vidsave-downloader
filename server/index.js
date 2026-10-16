@@ -49,22 +49,100 @@ app.use(cors({
 
 app.use(express.json());
 
-// Concurrency Guard for 0.1 vCPU / 512MB RAM protection
-let activeHeavyProcesses = 0;
-const MAX_CONCURRENT_HEAVY = 2;
+// Smart Multi-Tier Concurrency Controller (Optimized for 0.1 vCPU & 512MB RAM)
+let activeSocialDownloads = 0;
+const MAX_CONCURRENT_SOCIAL = 15; // TikTok, Instagram, Twitter/X, Facebook, Pinterest, Threads, Reddit
 
-const heavyConcurrencyGuard = (req, res, next) => {
-  if (activeHeavyProcesses >= MAX_CONCURRENT_HEAVY) {
+let activeYtHeavyDownloads = 0;
+const MAX_CONCURRENT_YT_HEAVY = 1; // YouTube > 720p: 1080p, 1440p, 4K, 8K (Heavy FFmpeg muxing)
+
+let activeYtLightDownloads = 0;
+const MAX_CONCURRENT_YT_LIGHT = 4; // YouTube <= 720p: 720p, 480p, 360p, MP3 Audio (Lightweight streams)
+
+let activeTrimmerJobs = 0;
+const MAX_CONCURRENT_TRIM = 3; // Trimmer clipping jobs
+
+// 🛡️ Guard for /api/download
+const smartDownloadConcurrencyGuard = (req, res, next) => {
+  const url = (req.query.url || '').trim();
+  const format = (req.query.format || 'best').trim();
+  const isYt = isYouTubeUrl(url);
+
+  // 1. 🌐 Social Platforms (TikTok, IG, Twitter/X, FB, Pinterest, Threads, Reddit)
+  if (!isYt) {
+    if (activeSocialDownloads >= MAX_CONCURRENT_SOCIAL) {
+      return res.status(503).json({
+        error: `Social downloads are currently at peak capacity (${MAX_CONCURRENT_SOCIAL} active). Please retry in a few moments!`
+      });
+    }
+    activeSocialDownloads++;
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        activeSocialDownloads = Math.max(0, activeSocialDownloads - 1);
+      }
+    };
+    res.on('finish', release);
+    res.on('close', release);
+    return next();
+  }
+
+  // 2. ▶️ YouTube Downloads
+  const isHeavy = ['4320', '2160', '1440', '1080', 'best', 'best_with_audio'].includes(format);
+
+  if (isHeavy) {
+    // 🔴 YouTube Heavy (> 720p)
+    if (activeYtHeavyDownloads >= MAX_CONCURRENT_YT_HEAVY) {
+      return res.status(503).json({
+        error: 'YouTube HD (1080p / 4K) processing is currently busy with another download. Please try again in a few seconds!'
+      });
+    }
+    activeYtHeavyDownloads++;
+    let released = false;
+    const release = () => {
+      if (!released) {
+        released = true;
+        activeYtHeavyDownloads = Math.max(0, activeYtHeavyDownloads - 1);
+      }
+    };
+    res.on('finish', release);
+    res.on('close', release);
+    return next();
+  }
+
+  // 🟢 YouTube Standard (<= 720p: 720p, 480p, 360p, MP3)
+  if (activeYtLightDownloads >= MAX_CONCURRENT_YT_LIGHT) {
     return res.status(503).json({
-      error: 'Server capacity is temporarily busy. Please try again in a few seconds!'
+      error: 'YouTube standard downloads are currently busy. Please wait a few seconds!'
     });
   }
-  activeHeavyProcesses++;
-  let decremented = false;
+  activeYtLightDownloads++;
+  let released = false;
   const release = () => {
-    if (!decremented) {
-      decremented = true;
-      activeHeavyProcesses = Math.max(0, activeHeavyProcesses - 1);
+    if (!released) {
+      released = true;
+      activeYtLightDownloads = Math.max(0, activeYtLightDownloads - 1);
+    }
+  };
+  res.on('finish', release);
+  res.on('close', release);
+  return next();
+};
+
+// 🛡️ Guard for /api/trim
+const smartTrimConcurrencyGuard = (req, res, next) => {
+  if (activeTrimmerJobs >= MAX_CONCURRENT_TRIM) {
+    return res.status(503).json({
+      error: 'Video trimmer is currently busy with other clips. Please try again in a few seconds!'
+    });
+  }
+  activeTrimmerJobs++;
+  let released = false;
+  const release = () => {
+    if (!released) {
+      released = true;
+      activeTrimmerJobs = Math.max(0, activeTrimmerJobs - 1);
     }
   };
   res.on('finish', release);
@@ -108,7 +186,7 @@ app.get('/api/info', searchLimiter, async (req, res) => {
 });
 
 // 3. Full Video Download Stream Endpoint
-app.get('/api/download', downloadLimiter, heavyConcurrencyGuard, async (req, res) => {
+app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (req, res) => {
   const { url, format = 'best', title = 'video' } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
@@ -130,7 +208,7 @@ app.get('/api/download', downloadLimiter, heavyConcurrencyGuard, async (req, res
 });
 
 // 4. Video & Audio Segment Trimmer Download Stream Endpoint
-app.get('/api/trim', downloadLimiter, heavyConcurrencyGuard, async (req, res) => {
+app.get('/api/trim', downloadLimiter, smartTrimConcurrencyGuard, async (req, res) => {
   const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
