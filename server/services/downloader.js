@@ -39,3 +39,7 @@ export {
   convertVttToSrt, 
   convertSrv1ToVtt 
 } from './subtitleService.js';
+
+export {
+  streamVideoPreview
+} from './previewService.js';

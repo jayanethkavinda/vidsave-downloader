@@ -103,7 +103,7 @@ export async function resolveCloudScraperFallback(url) {
       subtitles: [],
       subtitlesCount: 0,
       directStreamUrl,
-      previewStreamUrl: `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}&origin=${encodeURIComponent(url)}`
+      previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
     };
   } catch (err) {
     console.error(`[${url} Cloud Fallback Resolver Error]:`, err.message);
@@ -191,17 +191,10 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated lightweight progressive preview stream with sound (Video + Audio)
+  // Dedicated lightweight 240p/360p progressive preview stream with sound (Video + Audio)
   let previewStreamUrl = null;
   if (!isYt) {
-    const progressiveFormats = rawFormats
-      .filter(f => f.url && f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && !f.url.includes('.m3u8'))
-      .sort((a, b) => (a.height || 360) - (b.height || 360));
-
-    const directUrl = progressiveFormats[0]?.url || rawInfo.url || (videoFormats.find(f => f.url && !f.url.includes('.m3u8'))?.url) || null;
-    if (directUrl) {
-      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directUrl)}&origin=${encodeURIComponent(url)}`;
-    }
+    previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
   }
 
   return {

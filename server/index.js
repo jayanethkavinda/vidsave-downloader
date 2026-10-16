@@ -10,6 +10,7 @@ import { getVideoInfo } from './services/infoExtractor.js';
 import { streamVideoDownload } from './services/streamDownloader.js';
 import { streamTrimmedDownload } from './services/trimService.js';
 import { convertVttToSrt } from './services/subtitleService.js';
+import { streamVideoPreview } from './services/previewService.js';
 import { isYouTubeUrl } from './services/coreEngine.js';
 
 const app = express();
@@ -208,7 +209,25 @@ app.get('/api/subtitle', async (req, res) => {
   }
 });
 
-// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (Zero Disk, Zero Memory)
+// 6. High-Speed Lightweight Video Preview Endpoint (Serves 1-2 MB low-res MP4 with sound and full Range/seeking support)
+app.get('/api/preview', heavyConcurrencyGuard, async (req, res) => {
+  const { url } = req.query;
+  if (!url || typeof url !== 'string') {
+    return res.status(400).send('Valid URL is required');
+  }
+
+  try {
+    const safeTargetUrl = await assertSafeUrl(url);
+    await streamVideoPreview(safeTargetUrl, req, res);
+  } catch (err) {
+    console.error('[API /api/preview Error]:', err.message);
+    if (!res.headersSent) {
+      res.status(400).send(`Invalid URL: ${err.message}`);
+    }
+  }
+});
+
+// 7. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (Zero Disk, Zero Memory)
 app.get('/api/proxy-stream', async (req, res) => {
   const { url, origin } = req.query;
   if (!url) return res.status(400).send('URL required');

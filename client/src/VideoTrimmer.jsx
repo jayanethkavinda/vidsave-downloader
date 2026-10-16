@@ -80,11 +80,11 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
   // High-speed lightweight 240p/360p progressive preview stream with sound
   const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
-    ? (videoInfo?.previewStreamUrl 
-        ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
-        : (videoInfo?.directStreamUrl 
-            ? `${BACKEND_URL}/api/proxy-stream?url=${encodeURIComponent(videoInfo.directStreamUrl)}&origin=${encodeURIComponent(videoInfo.webpageUrl)}` 
-            : null))
+    ? (useFallbackPreview 
+        ? `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`
+        : (videoInfo?.previewStreamUrl 
+            ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+            : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`))
     : null;
 
   // Format seconds to mm:ss.s or mm:ss
