@@ -225,9 +225,9 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
     '-m', 'yt_dlp',
     '-f', formatArg,
     '--download-sections', sectionArg,
-    '--force-keyframes-at-cuts',
     '--no-playlist',
     '--no-warnings',
+    '--downloader-args', 'ffmpeg:-threads 1',
   ];
 
   if (isAudio) {

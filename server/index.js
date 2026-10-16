@@ -52,7 +52,7 @@ app.use(express.json());
 
 // Concurrency Guard for 0.1 vCPU / 512MB RAM protection
 let activeHeavyProcesses = 0;
-const MAX_CONCURRENT_HEAVY = 5;
+const MAX_CONCURRENT_HEAVY = 2;
 
 const heavyConcurrencyGuard = (req, res, next) => {
   if (activeHeavyProcesses >= MAX_CONCURRENT_HEAVY) {
