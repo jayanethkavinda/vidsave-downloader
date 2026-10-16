@@ -6,13 +6,11 @@ import {
   assertSafeUrl, 
   sanitizeFilename 
 } from './services/security.js';
-import { 
-  getVideoInfo, 
-  streamVideoDownload, 
-  streamTrimmedDownload,
-  convertVttToSrt,
-  isYouTubeUrl 
-} from './services/downloader.js';
+import { getVideoInfo } from './services/infoExtractor.js';
+import { streamVideoDownload } from './services/streamDownloader.js';
+import { streamTrimmedDownload } from './services/trimService.js';
+import { convertVttToSrt } from './services/subtitleService.js';
+import { isYouTubeUrl } from './services/coreEngine.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
