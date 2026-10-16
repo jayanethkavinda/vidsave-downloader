@@ -16,7 +16,9 @@ import {
   Clipboard,
   ChevronDown,
   Plus,
-  Minus
+  Minus,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import TaslAttributionCard from './TaslAttributionCard.jsx';
 
@@ -36,6 +38,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [endTime, setEndTime] = useState(initialEnd);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   // Download state with in-button percentage animation
   const [downloadingType, setDownloadingType] = useState(null); // 'video' | 'audio' | null
@@ -198,6 +201,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
             // If browser blocks unmuted autoplay, mute and autoplay seamlessly
             if (videoElementRef.current) {
               videoElementRef.current.muted = true;
+              setIsMuted(true);
               videoElementRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
             }
           });
@@ -315,6 +319,29 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       }
     } else {
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  // Sound Mute / Unmute toggle for both YouTube iframe and HTML5 video
+  const toggleMute = () => {
+    if (ytPlayerRef.current && typeof ytPlayerRef.current.isMuted === 'function') {
+      try {
+        if (ytPlayerRef.current.isMuted()) {
+          ytPlayerRef.current.unMute();
+          setIsMuted(false);
+        } else {
+          ytPlayerRef.current.mute();
+          setIsMuted(true);
+        }
+      } catch (e) {
+        console.warn('YT toggle mute error:', e);
+      }
+    } else if (videoElementRef.current) {
+      const nextMuted = !videoElementRef.current.muted;
+      videoElementRef.current.muted = nextMuted;
+      setIsMuted(nextMuted);
+    } else {
+      setIsMuted(prev => !prev);
     }
   };
 
@@ -698,8 +725,14 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     className="trimmer-html5-video"
                     playsInline
                     autoPlay
+                    muted={isMuted}
                     preload="auto"
                     referrerPolicy="no-referrer"
+                    onVolumeChange={() => {
+                      if (videoElementRef.current) {
+                        setIsMuted(videoElementRef.current.muted);
+                      }
+                    }}
                     onLoadedData={handleVideoCanPlay}
                     onCanPlay={handleVideoCanPlay}
                     onWaiting={() => setVideoLoading(true)}
@@ -741,8 +774,14 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
           {/* Playback Controls & Timestamp Header */}
           <div className="trimmer-playback-bar">
-            <button type="button" onClick={togglePlay} className="btn-trim-play">
-              {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" style={{ marginLeft: '2px' }} />}
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="btn-trim-play"
+              title={isPlaying ? "Pause Preview" : "Play Preview"}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" style={{ marginLeft: '2px' }} />}
             </button>
 
             <div className="trimmer-time-display">
@@ -753,12 +792,12 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
             <button
               type="button"
-              onClick={handleResetFullVideo}
-              className="btn-trim-reset"
-              title="Reset to full video length"
+              onClick={toggleMute}
+              className={`btn-trim-volume ${isMuted ? 'muted' : ''}`}
+              title={isMuted ? "Unmute Audio" : "Mute Audio"}
+              aria-label={isMuted ? "Unmute Audio" : "Mute Audio"}
             >
-              <RotateCcw size={15} />
-              <span>Full Video</span>
+              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
           </div>
 
