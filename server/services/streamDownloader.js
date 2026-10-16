@@ -14,6 +14,7 @@ import {
   MAX_FILESIZE_BYTES_OTHER, 
   killProcessTree 
 } from './security.js';
+import { getCachedDirectUrl } from './cacheService.js';
 
 /**
  * Direct Stream Cloud Scraper Fallback for downloads (Instagram, Facebook, TikTok, Twitter)
@@ -104,7 +105,7 @@ export async function streamDirectCloudFallback(url, formatPreset, res, cleanupO
  * Universal Streaming Downloader Engine
  * Uses Zero-Disk Direct CDN Pipe for social platforms, and single-thread muxing for YouTube
  */
-export function streamVideoDownload(url, formatPreset, res) {
+export function streamVideoDownload(url, formatPreset, res, directUrl = null) {
   const isYt = isYouTubeUrl(url);
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3';
 
@@ -232,7 +233,99 @@ export function streamVideoDownload(url, formatPreset, res) {
     });
   };
 
-  // Zero-Disk Direct Proxy Streaming for Social Platforms (Facebook, TikTok, Pinterest, Instagram, X, Threads)
+  // ⚡ Fast Zero-Disk Direct Proxy Streaming Helper
+  const pipeDirectCdnStream = async (targetUrl, originalUrl, ext = 'mp4') => {
+    const isMp3 = ext === 'mp3' || isAudio;
+    try {
+      const { default: https } = await import('https');
+      const { default: http } = await import('http');
+      const client = targetUrl.startsWith('https') ? https : http;
+
+      const headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+        'Accept': '*/*'
+      };
+
+      if (originalUrl.includes('tiktok.com')) headers['Referer'] = 'https://www.tiktok.com/';
+      else if (originalUrl.includes('instagram.com')) headers['Referer'] = 'https://www.instagram.com/';
+      else if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.watch')) headers['Referer'] = 'https://www.facebook.com/';
+      else if (originalUrl.includes('pinterest.com') || originalUrl.includes('pin.it')) headers['Referer'] = 'https://www.pinterest.com/';
+      else if (originalUrl.includes('twitter.com') || originalUrl.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
+      else if (originalUrl.includes('threads.net')) headers['Referer'] = 'https://www.threads.net/';
+
+      // If MP3 requested from video source, transcode on-the-fly via FFmpeg
+      if (isMp3 && !targetUrl.includes('.mp3') && ffmpegPath) {
+        console.log(`[Direct Stream] Transcoding direct stream to MP3 via FFmpeg: ${targetUrl.slice(0, 80)}...`);
+        res.setHeader('Content-Type', 'audio/mpeg');
+        const ffmpeg = spawn(ffmpegPath, [
+          '-reconnect', '1',
+          '-reconnect_streamed', '1',
+          '-reconnect_delay_max', '5',
+          '-headers', 'User-Agent: Mozilla/5.0\r\n',
+          '-i', targetUrl,
+          '-vn',
+          '-acodec', 'libmp3lame',
+          '-b:a', '192k',
+          '-f', 'mp3',
+          'pipe:1'
+        ], { windowsHide: true });
+
+        ffmpeg.stdout.pipe(res);
+        ffmpeg.stderr.on('data', () => {});
+        res.on('close', () => {
+          try { ffmpeg.kill('SIGKILL'); } catch (_) {}
+        });
+        return;
+      }
+
+      console.log(`[Direct Stream] Piping CDN stream directly to browser: ${targetUrl.slice(0, 80)}...`);
+      const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
+        if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
+          return pipeDirectCdnStream(upstreamRes.headers.location, originalUrl, ext);
+        }
+        if (upstreamRes.statusCode >= 400) {
+          console.warn(`[Direct Stream] Upstream status ${upstreamRes.statusCode}, falling back to temp download...`);
+          return runTempDownload();
+        }
+        if (upstreamRes.headers['content-length'] && !res.headersSent) {
+          res.setHeader('Content-Length', upstreamRes.headers['content-length']);
+        }
+        if (!res.headersSent) {
+          res.setHeader('Content-Type', isMp3 ? 'audio/mpeg' : 'video/mp4');
+        }
+        upstreamRes.pipe(res);
+      });
+
+      upstreamReq.on('error', (err) => {
+        console.error('[Direct Stream Pipe Error]:', err.message);
+        if (!res.headersSent) runTempDownload();
+      });
+
+      res.on('close', () => {
+        upstreamReq.destroy();
+      });
+    } catch (err) {
+      console.error('[Direct Stream Pipe Exception]:', err.message);
+      runTempDownload();
+    }
+  };
+
+  // ⚡ 1. Direct URL Parameter or 30-Minute In-Memory Media Cache for Instant Direct CDN Streaming (<1s)
+  const isHeavyYt = isYt && ['4320', '2160', '1440', '1080'].includes(String(formatPreset));
+  if (!isHeavyYt) {
+    if (directUrl && typeof directUrl === 'string' && directUrl.startsWith('http') && !directUrl.includes('.m3u8')) {
+      console.log(`[Direct URL] Instant streaming direct CDN URL from client for ${url}`);
+      return pipeDirectCdnStream(directUrl, url, isAudio ? 'mp3' : 'mp4');
+    }
+
+    const cached = getCachedDirectUrl(url, formatPreset);
+    if (cached && cached.directUrl && cached.directUrl.startsWith('http') && !cached.directUrl.includes('.m3u8')) {
+      console.log(`[Cache Hit] Instant streaming direct CDN URL for ${url} (preset: ${formatPreset})`);
+      return pipeDirectCdnStream(cached.directUrl, url, cached.ext || (isAudio ? 'mp3' : 'mp4'));
+    }
+  }
+
+  // 2. Zero-Disk Direct Proxy Streaming for Social Platforms (Facebook, TikTok, Pinterest, Instagram, X, Threads)
   if (!isYt && !isAudio) {
     const singleFormat = (formatPreset === 'best' || formatPreset === 'best_with_audio' || !formatPreset)
       ? 'bestvideo+bestaudio/best[ext=mp4]/best'
@@ -257,47 +350,7 @@ export function streamVideoDownload(url, formatPreset, res) {
       const isHls = targetUrl && (targetUrl.includes('.m3u8') || targetUrl.includes('.mpd'));
 
       if (code === 0 && targetUrl && targetUrl.startsWith('http') && !isHls) {
-        console.log(`[Zero-Disk Stream] Directly piping CDN stream to browser`);
-        try {
-          const { default: https } = await import('https');
-          const { default: http } = await import('http');
-          const client = targetUrl.startsWith('https') ? https : http;
-          const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-            'Accept': '*/*'
-          };
-
-          if (url.includes('tiktok.com')) headers['Referer'] = 'https://www.tiktok.com/';
-          else if (url.includes('instagram.com')) headers['Referer'] = 'https://www.instagram.com/';
-          else if (url.includes('facebook.com') || url.includes('fb.watch')) headers['Referer'] = 'https://www.facebook.com/';
-          else if (url.includes('pinterest.com') || url.includes('pin.it')) headers['Referer'] = 'https://www.pinterest.com/';
-          else if (url.includes('twitter.com') || url.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
-          else if (url.includes('threads.net')) headers['Referer'] = 'https://www.threads.net/';
-
-          const upstreamReq = client.get(targetUrl, { headers }, (upstreamRes) => {
-            if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
-              return res.redirect(upstreamRes.statusCode, upstreamRes.headers.location);
-            }
-            if (upstreamRes.statusCode >= 400) {
-              return runTempDownload();
-            }
-            if (upstreamRes.headers['content-length'] && !res.headersSent) {
-              res.setHeader('Content-Length', upstreamRes.headers['content-length']);
-            }
-            upstreamRes.pipe(res);
-          });
-
-          upstreamReq.on('error', () => {
-            if (!res.headersSent) runTempDownload();
-          });
-
-          res.on('close', () => {
-            upstreamReq.destroy();
-          });
-          return;
-        } catch (_) {
-          return runTempDownload();
-        }
+        return pipeDirectCdnStream(targetUrl, url, 'mp4');
       } else {
         runTempDownload();
       }
@@ -307,6 +360,6 @@ export function streamVideoDownload(url, formatPreset, res) {
     return;
   }
 
-  // YouTube / Audio
+  // 3. YouTube Heavy / Separate Streams Fallback
   runTempDownload();
 }

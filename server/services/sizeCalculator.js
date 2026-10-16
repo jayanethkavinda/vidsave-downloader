@@ -358,6 +358,7 @@ export async function buildResolutionPresets({
   // 4. Calculate exact sizes for all matched tiers in parallel
   const matchedTiers = await Promise.all(tierCandidates.map(async ({ tier, bestFmt }) => {
     const exactSize = await calculateExactFormatSize(bestFmt, tier, duration, audioSize, referer);
+    const directUrl = (bestFmt && bestFmt.url && bestFmt.url.startsWith('http')) ? bestFmt.url : null;
     return {
       id: tier.id,
       label: tier.label,
@@ -367,7 +368,8 @@ export async function buildResolutionPresets({
       ext: 'mp4',
       type: 'video',
       filesize: exactSize,
-      filesizeFormatted: formatBytes(exactSize)
+      filesizeFormatted: formatBytes(exactSize),
+      directUrl
     };
   }));
 
@@ -383,9 +385,11 @@ export async function buildResolutionPresets({
     type: 'video',
     filesize: topTier.filesize,
     filesizeFormatted: topTier.filesizeFormatted,
-    isRecommended: true
+    isRecommended: true,
+    directUrl: topTier.directUrl || null
   };
 
+  const bestAudioFmt = aFormats.find(f => f.url && f.url.startsWith('http')) || aFormats[0];
   const audioPreset = {
     id: 'audio_best',
     label: 'MP3 Audio (High Quality)',
@@ -393,7 +397,8 @@ export async function buildResolutionPresets({
     ext: 'mp3',
     type: 'audio',
     filesize: audioSize,
-    filesizeFormatted: formatBytes(audioSize)
+    filesizeFormatted: formatBytes(audioSize),
+    directUrl: (bestAudioFmt && bestAudioFmt.url && bestAudioFmt.url.startsWith('http')) ? bestAudioFmt.url : null
   };
 
   const presets = [bestPreset, ...matchedTiers, audioPreset];
