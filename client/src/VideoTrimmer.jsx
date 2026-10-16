@@ -78,13 +78,13 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [streamError, setStreamError] = useState(false);
   const [videoLoading, setVideoLoading] = useState(!ytVideoId && Boolean(videoInfo));
 
-  // High-speed lightweight 220p / 240p preview stream with Range support
+  // High-speed lightweight 240p/360p progressive preview stream with sound
   const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
-    ? (useFallbackPreview
-        ? `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`
-        : (videoInfo?.previewStreamUrl 
-            ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
-            : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`))
+    ? (videoInfo?.previewStreamUrl 
+        ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+        : (videoInfo?.directStreamUrl 
+            ? `${BACKEND_URL}/api/proxy-stream?url=${encodeURIComponent(videoInfo.directStreamUrl)}&origin=${encodeURIComponent(videoInfo.webpageUrl)}` 
+            : null))
     : null;
 
   // Format seconds to mm:ss.s or mm:ss
@@ -323,18 +323,37 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const clipDuration = Math.max(0.1, endTime - startTime);
   const cropProgress = Math.max(0, Math.min(1, (currentTime - startTime) / clipDuration));
 
-  // Dynamic File Size calculation for selected clip segment (using sizeCalculator bitrates)
+  // Dynamic File Size calculation: Prioritize real video filesize probed by sizeCalculator
   const getEstimatedClipSize = (format) => {
+    const totalDur = Math.max(1, duration || videoInfo?.duration || 60);
+    const ratio = Math.min(1, clipDuration / totalDur);
+
+    // 1. Try matching with real probed preset size from backend sizeCalculator
+    const matchedPreset = videoInfo?.presets?.find(p => 
+      p.resolution === format || 
+      (format === 'best' && p === videoInfo?.bestPreset) ||
+      p.label?.toLowerCase().includes(format)
+    );
+
+    if (matchedPreset?.filesizeBytes && matchedPreset.filesizeBytes > 0) {
+      const bytes = Math.round(matchedPreset.filesizeBytes * ratio);
+      if (bytes < 1024 * 1024) {
+        return `~${Math.round(bytes / 1024)} KB`;
+      }
+      return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    // 2. Fallback to calibrated bitrate calculation
     const bitrates = {
-      '1080': 3500, // ~3.5 Mbps (~437 KB/s)
-      '720': 1800,  // ~1.8 Mbps (~225 KB/s)
-      '480': 900,   // ~900 kbps (~112 KB/s)
-      '360': 500,   // ~500 kbps (~62 KB/s)
-      'best': 3500,
-      'audio': 192, // 192 kbps MP3 (~24 KB/s)
+      '1080': 2000,
+      '720': 1200,
+      '480': 700,
+      '360': 400,
+      'best': 2000,
+      'audio': 192,
       'mp3': 192
     };
-    const kbps = bitrates[format] || 2500;
+    const kbps = bitrates[format] || 1500;
     const bytes = Math.round((kbps * 1000 * clipDuration) / 8);
     if (bytes < 1024 * 1024) {
       return `~${Math.round(bytes / 1024)} KB`;

@@ -210,9 +210,9 @@ app.get('/api/subtitle', async (req, res) => {
   }
 });
 
-// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (SSRF Protected)
+// 6. Zero-Load Media Proxy Stream with HTTP Range for Trimmer HTML5 preview (Zero Disk, Zero Memory)
 app.get('/api/proxy-stream', async (req, res) => {
-  const { url } = req.query;
+  const { url, origin } = req.query;
   if (!url) return res.status(400).send('URL required');
   try {
     const safeStreamUrl = await assertSafeUrl(url);
@@ -220,16 +220,47 @@ app.get('/api/proxy-stream', async (req, res) => {
     const { default: https } = await import('https');
     const { default: http } = await import('http');
     const client = safeStreamUrl.startsWith('https') ? https : http;
-    const headers = { 'User-Agent': 'Mozilla/5.0', 'Accept': '*/*' };
-    if (req.headers.range) headers['Range'] = req.headers.range;
 
-    const proxyReq = client.get(safeStreamUrl, { headers }, proxyRes => {
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept': '*/*',
+      'Accept-Encoding': 'identity;q=1, *;q=0'
+    };
+
+    // Forward platform referer to bypass 403 Forbidden (TikTok, Twitter, Instagram, Facebook, Pinterest)
+    const checkTarget = `${origin || ''} ${url}`.toLowerCase();
+    if (checkTarget.includes('tiktok.com')) headers['Referer'] = 'https://www.tiktok.com/';
+    else if (checkTarget.includes('instagram.com')) headers['Referer'] = 'https://www.instagram.com/';
+    else if (checkTarget.includes('facebook.com') || checkTarget.includes('fb.watch')) headers['Referer'] = 'https://www.facebook.com/';
+    else if (checkTarget.includes('pinterest.com') || checkTarget.includes('pin.it')) headers['Referer'] = 'https://www.pinterest.com/';
+    else if (checkTarget.includes('twitter.com') || checkTarget.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
+    else if (checkTarget.includes('threads.net')) headers['Referer'] = 'https://www.threads.net/';
+
+    // HTTP Range pass-through for HTML5 <video> seeking in user browser RAM
+    if (req.headers.range) {
+      headers['Range'] = req.headers.range;
+    }
+
+    const proxyReq = client.get(safeStreamUrl, { headers }, (proxyRes) => {
+      // Handle redirects (301, 302, 307, 308)
+      if ([301, 302, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
+        return res.redirect(proxyRes.statusCode, `/api/proxy-stream?url=${encodeURIComponent(proxyRes.headers.location)}&origin=${encodeURIComponent(origin || '')}`);
+      }
+
+      // Pass essential media streaming headers
+      const resHeaders = {};
+      if (proxyRes.headers['content-type']) resHeaders['Content-Type'] = proxyRes.headers['content-type'];
+      if (proxyRes.headers['content-length']) resHeaders['Content-Length'] = proxyRes.headers['content-length'];
+      if (proxyRes.headers['content-range']) resHeaders['Content-Range'] = proxyRes.headers['content-range'];
+      if (proxyRes.headers['accept-ranges']) resHeaders['Accept-Ranges'] = proxyRes.headers['accept-ranges'];
+
+      res.writeHead(proxyRes.statusCode, resHeaders);
       proxyRes.pipe(res);
     });
 
-    proxyReq.on('error', () => {
-      if (!res.headersSent) res.status(500).end();
+    proxyReq.on('error', (err) => {
+      console.warn('[Proxy Stream Error]', err.message);
+      if (!res.headersSent) res.status(502).end();
     });
 
     res.on('close', () => {

@@ -203,20 +203,20 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
   } else if (format === '480') {
     formatArg = isYt
       ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
-      : 'bestvideo[height<=480]+bestaudio/bestvideo[width<=480]+bestaudio/best[height<=480]/best[width<=480]/best';
+      : 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio/best';
   } else if (format === '720') {
     formatArg = isYt
       ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
-      : 'bestvideo[height<=720]+bestaudio/bestvideo[width<=720]+bestaudio/best[height<=720]/best[width<=720]/best';
+      : 'best[height<=720][ext=mp4]/best[width<=720][ext=mp4]/best[height<=720]/bestvideo[height<=720]+bestaudio/best';
   } else if (format === '1080') {
     formatArg = isYt
       ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
-      : 'bestvideo[height<=1080]+bestaudio/bestvideo[width<=1080]+bestaudio/best[height<=1080]/best[width<=1080]/best';
+      : 'best[height<=1080][ext=mp4]/best[width<=1080][ext=mp4]/best[height<=1080]/bestvideo[height<=1080]+bestaudio/best';
   } else {
     // 'best' - Original upload quality
     formatArg = isYt
       ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
-      : 'bestvideo+bestaudio/best';
+      : 'best[ext=mp4]/best/bestvideo+bestaudio';
   }
 
   console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url} (format: ${format})`);

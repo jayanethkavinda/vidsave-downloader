@@ -254,7 +254,7 @@ async function resolveCloudScraperFallback(url) {
       subtitles: [],
       subtitlesCount: 0,
       directStreamUrl,
-      previewStreamUrl: `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}`
+      previewStreamUrl: `/api/proxy-stream?url=${encodeURIComponent(directStreamUrl)}&origin=${encodeURIComponent(url)}`
     };
   } catch (err) {
     throw new Error(`Cloud fallback extraction failed: ${err.message}`);
@@ -350,12 +350,17 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated preview stream
+  // Dedicated lightweight progressive preview stream with sound (Video + Audio)
   let previewStreamUrl = null;
   if (!isYt) {
-    const directUrl = rawInfo.url || (videoFormats.find(f => f.url && !f.url.includes('.m3u8'))?.url) || null;
+    // 1. Find progressive format with BOTH video and audio (Sound enabled!)
+    const progressiveFormats = rawFormats
+      .filter(f => f.url && f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none' && !f.url.includes('.m3u8'))
+      .sort((a, b) => (a.height || 360) - (b.height || 360)); // Smallest resolution first (240p / 360p)
+
+    const directUrl = progressiveFormats[0]?.url || rawInfo.url || (videoFormats.find(f => f.url && !f.url.includes('.m3u8'))?.url) || null;
     if (directUrl) {
-      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directUrl)}`;
+      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directUrl)}&origin=${encodeURIComponent(url)}`;
     }
   }
 
