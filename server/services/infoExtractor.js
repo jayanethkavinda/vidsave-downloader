@@ -12,7 +12,6 @@ import {
 } from './security.js';
 import { buildResolutionPresets, formatBytes } from './sizeCalculator.js';
 import { extractSubtitles } from './subtitleService.js';
-import { cacheMediaInfo } from './cacheService.js';
 
 /**
  * Dedicated Ultra-HD TikTok Cloud Resolver (TikWM HD Engine)
@@ -107,7 +106,7 @@ export async function resolveTikTokDedicated(url) {
         directUrl: audioUrl
       });
 
-      const out = {
+      return {
         id: `tiktok_${d.id || Date.now()}`,
         title,
         description: `${title} (Resolved via TikTok Dedicated Engine)`,
@@ -127,8 +126,6 @@ export async function resolveTikTokDedicated(url) {
         directStreamUrl: hdUrl,
         previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
       };
-      cacheMediaInfo(url, out);
-      return out;
     }
   } catch (err) {
     console.warn('[Dedicated TikTok Resolver Error]:', err.message);
@@ -233,8 +230,6 @@ export async function resolveCloudScraperFallback(url) {
       directStreamUrl,
       previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
     };
-    cacheMediaInfo(url, out);
-    return out;
   } catch (err) {
     console.error(`[${url} Cloud Fallback Resolver Error]:`, err.message);
     throw err;
@@ -245,12 +240,6 @@ export async function resolveCloudScraperFallback(url) {
  * Universal Video Information Extractor (Preserves 100% Original Upload Quality)
  */
 export async function getVideoInfo(url) {
-  // Ultra-Fast Path for TikTok (resolves in ~0.5s via dedicated HD API)
-  if (/(?:tiktok\.com|vt\.tiktok\.com)/i.test(url)) {
-    const dedicated = await resolveTikTokDedicated(url);
-    if (dedicated) return dedicated;
-  }
-
   const isYt = isYouTubeUrl(url);
 
   const runDump = (extraArgs = []) => {
@@ -331,18 +320,13 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated lightweight progressive preview stream with sound (Video + Audio)
+  // Dedicated lightweight 240p/360p progressive preview stream with sound (Video + Audio)
   let previewStreamUrl = null;
   if (!isYt) {
-    const cdnUrl = bestPreset?.directUrl || presets?.find(p => p.directUrl)?.directUrl;
-    if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('.m3u8')) {
-      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(cdnUrl)}&origin=${encodeURIComponent(rawInfo.webpage_url || url)}`;
-    } else {
-      previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
-    }
+    previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
   }
 
-  const result = {
+  return {
     id: rawInfo.id,
     title: rawInfo.title || 'Extracted Media',
     description: rawInfo.description ? rawInfo.description.slice(0, 300) : '',
@@ -360,6 +344,4 @@ export async function getVideoInfo(url) {
     subtitlesCount: subtitles.length,
     previewStreamUrl
   };
-  cacheMediaInfo(url, result);
-  return result;
 }

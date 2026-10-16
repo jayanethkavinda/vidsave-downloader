@@ -213,7 +213,7 @@ app.get('/api/info', searchLimiter, async (req, res) => {
 
 // 3. Full Video Download Stream Endpoint
 app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (req, res) => {
-  const { url, format = 'best', title = 'video', directUrl } = req.query;
+  const { url, format = 'best', title = 'video' } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
     const isAudio = format === 'audio_best' || format === 'mp3';
@@ -224,7 +224,7 @@ app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', mimeType);
 
-    streamVideoDownload(safeUrl, format, res, directUrl);
+    streamVideoDownload(safeUrl, format, res);
   } catch (err) {
     console.error('[API /api/download Error]:', err.message);
     if (!res.headersSent) {
@@ -235,7 +235,7 @@ app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (
 
 // 4. Video & Audio Segment Trimmer Download Stream Endpoint
 app.get('/api/trim', downloadLimiter, smartTrimConcurrencyGuard, async (req, res) => {
-  const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best', directUrl } = req.query;
+  const { url, start = 0, end = 10, type = 'video', title = 'clip', format = 'best' } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
 
@@ -263,7 +263,7 @@ app.get('/api/trim', downloadLimiter, smartTrimConcurrencyGuard, async (req, res
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', mimeType);
 
-    streamTrimmedDownload(safeUrl, numStart, numEnd, type, safeFormat, res, directUrl);
+    streamTrimmedDownload(safeUrl, numStart, numEnd, type, safeFormat, res);
   } catch (err) {
     console.error('[API /api/trim Error]:', err.message);
     if (!res.headersSent) {

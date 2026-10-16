@@ -10,7 +10,6 @@ import {
   isScraperSupportedUrl 
 } from './coreEngine.js';
 import { killProcessTree } from './security.js';
-import { getCachedDirectUrl } from './cacheService.js';
 
 /**
  * Direct Stream Trimmer Cloud Fallback (Instagram, Facebook, TikTok, Twitter)
@@ -80,7 +79,7 @@ export async function trimDirectCloudFallback(url, startSec, endSec, isAudio, te
 /**
  * Stream trimmed video/audio section using HTTP range seeking and FFmpeg cut
  */
-export function streamTrimmedDownload(url, startTime, endTime, type = 'video', format = 'best', res, directUrl = null) {
+export function streamTrimmedDownload(url, startTime, endTime, type = 'video', format = 'best', res) {
   const isAudio = type === 'audio' || type === 'mp3';
   const ext = isAudio ? 'mp3' : 'mp4';
   const tempDir = os.tmpdir();
@@ -112,130 +111,64 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
   console.log(`[Trimmer Engine] Requesting cut range: ${sectionArg} for URL: ${url} (format: ${format})`);
 
   const isYt = isYouTubeUrl(url);
+  let formatArg;
+  if (isAudio) {
+    formatArg = 'bestaudio/best';
+  } else if (format === '4320') {
+    formatArg = isYt
+      ? 'bestvideo[height<=4320][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=4320]+bestaudio/best[height<=4320]/best'
+      : 'best[height<=4320][ext=mp4]/best[width<=4320][ext=mp4]/best[height<=4320]/bestvideo[height<=4320]+bestaudio/best';
+  } else if (format === '2160') {
+    formatArg = isYt
+      ? 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best'
+      : 'best[height<=2160][ext=mp4]/best[width<=2160][ext=mp4]/best[height<=2160]/bestvideo[height<=2160]+bestaudio/best';
+  } else if (format === '1440') {
+    formatArg = isYt
+      ? 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440]/best'
+      : 'best[height<=1440][ext=mp4]/best[width<=1440][ext=mp4]/best[height<=1440]/bestvideo[height<=1440]+bestaudio/best';
+  } else if (format === '1080') {
+    formatArg = isYt
+      ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
+      : 'best[height<=1080][ext=mp4]/best[width<=1080][ext=mp4]/best[height<=1080]/bestvideo[height<=1080]+bestaudio/best';
+  } else if (format === '720') {
+    formatArg = isYt
+      ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
+      : 'best[height<=720][ext=mp4]/best[width<=720][ext=mp4]/best[height<=720]/bestvideo[height<=720]+bestaudio/best';
+  } else if (format === '480') {
+    formatArg = isYt
+      ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
+      : 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio/best';
+  } else if (format === '360') {
+    formatArg = isYt
+      ? 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360]/best'
+      : 'best[height<=360][ext=mp4]/best[width<=360][ext=mp4]/best[height<=360]/best';
+  } else {
+    // 'best' - 100% Original creator upload quality
+    formatArg = isYt
+      ? 'bestvideo+bestaudio/best'
+      : 'best[ext=mp4]/best/bestvideo+bestaudio';
+  }
 
-  // ⚡ Fast direct CDN trim helper (Stream-copy cut via FFmpeg HTTP range in 1-2s)
-  const trimDirectCdnStream = (targetCdn, fallbackFn) => {
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-    };
-    if (url.includes('tiktok.com')) headers['Referer'] = 'https://www.tiktok.com/';
-    else if (url.includes('instagram.com')) headers['Referer'] = 'https://www.instagram.com/';
-    else if (url.includes('facebook.com') || url.includes('fb.watch')) headers['Referer'] = 'https://www.facebook.com/';
-    else if (url.includes('pinterest.com') || url.includes('pin.it')) headers['Referer'] = 'https://www.pinterest.com/';
-    else if (url.includes('twitter.com') || url.includes('x.com')) headers['Referer'] = 'https://twitter.com/';
-    else if (url.includes('threads.net')) headers['Referer'] = 'https://www.threads.net/';
+  const args = [
+    '-m', 'yt_dlp',
+    '-f', formatArg,
+    '--download-sections', sectionArg,
+    '--downloader-args', 'ffmpeg:-threads 1',
+  ];
 
-    const headerStr = Object.entries(headers).map(([k, v]) => `${k}: ${v}\r\n`).join('');
+  if (isAudio) {
+    args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
+  } else if (isYt) {
+    args.push('--merge-output-format', 'mp4');
+  }
 
-    const ffmpegArgs = [
-      '-ss', startSec.toString(),
-      '-to', endSec.toString(),
-      '-headers', headerStr,
-      '-i', targetCdn,
-    ];
+  args.push(...buildYtdlpArgs(url, true));
+  args.push('-o', tempFile, '--', url);
 
-    if (isAudio) {
-      ffmpegArgs.push('-vn', '-acodec', 'libmp3lame', '-b:a', '192k', tempFile);
-    } else {
-      ffmpegArgs.push('-c:v', 'copy', '-c:a', 'copy', tempFile);
-    }
-
-    console.log(`[Fast Trimmer Engine] Cutting direct CDN stream (${startSec}s to ${endSec}s): ${targetCdn.slice(0, 60)}...`);
-    const proc = spawn(ffmpegPath, ffmpegArgs, { windowsHide: true });
-
-    const cleanup = () => {
-      try { if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile); } catch (_) {}
-    };
-
-    res.on('close', () => {
-      try { proc.kill('SIGKILL'); } catch (_) {}
-      cleanup();
-    });
-
-    proc.on('close', (code) => {
-      if (code !== 0 || !fs.existsSync(tempFile) || fs.statSync(tempFile).size < 1000) {
-        console.warn(`[Fast Trimmer Engine] Direct FFmpeg cut failed (code: ${code}), falling back to yt-dlp...`);
-        cleanup();
-        return fallbackFn();
-      }
-
-      try {
-        const stats = fs.statSync(tempFile);
-        res.setHeader('Content-Length', stats.size);
-        const stream = fs.createReadStream(tempFile);
-        stream.pipe(res);
-        stream.on('close', cleanup);
-        stream.on('error', cleanup);
-      } catch (_) {
-        cleanup();
-        fallbackFn();
-      }
-    });
-
-    proc.on('error', () => {
-      cleanup();
-      fallbackFn();
-    });
-  };
-
-  const runYtdlpTrim = () => {
-    let formatArg;
-    if (isAudio) {
-      formatArg = 'bestaudio/best';
-    } else if (format === '4320') {
-      formatArg = isYt
-        ? 'bestvideo[height<=4320][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=4320]+bestaudio/best[height<=4320]/best'
-        : 'best[height<=4320][ext=mp4]/best[width<=4320][ext=mp4]/best[height<=4320]/bestvideo[height<=4320]+bestaudio/best';
-    } else if (format === '2160') {
-      formatArg = isYt
-        ? 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best'
-        : 'best[height<=2160][ext=mp4]/best[width<=2160][ext=mp4]/best[height<=2160]/bestvideo[height<=2160]+bestaudio/best';
-    } else if (format === '1440') {
-      formatArg = isYt
-        ? 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440]/best'
-        : 'best[height<=1440][ext=mp4]/best[width<=1440][ext=mp4]/best[height<=1440]/bestvideo[height<=1440]+bestaudio/best';
-    } else if (format === '1080') {
-      formatArg = isYt
-        ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
-        : 'best[height<=1080][ext=mp4]/best[width<=1080][ext=mp4]/best[height<=1080]/bestvideo[height<=1080]+bestaudio/best';
-    } else if (format === '720') {
-      formatArg = isYt
-        ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
-        : 'best[height<=720][ext=mp4]/best[width<=720][ext=mp4]/best[height<=720]/bestvideo[height<=720]+bestaudio/best';
-    } else if (format === '480') {
-      formatArg = isYt
-        ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
-        : 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio/best';
-    } else if (format === '360') {
-      formatArg = isYt
-        ? 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360]/best'
-        : 'best[height<=360][ext=mp4]/best[width<=360][ext=mp4]/best[height<=360]/best';
-    } else {
-      formatArg = isYt
-        ? 'bestvideo+bestaudio/best'
-        : 'best[ext=mp4]/best/bestvideo+bestaudio';
-    }
-
-    const args = [
-      '-m', 'yt_dlp',
-      '-f', formatArg,
-      '--download-sections', sectionArg,
-      '--downloader-args', 'ffmpeg:-threads 1',
-    ];
-
-    if (isAudio) {
-      args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
-    } else {
-      args.push('--merge-output-format', 'mp4', '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac -threads 1');
-    }
-
-    args.push(...buildYtdlpArgs(url, true));
-    args.push('-o', tempFile, '--', url);
-
-    const child = spawn(PYTHON_BIN, args, {
-      windowsHide: true,
-      detached: process.platform !== 'win32'
-    });
+  const child = spawn(PYTHON_BIN, args, {
+    windowsHide: true,
+    detached: process.platform !== 'win32'
+  });
 
   const watchdog = setTimeout(() => {
     console.warn(`[Trimmer Watchdog] Trim timed out after 6 mins: ${url}`);
@@ -299,22 +232,11 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
     }
   });
 
-    child.on('error', (err) => {
-      console.error('[spawn error]', err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Trim spawn failed: ' + err.message });
-      }
-      cleanup();
-    });
-  };
-
-  // ⚡ Check if direct CDN cut is available for instant trimming (1-2s)
-  if (!isYt && ffmpegPath) {
-    const targetCdn = directUrl || getCachedDirectUrl(url, format)?.directUrl;
-    if (targetCdn && targetCdn.startsWith('http') && !targetCdn.includes('.m3u8')) {
-      return trimDirectCdnStream(targetCdn, runYtdlpTrim);
+  child.on('error', (err) => {
+    console.error('[spawn error]', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Trim spawn failed: ' + err.message });
     }
-  }
-
-  runYtdlpTrim();
+    cleanup();
+  });
 }

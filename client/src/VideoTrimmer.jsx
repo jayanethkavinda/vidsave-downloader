@@ -102,17 +102,13 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [streamError, setStreamError] = useState(false);
   const [videoLoading, setVideoLoading] = useState(!ytVideoId && Boolean(videoInfo));
 
-  // Instant direct proxy stream with HTTP range seeking (<1s load)
-  const directCdnUrl = videoInfo?.directStreamUrl || videoInfo?.bestPreset?.directUrl || videoInfo?.presets?.find(p => p.directUrl)?.directUrl;
-
+  // High-speed lightweight 240p/360p progressive preview stream with sound
   const previewVideoUrl = !ytVideoId && videoInfo?.webpageUrl
     ? (useFallbackPreview 
         ? `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`
-        : (directCdnUrl 
-            ? `${BACKEND_URL}/api/proxy-stream?url=${encodeURIComponent(directCdnUrl)}&origin=${encodeURIComponent(videoInfo.webpageUrl)}`
-            : (videoInfo?.previewStreamUrl 
-                ? (videoInfo.previewStreamUrl.startsWith('http') ? videoInfo.previewStreamUrl : `${BACKEND_URL}${videoInfo.previewStreamUrl}`)
-                : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`)))
+        : (videoInfo?.previewStreamUrl 
+            ? `${BACKEND_URL}${videoInfo.previewStreamUrl}` 
+            : `${BACKEND_URL}/api/preview?url=${encodeURIComponent(videoInfo.webpageUrl)}`))
     : null;
 
   // Format seconds to mm:ss.s or mm:ss
@@ -650,39 +646,31 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     seekTo(0);
   };
 
-  // Trigger direct native browser download with calibrated in-button progress
+  // Trigger direct native browser download with smooth in-button percentage increments
   const handleDownloadTrim = (type = 'video', format = selectedQuality) => {
     if (downloadingType) return;
     setDownloadingType(type);
     setDownloadSuccess(false);
     setDownloadError('');
-    setDownloadProgress(15);
+    setDownloadProgress(20);
+
+    // Smooth percentage ticker 20% -> 45% -> 75% -> 99% -> 100%
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    progressTimerRef.current = setInterval(() => {
+      setDownloadProgress((prev) => {
+        if (prev >= 95) return prev;
+        const jump = Math.floor(Math.random() * 8) + 4;
+        return Math.min(96, prev + jump);
+      });
+    }, 140);
 
     try {
       const cleanUrl = videoInfo?.webpageUrl || inputUrl;
       const cleanTitle = (videoInfo?.title || 'clip').replace(/[^\w\s-]/gi, '').trim() || 'clip';
       const actualType = (type === 'audio' || format === 'audio') ? 'audio' : 'video';
-      const isYt = /(?:youtube\.com|youtu\.be)/i.test(cleanUrl);
-      const isDirectFastCut = !isYt && Boolean(directCdnUrl);
-
-      let trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${actualType}&format=${format}&title=${encodeURIComponent(cleanTitle)}`;
-      if (!isYt && directCdnUrl) {
-        trimApiUrl += `&directUrl=${encodeURIComponent(directCdnUrl)}`;
-      }
-
-      // Realistic percentage ticker: matches ~9-11s for social, or ~15-18s for YouTube
-      const intervalMs = isYt ? 360 : 250;
-      const waitTime = isYt ? 16000 : 10000;
-      const maxHoldProgress = 92;
-
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-      progressTimerRef.current = setInterval(() => {
-        setDownloadProgress((prev) => {
-          if (prev >= maxHoldProgress) return prev;
-          const jump = Math.floor(Math.random() * 3) + 2;
-          return Math.min(maxHoldProgress, prev + jump);
-        });
-      }, intervalMs);
+      const ext = actualType === 'audio' ? 'mp3' : 'mp4';
+      const filename = `${cleanTitle}_cut_${Math.round(startTime)}s-${Math.round(endTime)}s.${ext}`;
+      const trimApiUrl = `${BACKEND_URL}/api/trim?url=${encodeURIComponent(cleanUrl)}&start=${startTime}&end=${endTime}&type=${actualType}&format=${format}&title=${encodeURIComponent(cleanTitle)}`;
 
       // Trigger Native Browser Download via Hidden Iframe (No tab spinner / reload)
       const iframe = document.createElement('iframe');
@@ -712,9 +700,8 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
         setTimeout(() => {
           setDownloadingType(null);
           setDownloadProgress(0);
-          setDownloadSuccess(false);
-        }, 2200);
-      }, waitTime);
+        }, 1600);
+      }, 1100);
     } catch (err) {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
       console.error('Trim download error:', err);
@@ -1107,20 +1094,11 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                   >
                     {downloadingType === 'video' ? (
                       <div className="btn-split-content">
-                        {downloadSuccess ? (
-                          <div className="btn-split-line1" style={{ color: '#10b981' }}>
-                            <CheckCircle size={16} />
-                            <span style={{ fontWeight: 600 }}>Saved!</span>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="btn-split-line1">
-                              <Zap size={15} className="spin text-cyan" />
-                              <span>Trimming...</span>
-                            </div>
-                            <div className="btn-split-line2">{downloadProgress}%</div>
-                          </>
-                        )}
+                        <div className="btn-split-line1">
+                          <Zap size={15} className="spin text-cyan" />
+                          <span>MP4...</span>
+                        </div>
+                        <div className="btn-split-line2">{downloadProgress}%</div>
                       </div>
                     ) : (
                       <div className="btn-split-content">

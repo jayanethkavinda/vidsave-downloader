@@ -491,18 +491,18 @@ export default function App() {
 
     const isHighRes = ['4320', '2160', '1440', '1080'].includes(String(presetId));
     const isYt = /(?:youtube\.com|youtu\.be)/i.test(videoInfo.webpageUrl || url);
-    const isSlowMux = isYt && isHighRes; // Only YouTube > 720p requires heavy FFmpeg muxing
+    const isSlowMux = isHighRes || isYt;
 
     // Smooth, realistic progress animation:
-    // Takes ~16-18s for YouTube 1080p/4K muxing, or ~2-3s for instant direct CDN streams
-    const intervalMs = isSlowMux ? 280 : 100;
+    // Takes ~16-20s for high-res muxing (2K/4K/1080p), or ~4-6s for direct streams
+    const intervalMs = isSlowMux ? 280 : 160;
     const maxHoldProgress = 92;
 
     if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
     downloadProgressTimerRef.current = setInterval(() => {
       setDownloadProgress((prev) => {
         if (prev >= maxHoldProgress) return prev;
-        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 8) + 4);
+        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 6) + 3);
         return Math.min(maxHoldProgress, prev + jump);
       });
     }, intervalMs);
@@ -528,15 +528,11 @@ export default function App() {
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
-      let downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
-      if (preset?.directUrl) {
-        downloadUrl += `&directUrl=${encodeURIComponent(preset.directUrl)}`;
-      }
+      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
 
-      // Trigger Native Chrome Download directly into Downloads folder without page refresh
+      // Trigger Native Chrome Download directly into Downloads folder
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.setAttribute('download', `${cleanTitle}.${formatExt}`);
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
@@ -547,8 +543,8 @@ export default function App() {
         } catch (_) {}
       }, 5000);
 
-      // Calibrate completion trigger (matches instant <3s stream for social/light YT, or ~18s for heavy YT)
-      const waitTime = isSlowMux ? 18000 : 3000;
+      // Calibrate completion trigger
+      const waitTime = isSlowMux ? 18000 : 7000;
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
@@ -557,7 +553,7 @@ export default function App() {
           setDownloadingFormat(null);
           setDownloadProgress(0);
           setDownloadSuccess(false);
-        }, 2500);
+        }, 3500);
       }, waitTime);
     } catch (err) {
       if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);

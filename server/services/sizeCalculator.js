@@ -358,8 +358,6 @@ export async function buildResolutionPresets({
   // 4. Calculate exact sizes for all matched tiers in parallel
   const matchedTiers = await Promise.all(tierCandidates.map(async ({ tier, bestFmt }) => {
     const exactSize = await calculateExactFormatSize(bestFmt, tier, duration, audioSize, referer);
-    // Never attach standalone directUrl for YouTube video streams because YouTube video streams have no audio track
-    const directUrl = (!isYt && bestFmt && bestFmt.url && bestFmt.url.startsWith('http')) ? bestFmt.url : null;
     return {
       id: tier.id,
       label: tier.label,
@@ -369,8 +367,7 @@ export async function buildResolutionPresets({
       ext: 'mp4',
       type: 'video',
       filesize: exactSize,
-      filesizeFormatted: formatBytes(exactSize),
-      directUrl
+      filesizeFormatted: formatBytes(exactSize)
     };
   }));
 
@@ -386,11 +383,9 @@ export async function buildResolutionPresets({
     type: 'video',
     filesize: topTier.filesize,
     filesizeFormatted: topTier.filesizeFormatted,
-    isRecommended: true,
-    directUrl: isYt ? null : (topTier.directUrl || null)
+    isRecommended: true
   };
 
-  const bestAudioFmt = aFormats.find(f => f.url && f.url.startsWith('http')) || aFormats[0];
   const audioPreset = {
     id: 'audio_best',
     label: 'MP3 Audio (High Quality)',
@@ -398,8 +393,7 @@ export async function buildResolutionPresets({
     ext: 'mp3',
     type: 'audio',
     filesize: audioSize,
-    filesizeFormatted: formatBytes(audioSize),
-    directUrl: (bestAudioFmt && bestAudioFmt.url && bestAudioFmt.url.startsWith('http')) ? bestAudioFmt.url : null
+    filesizeFormatted: formatBytes(audioSize)
   };
 
   const presets = [bestPreset, ...matchedTiers, audioPreset];
