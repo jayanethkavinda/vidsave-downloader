@@ -3634,26 +3634,46 @@ button {
 
 /* 📥 Split Dropdown Download Button (White Box) + Right [Download MP3] */
 .trimmer-export-container {
-  margin-top: 1.75rem;
+  margin-top: 1.5rem;
+  width: 100%;
 }
 
 .trimmer-split-download-group {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 0.55rem !important;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  flex-wrap: nowrap !important;
+}
+
+/* Slightly compact MP4 Split Button Wrap */
+.trimmer-split-btn-wrap {
+  flex: 1 1 58% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
 }
 
 /* White Split Button Box */
 .trimmer-split-btn {
-  display: inline-flex;
+  display: flex;
   align-items: stretch;
+  width: 100%;
+  min-height: 50px;
   background: #ffffff;
   border: 2px solid #cbd5e1;
   border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
   overflow: hidden;
   transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 [data-theme='dark'] .trimmer-split-btn {
@@ -3667,20 +3687,24 @@ button {
   box-shadow: 0 6px 20px rgba(2, 132, 199, 0.18);
 }
 
-/* Left Action Side */
+/* Left Action Side (Download MP4 · Quality) */
 .btn-split-action {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.85rem 1.4rem;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
   background: transparent;
   border: none;
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: #0f172a;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 [data-theme='dark'] .btn-split-action {
@@ -3702,17 +3726,46 @@ button {
   flex-shrink: 0;
 }
 
+.trimmer-split-btn .btn-split-line1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main, #0f172a);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+[data-theme='dark'] .trimmer-split-btn .btn-split-line1 {
+  color: #f8fafc;
+}
+
+.trimmer-split-btn .btn-split-line2 {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0284c7;
+  line-height: 1.1;
+}
+
+[data-theme='dark'] .trimmer-split-btn .btn-split-line2 {
+  color: #38bdf8;
+}
+
 /* Right Dropdown Arrow Trigger */
 .split-dropdown-trigger {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 0.95rem;
+  padding: 0 0.65rem;
   border-left: 2px solid #e2e8f0;
   background: transparent;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 [data-theme='dark'] .split-dropdown-trigger {
@@ -3746,32 +3799,17 @@ button {
   cursor: pointer;
 }
 
-/* Right Side [Download MP3] Button (Clean, only this name!) */
-.btn-download-mp3-pure {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.85rem 1.6rem;
-  font-size: 0.95rem;
-  font-weight: 800;
-  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.35);
-  cursor: pointer;
-  transition: all 0.2s ease;
+/* Right Side: Quick MP3 Action Button in Trimmer (Strictly Same Row) */
+.trimmer-mp3-btn {
+  flex: 0 0 38% !important;
+  min-width: 0 !important;
+  min-height: 50px !important;
+  padding: 0.45rem 0.65rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box;
   white-space: nowrap;
-}
-
-.btn-download-mp3-pure:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(139, 92, 246, 0.45);
-}
-
-.btn-download-mp3-pure:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* Subtitles Format Selection Guide Box */
@@ -3847,22 +3885,12 @@ button {
 
 @media (max-width: 840px) {
   .trimmer-split-download-group {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .trimmer-split-btn {
-    width: 100%;
-  }
-
-  .btn-split-action {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .btn-download-mp3-pure {
-    width: 100%;
-    justify-content: center;
+    flex-direction: row !important;
+    width: 100% !important;
+    max-width: 520px;
+    margin: 0 auto;
+    gap: 0.45rem !important;
+    flex-wrap: nowrap !important;
   }
 
   .nav-btn-text-full {
@@ -3957,14 +3985,63 @@ button {
     font-size: 0.82rem;
   }
 
-  .btn-split-action {
-    padding: 0.75rem 1rem;
-    font-size: 0.86rem;
+  .trimmer-split-download-group {
+    gap: 0.35rem !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
   }
 
-  .btn-download-mp3-pure {
-    padding: 0.75rem 1.2rem;
-    font-size: 0.88rem;
+  .trimmer-split-btn-wrap {
+    flex: 1 1 58% !important;
+    min-width: 0 !important;
+  }
+
+  .trimmer-mp3-btn {
+    flex: 0 0 40% !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    padding: 0.4rem 0.35rem !important;
+  }
+
+  .trimmer-split-btn {
+    min-height: 48px !important;
+  }
+
+  .trimmer-split-btn .btn-split-action {
+    padding: 0.35rem 0.45rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .trimmer-split-btn .btn-split-line1 {
+    font-size: 0.76rem !important;
+    gap: 0.22rem !important;
+  }
+
+  .trimmer-split-btn .btn-split-line2 {
+    font-size: 0.68rem !important;
+  }
+
+  .trimmer-split-btn .split-dropdown-trigger {
+    padding: 0 0.45rem !important;
+  }
+
+  .trimmer-split-btn .split-dropdown-trigger svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+
+  .trimmer-mp3-btn .btn-mp3-top-row {
+    font-size: 0.78rem !important;
+    gap: 0.22rem !important;
+  }
+
+  .trimmer-mp3-btn .mp3-sub-size {
+    font-size: 0.68rem !important;
+  }
+
+  .trimmer-mp3-btn svg {
+    width: 13px !important;
+    height: 13px !important;
   }
 
   .trimmer-workspace {
@@ -4028,5 +4105,42 @@ button {
   .trimmer-time-display {
     font-size: 0.92rem;
     padding: 0.3rem 0.35rem;
+  }
+
+  .trimmer-split-download-group {
+    gap: 0.25rem !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .trimmer-split-btn-wrap {
+    flex: 1 1 56% !important;
+  }
+
+  .trimmer-mp3-btn {
+    flex: 0 0 42% !important;
+    padding: 0.35rem 0.25rem !important;
+  }
+
+  .trimmer-split-btn .btn-split-line1 {
+    font-size: 0.70rem !important;
+    gap: 0.15rem !important;
+  }
+
+  .trimmer-split-btn .btn-split-line2 {
+    font-size: 0.64rem !important;
+  }
+
+  .trimmer-split-btn .split-dropdown-trigger {
+    padding: 0 0.35rem !important;
+  }
+
+  .trimmer-mp3-btn .btn-mp3-top-row {
+    font-size: 0.72rem !important;
+    gap: 0.15rem !important;
+  }
+
+  .trimmer-mp3-btn .mp3-sub-size {
+    font-size: 0.64rem !important;
   }
 }

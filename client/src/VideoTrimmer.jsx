@@ -18,7 +18,9 @@ import {
   Plus,
   Minus,
   Volume2,
-  VolumeX
+  VolumeX,
+  Download,
+  Headphones
 } from 'lucide-react';
 import TaslAttributionCard from './TaslAttributionCard.jsx';
 
@@ -30,15 +32,20 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState('');
 
-  const duration = Math.max(1, parseFloat(videoInfo?.duration) || 60);
+  const duration = Math.max(3, parseFloat(videoInfo?.duration) || 60);
 
-  // Initial cut range: 0 to min(10, duration)
-  const initialEnd = Math.min(10, duration);
+  // Initial cut range: 0 to min(10, duration), at least 3 seconds
+  const initialEnd = Math.max(3, Math.min(10, duration));
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(initialEnd);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+
+  const startTimeRef = useRef(0);
+  const endTimeRef = useRef(initialEnd);
+  useEffect(() => { startTimeRef.current = startTime; }, [startTime]);
+  useEffect(() => { endTimeRef.current = endTime; }, [endTime]);
 
   // Download state with in-button percentage animation
   const [downloadingType, setDownloadingType] = useState(null); // 'video' | 'audio' | null
@@ -365,66 +372,94 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const clipDuration = Math.max(0.1, endTime - startTime);
   const cropProgress = Math.max(0, Math.min(1, (currentTime - startTime) / clipDuration));
 
-  // Dynamic File Size calculation: Prioritize real video filesize probed by sizeCalculator
-  const getEstimatedClipSize = (formatId) => {
+  // Clean quality tag without "Ultra HD", "Full HD", etc. - strictly 8K, 4K, 2K, 1080p, 720p, 480p, 420p, 360p
+  const getCleanQualityTag = (optOrId) => {
+    let str = typeof optOrId === 'string' ? optOrId : (optOrId?.shortLabel || optOrId?.badge || optOrId?.id || '');
+    if (str === 'best' || str === 'Original' || !str) {
+      const maxQ = videoInfo?.maxQualityLabel || videoInfo?.maxQuality || '';
+      const m = maxQ.match(/(8K|4K|2K|1080p|720p|480p|420p|360p)/i);
+      if (m) {
+        const u = m[1].toUpperCase();
+        return u.includes('P') ? u.toLowerCase() : u;
+      }
+      if (videoInfo?.maxHeight >= 3800) return '8K';
+      if (videoInfo?.maxHeight >= 2000) return '4K';
+      if (videoInfo?.maxHeight >= 1400) return '2K';
+      if (videoInfo?.maxHeight >= 1000) return '1080p';
+      if (videoInfo?.maxHeight >= 700) return '720p';
+      if (videoInfo?.maxHeight >= 450) return '480p';
+      if (videoInfo?.maxHeight >= 400) return '420p';
+      return '1080p';
+    }
+    const m = str.match(/(8K|4K|2K|1080p|720p|480p|420p|360p)/i);
+    if (m) {
+      const u = m[1].toUpperCase();
+      return u.includes('P') ? u.toLowerCase() : u;
+    }
+    str = str.replace(/(Ultra HD|Full HD|HD|SD|Audio|Fastest|Original)/gi, '').trim();
+    if (str.endsWith('p')) return str;
+    return str ? str + 'p' : '1080p';
+  };
+
+  // Dynamic File Size calculation in clean MB without brackets/parentheses, never in KB
+  const getCleanClipSizeMb = (formatId) => {
     const totalDur = Math.max(1, duration || videoInfo?.duration || 60);
     const ratio = Math.min(1, clipDuration / totalDur);
 
-    // 1. Try matching with real probed preset size from backend sizeCalculator
+    // 1. Match with real probed preset size from backend sizeCalculator
     const matchedPreset = videoInfo?.presets?.find(p => 
       String(p.id) === String(formatId) || 
       (formatId === 'best' && (p.id === 'best_with_audio' || p === videoInfo?.bestPreset)) ||
       p.resolution === formatId || 
-      p.shortLabel?.toLowerCase().includes(String(formatId).toLowerCase()) ||
-      p.label?.toLowerCase().includes(String(formatId).toLowerCase())
+      (formatId === 'audio' && (p.type === 'audio' || p.ext === 'mp3')) ||
+      p.shortLabel?.toLowerCase().includes(String(formatId).toLowerCase())
     );
 
     const presetBytes = matchedPreset?.filesize || matchedPreset?.filesizeBytes;
+    let bytes = 0;
     if (presetBytes && presetBytes > 0) {
-      const bytes = Math.round(presetBytes * ratio);
-      if (bytes < 1024 * 1024) {
-        return `~${Math.round(bytes / 1024)} KB`;
-      }
-      return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      bytes = Math.round(presetBytes * ratio);
+    } else {
+      // 2. Calibrated bitrate fallback
+      const bitrates = {
+        '4320': 20000,
+        '2160': 10000,
+        '1440': 5000,
+        '1080': 2200,
+        '720': 1200,
+        '480': 650,
+        '360': 380,
+        'best': (videoInfo?.maxHeight >= 2000 ? 10000 : (videoInfo?.maxHeight >= 1000 ? 2200 : 1200)),
+        'audio': 192,
+        'mp3': 192
+      };
+      const kbps = bitrates[formatId] || 1500;
+      bytes = Math.round((kbps * 1000 * clipDuration) / 8);
     }
 
-    // 2. Fallback to calibrated bitrate calculation
-    const bitrates = {
-      '4320': 20000,
-      '2160': 10000,
-      '1440': 5000,
-      '1080': 2200,
-      '720': 1200,
-      '480': 650,
-      '360': 380,
-      'best': (videoInfo?.maxHeight >= 2000 ? 10000 : (videoInfo?.maxHeight >= 1000 ? 2200 : 1200)),
-      'audio': 192,
-      'mp3': 192
-    };
-    const kbps = bitrates[formatId] || 1500;
-    const bytes = Math.round((kbps * 1000 * clipDuration) / 8);
-    if (bytes < 1024 * 1024) {
-      return `~${Math.round(bytes / 1024)} KB`;
-    }
-    return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    const mb = bytes / (1024 * 1024);
+    if (mb >= 10) return `${mb.toFixed(1)} MB`;
+    if (mb >= 1) return `${mb.toFixed(1)} MB`;
+    const dec = mb.toFixed(2);
+    return `${parseFloat(dec) > 0 ? dec : '0.01'} MB`;
   };
 
-  // Dynamic available resolutions list for the trimmer floating menu (Matches Photo 1 & 3)
+  // Dynamic available resolutions list for the trimmer floating menu
   const availableVideoOptions = useMemo(() => {
     const rawPresets = videoInfo?.presets || [];
     const seen = new Set();
     const options = [];
 
-    // 1. Always offer Original Upload Quality at the top
+    // 1. Original Upload Quality
     options.push({
       id: 'best',
       badge: 'Original',
-      label: videoInfo?.maxQualityLabel ? `Original (${videoInfo.maxQualityLabel})` : 'Original Upload Quality',
+      label: 'Original',
       shortLabel: 'Original'
     });
     seen.add('best');
 
-    // 2. Add each available tier from videoInfo.presets (excluding audio)
+    // 2. Available tiers from videoInfo.presets (excluding audio)
     for (const p of rawPresets) {
       if (p.type === 'audio' || p.id === 'best_with_audio' || p.id === 'audio_best') continue;
       const qId = String(p.id);
@@ -433,7 +468,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
         options.push({
           id: qId,
           badge: p.shortLabel || (qId + 'p'),
-          label: p.label || (qId + 'p'),
+          label: p.shortLabel || (qId + 'p'),
           shortLabel: p.shortLabel || (qId + 'p'),
           exceedsLimit: p.exceedsLimit
         });
@@ -457,17 +492,6 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     return options;
   }, [videoInfo]);
 
-  const getTrimButtonLabel = () => {
-    if (selectedQuality === 'best') {
-      return videoInfo?.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Original HD';
-    }
-    const found = availableVideoOptions.find(o => o.id === selectedQuality);
-    if (found) {
-      return `Download ${found.shortLabel || (found.id + 'p')}`;
-    }
-    return `Download ${selectedQuality}p`;
-  };
-
   const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoInfo?.webpageUrl || '');
   const quotaBytes = isYouTube ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
   const isOverQuota = (format) => {
@@ -488,7 +512,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     }
   }, [startTime, endTime, streamError]);
 
-  // Handle timeline dragging (mouse & touch)
+  // Handle timeline dragging (mouse & touch) with strictly enforced 3-second minimum gap
   const handleTimelineMove = useCallback((clientX) => {
     if (!draggingHandle.current || !timelineRef.current) return;
     const rect = timelineRef.current.getBoundingClientRect();
@@ -496,11 +520,13 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     const targetSeconds = parseFloat((ratio * duration).toFixed(1));
 
     if (draggingHandle.current === 'left') {
-      const newStart = Math.max(0, Math.min(targetSeconds, endTime - 0.5));
+      const maxAllowedStart = Math.max(0, parseFloat((endTime - 3.0).toFixed(1)));
+      const newStart = Math.max(0, Math.min(targetSeconds, maxAllowedStart));
       setStartTime(newStart);
       seekTo(newStart);
     } else if (draggingHandle.current === 'right') {
-      const newEnd = Math.min(duration, Math.max(targetSeconds, startTime + 0.5));
+      const minAllowedEnd = Math.min(duration, parseFloat((startTime + 3.0).toFixed(1)));
+      const newEnd = Math.min(duration, Math.max(targetSeconds, minAllowedEnd));
       setEndTime(newEnd);
       seekTo(newEnd);
     }
@@ -544,49 +570,42 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     seekTo(clamped);
   };
 
-  // Fine tune adjustments by 0.1s with push-along logic
+  const MIN_CLIP_SECONDS = 3.0;
+
+  // Fine tune adjustments by 0.1s with 3-second minimum gap
   const adjustStart = useCallback((delta) => {
-    setStartTime((currentStart) => {
-      let newStart = parseFloat((currentStart + delta).toFixed(1));
-      newStart = Math.max(0, Math.min(Math.max(0, duration - 0.1), newStart));
+    const curEnd = endTimeRef.current;
+    let newStart = parseFloat((startTimeRef.current + delta).toFixed(1));
+    const maxStart = Math.max(0, parseFloat((duration - MIN_CLIP_SECONDS).toFixed(1)));
+    newStart = Math.max(0, Math.min(maxStart, newStart));
 
-      setEndTime((currentEnd) => {
-        let newEnd = currentEnd;
-        // If moving forward and meeting or passing end, push end forward too!
-        if (delta > 0 && newStart >= currentEnd) {
-          newEnd = Math.min(duration, parseFloat((newStart + 0.1).toFixed(1)));
-          if (newEnd <= newStart) {
-            newStart = Math.max(0, parseFloat((newEnd - 0.1).toFixed(1)));
-          }
-        }
-        seekTo(newStart);
-        return newEnd;
-      });
+    let newEnd = curEnd;
+    // When moving start forward, if gap drops to or below 3.0s, push end forward!
+    if (delta > 0 && parseFloat((newStart + MIN_CLIP_SECONDS).toFixed(1)) >= curEnd) {
+      newEnd = Math.min(duration, parseFloat((newStart + MIN_CLIP_SECONDS).toFixed(1)));
+      if (parseFloat((newEnd - newStart).toFixed(1)) < MIN_CLIP_SECONDS) {
+        newStart = Math.max(0, parseFloat((newEnd - MIN_CLIP_SECONDS).toFixed(1)));
+      }
+    }
+    // When delta < 0 (moving start backward), end does NOT move backward at all!
 
-      return newStart;
-    });
+    setStartTime(newStart);
+    if (newEnd !== curEnd) {
+      setEndTime(newEnd);
+    }
+    seekTo(newStart);
   }, [duration, seekTo]);
 
   const adjustEnd = useCallback((delta) => {
-    setEndTime((currentEnd) => {
-      let newEnd = parseFloat((currentEnd + delta).toFixed(1));
-      newEnd = Math.min(duration, Math.max(0.1, newEnd));
+    const curStart = startTimeRef.current;
+    const minAllowedEnd = parseFloat((curStart + MIN_CLIP_SECONDS).toFixed(1));
+    let newEnd = parseFloat((endTimeRef.current + delta).toFixed(1));
+    // End can only go as low as curStart + 3.0s, and cannot exceed duration!
+    // Start NEVER moves backward when moving end backward!
+    newEnd = Math.min(duration, Math.max(minAllowedEnd, newEnd));
 
-      setStartTime((currentStart) => {
-        let newStart = currentStart;
-        // If moving backward and meeting or passing start, push start backward too!
-        if (delta < 0 && newEnd <= currentStart) {
-          newStart = Math.max(0, parseFloat((newEnd - 0.1).toFixed(1)));
-          if (newStart >= newEnd) {
-            newEnd = Math.min(duration, parseFloat((newStart + 0.1).toFixed(1)));
-          }
-        }
-        seekTo(newEnd);
-        return newStart;
-      });
-
-      return newEnd;
-    });
+    setEndTime(newEnd);
+    seekTo(newEnd);
   }, [duration, seekTo]);
 
   // Press & hold (touch / click) continuous stepper handler
@@ -1062,21 +1081,24 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     onClick={() => handleDownloadTrim('video', selectedQuality)}
                     disabled={downloadingType !== null}
                     className="btn-split-action btn-full-split-action"
-                    title={`Download trimmed clip`}
+                    title={`Download trimmed MP4 (${getCleanQualityTag(selectedQuality)})`}
                   >
                     {downloadingType === 'video' ? (
-                      <>
-                        <Zap size={18} className="spin text-cyan" />
-                        <span>Downloading... {downloadProgress}%</span>
-                      </>
+                      <div className="btn-split-content">
+                        <div className="btn-split-line1">
+                          <Zap size={15} className="spin text-cyan" />
+                          <span>MP4...</span>
+                        </div>
+                        <div className="btn-split-line2">{downloadProgress}%</div>
+                      </div>
                     ) : (
                       <div className="btn-split-content">
                         <div className="btn-split-line1">
-                          <Film size={18} className="split-action-icon" />
-                          <span>{getTrimButtonLabel()}</span>
+                          <Film size={15} className="split-action-icon" />
+                          <span>Download MP4 · {getCleanQualityTag(selectedQuality)}</span>
                         </div>
                         <div className="btn-split-line2">
-                          ({getEstimatedClipSize(selectedQuality)})
+                          {getCleanClipSizeMb(selectedQuality)}
                         </div>
                       </div>
                     )}
@@ -1090,17 +1112,18 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     title="Select Video Quality"
                     aria-expanded={isQualityDropdownOpen}
                   >
-                    <ChevronDown size={18} className={`split-chevron-icon ${isQualityDropdownOpen ? 'open' : ''}`} style={{ transform: isQualityDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                    <ChevronDown size={17} className={`split-chevron-icon ${isQualityDropdownOpen ? 'open' : ''}`} style={{ transform: isQualityDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
                   </button>
                 </div>
 
                 {/* 🌟 Custom Themed Floating Dropdown Menu (Matches Photo 1 & 3 Exactly) */}
                 {isQualityDropdownOpen && (
-                  <div className="custom-quality-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '300px', zIndex: 100 }}>
+                  <div className="custom-quality-menu" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, minWidth: '260px', zIndex: 100 }}>
                     <div className="custom-quality-menu-header">Available Resolutions</div>
                     {availableVideoOptions.map((opt) => {
                       const isSelected = selectedQuality === opt.id;
-                      const optClipSize = getEstimatedClipSize(opt.id);
+                      const optClipSize = getCleanClipSizeMb(opt.id);
+                      const cleanBadge = getCleanQualityTag(opt);
 
                       return (
                         <button
@@ -1113,7 +1136,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                           }}
                         >
                           <div className="quality-opt-left">
-                            <span className="quality-opt-badge">{opt.badge}</span>
+                            <span className="quality-opt-badge">{cleanBadge}</span>
                             {isSelected && (
                               <span className="quality-opt-active-check">✓ Active</span>
                             )}
@@ -1128,24 +1151,40 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                 )}
               </div>
 
-              {/* Right Side: Download MP3 Button (Clean, only this name!) */}
+              {/* Right Side: Quick MP3 Button (Matches Main Downloader Style & CSS) */}
               <button
                 type="button"
                 onClick={() => handleDownloadTrim('audio', 'audio')}
                 disabled={downloadingType !== null || isOverQuota('audio')}
-                className="btn-download-mp3-pure"
-                title="Download MP3"
+                className="btn-quick-mp3-action trimmer-mp3-btn"
+                title={`Download Trimmed MP3 (${getCleanClipSizeMb('audio')})`}
               >
                 {downloadingType === 'audio' ? (
-                  <>
-                    <Zap size={18} className="spin text-cyan" />
-                    <span>Extracting... {downloadProgress}%</span>
-                  </>
+                  <div className="btn-mp3-content">
+                    {downloadSuccess ? (
+                      <div className="btn-mp3-top-row">
+                        <CheckCircle size={15} style={{ color: '#10b981' }} />
+                        <span className="mp3-title-bold" style={{ color: '#10b981' }}>Saved!</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="btn-mp3-top-row">
+                          <Zap size={14} className="spin text-violet" />
+                          <span className="mp3-title-bold">MP3...</span>
+                        </div>
+                        <span className="mp3-sub-size">{downloadProgress}%</span>
+                      </>
+                    )}
+                  </div>
                 ) : (
-                  <>
-                    <Music size={18} />
-                    <span>Download MP3 ({getEstimatedClipSize('audio')})</span>
-                  </>
+                  <div className="btn-mp3-content">
+                    <div className="btn-mp3-top-row">
+                      <Download size={14} className="mp3-download-icon" />
+                      <span className="mp3-title-bold">MP3</span>
+                      <Headphones size={14} className="mp3-headset-icon" />
+                    </div>
+                    <span className="mp3-sub-size">{getCleanClipSizeMb('audio')}</span>
+                  </div>
                 )}
               </button>
             </div>
