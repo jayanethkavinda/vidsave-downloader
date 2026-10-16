@@ -323,6 +323,34 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const clipDuration = Math.max(0.1, endTime - startTime);
   const cropProgress = Math.max(0, Math.min(1, (currentTime - startTime) / clipDuration));
 
+  // Dynamic File Size calculation for selected clip segment (using sizeCalculator bitrates)
+  const getEstimatedClipSize = (format) => {
+    const bitrates = {
+      '1080': 3500, // ~3.5 Mbps (~437 KB/s)
+      '720': 1800,  // ~1.8 Mbps (~225 KB/s)
+      '480': 900,   // ~900 kbps (~112 KB/s)
+      '360': 500,   // ~500 kbps (~62 KB/s)
+      'best': 3500,
+      'audio': 192, // 192 kbps MP3 (~24 KB/s)
+      'mp3': 192
+    };
+    const kbps = bitrates[format] || 2500;
+    const bytes = Math.round((kbps * 1000 * clipDuration) / 8);
+    if (bytes < 1024 * 1024) {
+      return `~${Math.round(bytes / 1024)} KB`;
+    }
+    return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoInfo?.webpageUrl || '');
+  const quotaBytes = isYouTube ? 1.5 * 1024 * 1024 * 1024 : 3.0 * 1024 * 1024 * 1024;
+  const isOverQuota = (format) => {
+    const bitrates = { '1080': 3500, '720': 1800, '480': 900, 'best': 3500, 'audio': 192 };
+    const kbps = bitrates[format] || 2500;
+    const bytes = Math.round((kbps * 1000 * clipDuration) / 8);
+    return bytes > quotaBytes;
+  };
+
   // Seek video strictly within start and end cut points
   const seekTo = useCallback((t) => {
     const clamped = Math.max(startTime, Math.min(endTime, t));
@@ -809,12 +837,12 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                       <Film size={18} className="split-action-icon" />
                       <span className="split-action-text">
                         {selectedQuality === 'best'
-                          ? `Original Upload Quality (${videoInfo?.maxQualityLabel || 'Max HD'})`
+                          ? `Download Clip (${getEstimatedClipSize('best')})`
                           : selectedQuality === '1080'
-                          ? '1080p Full HD'
+                          ? `1080p Full HD (${getEstimatedClipSize('1080')})`
                           : selectedQuality === '720'
-                          ? '720p HD'
-                          : `${selectedQuality}p SD`}
+                          ? `720p HD (${getEstimatedClipSize('720')})`
+                          : `${selectedQuality}p SD (${getEstimatedClipSize(selectedQuality)})`}
                       </span>
                     </>
                   )}
@@ -828,10 +856,16 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     className="split-select-native"
                     aria-label="Select Video Quality"
                   >
-                    <option value="best">Original Upload Quality ({videoInfo?.maxQualityLabel || 'Max HD'})</option>
-                    <option value="1080">1080p Full HD</option>
-                    <option value="720">720p HD</option>
-                    <option value="480">480p SD</option>
+                    <option value="best">Original Upload Quality ({getEstimatedClipSize('best')})</option>
+                    <option value="1080" disabled={isOverQuota('1080')}>
+                      1080p Full HD ({getEstimatedClipSize('1080')}) {isOverQuota('1080') ? '— Exceeds Limit' : ''}
+                    </option>
+                    <option value="720" disabled={isOverQuota('720')}>
+                      720p HD ({getEstimatedClipSize('720')}) {isOverQuota('720') ? '— Exceeds Limit' : ''}
+                    </option>
+                    <option value="480" disabled={isOverQuota('480')}>
+                      480p SD ({getEstimatedClipSize('480')})
+                    </option>
                   </select>
                   <ChevronDown size={16} className="split-chevron-icon" />
                 </div>
@@ -841,7 +875,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
               <button
                 type="button"
                 onClick={() => handleDownloadTrim('audio', 'audio')}
-                disabled={downloadingType !== null}
+                disabled={downloadingType !== null || isOverQuota('audio')}
                 className="btn-download-mp3-pure"
                 title="Download MP3"
               >
@@ -853,7 +887,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                 ) : (
                   <>
                     <Music size={18} />
-                    <span>Download MP3</span>
+                    <span>Download MP3 ({getEstimatedClipSize('audio')})</span>
                   </>
                 )}
               </button>

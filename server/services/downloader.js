@@ -30,7 +30,7 @@ export const PYTHON_BIN = getPythonCommand();
 console.log(`[Downloader Engine] Python binary: "${PYTHON_BIN}"`);
 
 // Robust FFmpeg binary detection
-let ffmpegPath = '';
+export let ffmpegPath = '';
 if (process.platform === 'linux') {
   if (fs.existsSync('/usr/bin/ffmpeg')) {
     ffmpegPath = '/usr/bin/ffmpeg';
@@ -350,10 +350,13 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated preview stream for Trimmer HTML5 player (Audio + Video with Range support)
+  // Dedicated preview stream
   let previewStreamUrl = null;
   if (!isYt) {
-    previewStreamUrl = `/api/preview?url=${encodeURIComponent(url)}`;
+    const directUrl = rawInfo.url || (videoFormats.find(f => f.url && !f.url.includes('.m3u8'))?.url) || null;
+    if (directUrl) {
+      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(directUrl)}`;
+    }
   }
 
   return {
@@ -570,7 +573,10 @@ export function streamVideoDownload(url, formatPreset, res) {
   runTempDownload();
 }
 
-
+/**
+ * Video & Audio Segment Trimmer Download Stream (Delegated to dedicated trimmer service)
+ */
+export { streamTrimmedDownload } from './trimmer.js';
 
 /**
  * Subtitle format converter (VTT to SRT)
