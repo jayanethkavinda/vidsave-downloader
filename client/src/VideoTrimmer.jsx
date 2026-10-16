@@ -544,22 +544,81 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
     seekTo(clamped);
   };
 
-  // Fine tune adjustments by 0.1s only
-  const adjustStart = (delta) => {
-    setStartTime((prev) => {
-      const next = Math.max(0, Math.min(endTime - 0.5, parseFloat((prev + delta).toFixed(1))));
-      seekTo(next);
-      return next;
-    });
-  };
+  // Fine tune adjustments by 0.1s with push-along logic
+  const adjustStart = useCallback((delta) => {
+    setStartTime((currentStart) => {
+      let newStart = parseFloat((currentStart + delta).toFixed(1));
+      newStart = Math.max(0, Math.min(Math.max(0, duration - 0.1), newStart));
 
-  const adjustEnd = (delta) => {
-    setEndTime((prev) => {
-      const next = Math.max(startTime + 0.5, Math.min(duration, parseFloat((prev + delta).toFixed(1))));
-      seekTo(next);
-      return next;
+      setEndTime((currentEnd) => {
+        let newEnd = currentEnd;
+        // If moving forward and meeting or passing end, push end forward too!
+        if (delta > 0 && newStart >= currentEnd) {
+          newEnd = Math.min(duration, parseFloat((newStart + 0.1).toFixed(1)));
+          if (newEnd <= newStart) {
+            newStart = Math.max(0, parseFloat((newEnd - 0.1).toFixed(1)));
+          }
+        }
+        seekTo(newStart);
+        return newEnd;
+      });
+
+      return newStart;
     });
-  };
+  }, [duration, seekTo]);
+
+  const adjustEnd = useCallback((delta) => {
+    setEndTime((currentEnd) => {
+      let newEnd = parseFloat((currentEnd + delta).toFixed(1));
+      newEnd = Math.min(duration, Math.max(0.1, newEnd));
+
+      setStartTime((currentStart) => {
+        let newStart = currentStart;
+        // If moving backward and meeting or passing start, push start backward too!
+        if (delta < 0 && newEnd <= currentStart) {
+          newStart = Math.max(0, parseFloat((newEnd - 0.1).toFixed(1)));
+          if (newStart >= newEnd) {
+            newEnd = Math.min(duration, parseFloat((newStart + 0.1).toFixed(1)));
+          }
+        }
+        seekTo(newEnd);
+        return newStart;
+      });
+
+      return newEnd;
+    });
+  }, [duration, seekTo]);
+
+  // Press & hold (touch / click) continuous stepper handler
+  const holdIntervalRef = useRef(null);
+  const holdTimeoutRef = useRef(null);
+
+  const stopHold = useCallback(() => {
+    if (holdTimeoutRef.current) {
+      clearTimeout(holdTimeoutRef.current);
+      holdTimeoutRef.current = null;
+    }
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+  }, []);
+
+  const startHold = useCallback((actionFn) => {
+    // 1. Immediate step on press
+    actionFn();
+    stopHold();
+    // 2. Continuous repeating steps after 300ms hold delay
+    holdTimeoutRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => {
+        actionFn();
+      }, 70);
+    }, 300);
+  }, [stopHold]);
+
+  useEffect(() => {
+    return () => stopHold();
+  }, [stopHold]);
 
   // Reset to full video duration (0 to total duration)
   const handleResetFullVideo = () => {
@@ -876,78 +935,117 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
             </div>
           </div>
 
-          {/* 🎛️ Manual Controls: START TIME & END TIME (0.1s Only) + Center "Full Video" Button */}
+          {/* 🎛️ Manual Controls: Full Video Top + Horizontal Row (Start Left, End Right) */}
           <div className="trimmer-manual-controls-panel">
-            {/* Start Time Card (Green Theme with Highlighted Word "Start") */}
-            <div className="manual-cut-card start-card">
-              <div className="manual-cut-header start-header">
-                <Clock size={15} color="#10b981" />
-                <span className="highlight-tag start">START</span>
-                <span className="label-sub">TIME</span>
-              </div>
-              <div className="manual-cut-display start-display">{formatTime(startTime, true)}</div>
-              <div className="manual-cut-steppers">
-                <button
-                  type="button"
-                  onClick={() => adjustStart(-0.1)}
-                  className="btn-manual-step btn-start-step"
-                  title="Subtract 0.1 second"
-                >
-                  <Minus size={18} strokeWidth={2.6} />
-                  <span>0.1s</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adjustStart(+0.1)}
-                  className="btn-manual-step btn-start-step"
-                  title="Add 0.1 second"
-                >
-                  <Plus size={18} strokeWidth={2.6} />
-                  <span>0.1s</span>
-                </button>
-              </div>
-            </div>
-
-            {/* 🔄 Center "Full Video" Button (From Photo 3 - Replaces "Select Entire Video") */}
-            <div className="manual-reset-center-card">
+            {/* 🔄 Top Full Video Button */}
+            <div className="manual-reset-top-card">
               <button
                 type="button"
                 onClick={handleResetFullVideo}
-                className="btn-full-video-center"
+                className="btn-full-video-bar"
                 title="Reset selection to full video duration"
               >
-                <RotateCcw size={18} />
+                <RotateCcw size={16} />
                 <span>Full Video</span>
               </button>
             </div>
 
-            {/* End Time Card (Rose/Red-Orange Theme with Highlighted Word "End") */}
-            <div className="manual-cut-card end-card">
-              <div className="manual-cut-header end-header">
-                <Clock size={15} color="#f43f5e" />
-                <span className="highlight-tag end">END</span>
-                <span className="label-sub">TIME</span>
+            {/* ↔️ Horizontal Row: Start Card (Left) & End Card (Right) */}
+            <div className="manual-cut-cards-row">
+              {/* Start Time Card (Green Theme with Highlighted Word "Start") */}
+              <div className="manual-cut-card start-card">
+                <div className="manual-cut-header start-header">
+                  <Clock size={14} color="#10b981" />
+                  <span className="highlight-tag start">START</span>
+                  <span className="label-sub">TIME</span>
+                </div>
+                <div className="manual-cut-display start-display">{formatTime(startTime, true)}</div>
+                <div className="manual-cut-steppers">
+                  <button
+                    type="button"
+                    onMouseDown={() => startHold(() => adjustStart(-0.1))}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startHold(() => adjustStart(-0.1));
+                    }}
+                    onTouchEnd={stopHold}
+                    onTouchCancel={stopHold}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="btn-manual-step btn-start-step"
+                    title="Subtract 0.1 second (tap or hold)"
+                  >
+                    <Minus size={15} strokeWidth={2.8} />
+                    <span>0.1s</span>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={() => startHold(() => adjustStart(+0.1))}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startHold(() => adjustStart(+0.1));
+                    }}
+                    onTouchEnd={stopHold}
+                    onTouchCancel={stopHold}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="btn-manual-step btn-start-step"
+                    title="Add 0.1 second (tap or hold)"
+                  >
+                    <Plus size={15} strokeWidth={2.8} />
+                    <span>0.1s</span>
+                  </button>
+                </div>
               </div>
-              <div className="manual-cut-display end-display">{formatTime(endTime, true)}</div>
-              <div className="manual-cut-steppers">
-                <button
-                  type="button"
-                  onClick={() => adjustEnd(-0.1)}
-                  className="btn-manual-step btn-end-step"
-                  title="Subtract 0.1 second"
-                >
-                  <Minus size={18} strokeWidth={2.6} />
-                  <span>0.1s</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => adjustEnd(+0.1)}
-                  className="btn-manual-step btn-end-step"
-                  title="Add 0.1 second"
-                >
-                  <Plus size={18} strokeWidth={2.6} />
-                  <span>0.1s</span>
-                </button>
+
+              {/* End Time Card (Rose / Red Theme with Highlighted Word "End") */}
+              <div className="manual-cut-card end-card">
+                <div className="manual-cut-header end-header">
+                  <Clock size={14} color="#f43f5e" />
+                  <span className="highlight-tag end">END</span>
+                  <span className="label-sub">TIME</span>
+                </div>
+                <div className="manual-cut-display end-display">{formatTime(endTime, true)}</div>
+                <div className="manual-cut-steppers">
+                  <button
+                    type="button"
+                    onMouseDown={() => startHold(() => adjustEnd(-0.1))}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startHold(() => adjustEnd(-0.1));
+                    }}
+                    onTouchEnd={stopHold}
+                    onTouchCancel={stopHold}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="btn-manual-step btn-end-step"
+                    title="Subtract 0.1 second (tap or hold)"
+                  >
+                    <Minus size={15} strokeWidth={2.8} />
+                    <span>0.1s</span>
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={() => startHold(() => adjustEnd(+0.1))}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      startHold(() => adjustEnd(+0.1));
+                    }}
+                    onTouchEnd={stopHold}
+                    onTouchCancel={stopHold}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="btn-manual-step btn-end-step"
+                    title="Add 0.1 second (tap or hold)"
+                  >
+                    <Plus size={15} strokeWidth={2.8} />
+                    <span>0.1s</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
