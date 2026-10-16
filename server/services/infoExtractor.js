@@ -12,6 +12,7 @@ import {
 } from './security.js';
 import { buildResolutionPresets, formatBytes } from './sizeCalculator.js';
 import { extractSubtitles } from './subtitleService.js';
+import { setMediaCache, getMediaCache } from './mediaCache.js';
 
 /**
  * Dedicated Ultra-HD TikTok Cloud Resolver (TikWM HD Engine)
@@ -106,7 +107,7 @@ export async function resolveTikTokDedicated(url) {
         directUrl: audioUrl
       });
 
-      return {
+      const tiktokResult = {
         id: `tiktok_${d.id || Date.now()}`,
         title,
         description: `${title} (Resolved via TikTok Dedicated Engine)`,
@@ -126,6 +127,8 @@ export async function resolveTikTokDedicated(url) {
         directStreamUrl: hdUrl,
         previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
       };
+      setMediaCache(url, tiktokResult);
+      return tiktokResult;
     }
   } catch (err) {
     console.warn('[Dedicated TikTok Resolver Error]:', err.message);
@@ -210,7 +213,7 @@ export async function resolveCloudScraperFallback(url) {
       filesizeFormatted: '3.0 MB'
     };
 
-    return {
+    const fallbackResult = {
       id: `${platform.toLowerCase()}_${Date.now()}`,
       title,
       description: `${title} (Resolved via ${platform} Cloud Fallback Engine)`,
@@ -230,6 +233,8 @@ export async function resolveCloudScraperFallback(url) {
       directStreamUrl,
       previewStreamUrl: `/api/preview?url=${encodeURIComponent(url)}`
     };
+    setMediaCache(url, fallbackResult);
+    return fallbackResult;
   } catch (err) {
     console.error(`[${url} Cloud Fallback Resolver Error]:`, err.message);
     throw err;
@@ -240,6 +245,22 @@ export async function resolveCloudScraperFallback(url) {
  * Universal Video Information Extractor (Preserves 100% Original Upload Quality)
  */
 export async function getVideoInfo(url) {
+  // 1. Check in-memory cache (20 min TTL)
+  const cached = getMediaCache(url);
+  if (cached) {
+    console.log(`[MediaCache Hit] Returning cached info for: ${url}`);
+    return cached;
+  }
+
+  // 2. Fast-path: Dedicated TikTok HD Engine (sub-second extraction, 100% audio+video)
+  if (/(?:tiktok\.com|vt\.tiktok\.com)/i.test(url)) {
+    const dedicated = await resolveTikTokDedicated(url);
+    if (dedicated) {
+      setMediaCache(url, dedicated);
+      return dedicated;
+    }
+  }
+
   const isYt = isYouTubeUrl(url);
 
   const runDump = (extraArgs = []) => {
@@ -326,7 +347,7 @@ export async function getVideoInfo(url) {
     previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
   }
 
-  return {
+  const finalResult = {
     id: rawInfo.id,
     title: rawInfo.title || 'Extracted Media',
     description: rawInfo.description ? rawInfo.description.slice(0, 300) : '',
@@ -344,4 +365,7 @@ export async function getVideoInfo(url) {
     subtitlesCount: subtitles.length,
     previewStreamUrl
   };
+
+  setMediaCache(url, finalResult);
+  return finalResult;
 }

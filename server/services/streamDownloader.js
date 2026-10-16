@@ -14,6 +14,7 @@ import {
   MAX_FILESIZE_BYTES_OTHER, 
   killProcessTree 
 } from './security.js';
+import { getCachedDirectStream } from './mediaCache.js';
 
 /**
  * Direct Stream Cloud Scraper Fallback for downloads (Instagram, Facebook, TikTok, Twitter)
@@ -101,12 +102,83 @@ export async function streamDirectCloudFallback(url, formatPreset, res, cleanupO
 }
 
 /**
+ * Direct Stream Pipe from CDN to Client Browser (Zero Disk, Zero Memory)
+ */
+export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, onFail) {
+  try {
+    const { default: https } = await import('https');
+    const { default: http } = await import('http');
+    const client = directUrl.startsWith('https') ? https : http;
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Accept': '*/*'
+    };
+
+    if (originalUrl.includes('tiktok.com') || directUrl.includes('tiktok') || directUrl.includes('tikwm')) {
+      headers['Referer'] = 'https://www.tiktok.com/';
+    } else if (originalUrl.includes('instagram.com') || directUrl.includes('cdninstagram')) {
+      headers['Referer'] = 'https://www.instagram.com/';
+    } else if (originalUrl.includes('facebook.com') || originalUrl.includes('fb.watch') || directUrl.includes('fbcdn')) {
+      headers['Referer'] = 'https://www.facebook.com/';
+    } else if (originalUrl.includes('pinterest.com') || originalUrl.includes('pin.it')) {
+      headers['Referer'] = 'https://www.pinterest.com/';
+    } else if (originalUrl.includes('twitter.com') || originalUrl.includes('x.com') || directUrl.includes('twimg')) {
+      headers['Referer'] = 'https://twitter.com/';
+    } else if (originalUrl.includes('threads.net')) {
+      headers['Referer'] = 'https://www.threads.net/';
+    }
+
+    const upstreamReq = client.get(directUrl, { headers }, (upstreamRes) => {
+      if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
+        return pipeDirectCdnStream(upstreamRes.headers.location, originalUrl, isAudio, res, onFail);
+      }
+      if (upstreamRes.statusCode >= 400) {
+        console.warn(`[Direct CDN Pipe] Upstream status ${upstreamRes.statusCode}, invoking fallback.`);
+        if (onFail) return onFail();
+        if (!res.headersSent) res.status(502).json({ error: 'Direct CDN stream unreachable' });
+        return;
+      }
+      if (upstreamRes.headers['content-length'] && !res.headersSent) {
+        res.setHeader('Content-Length', upstreamRes.headers['content-length']);
+      }
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', isAudio ? 'audio/mpeg' : 'video/mp4');
+      }
+      upstreamRes.pipe(res);
+    });
+
+    upstreamReq.on('error', (err) => {
+      console.warn('[Direct CDN Pipe Error]:', err.message);
+      if (onFail) return onFail();
+      if (!res.headersSent) res.status(500).json({ error: 'Direct stream pipe failed: ' + err.message });
+    });
+
+    res.on('close', () => {
+      upstreamReq.destroy();
+    });
+  } catch (err) {
+    console.error('[pipeDirectCdnStream Error]:', err.message);
+    if (onFail) return onFail();
+    if (!res.headersSent) res.status(500).json({ error: 'Stream error: ' + err.message });
+  }
+}
+
+/**
  * Universal Streaming Downloader Engine
  * Uses Zero-Disk Direct CDN Pipe for social platforms, and single-thread muxing for YouTube
  */
-export function streamVideoDownload(url, formatPreset, res) {
+export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = null) {
   const isYt = isYouTubeUrl(url);
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3';
+
+  // 1. FAST-PATH: In-Memory Media Cache (20-Minute TTL) or explicitly passed directUrl
+  const cachedStream = getCachedDirectStream(url, formatPreset);
+  const targetDirectUrl = (passedDirectUrl && typeof passedDirectUrl === 'string' && passedDirectUrl.startsWith('http')) 
+    ? passedDirectUrl 
+    : cachedStream?.directUrl;
+
+  const isHeavyMuxNeeded = isYt && ['4320', '2160', '1440', '1080'].includes(String(formatPreset));
 
   // Build strict tier format selector
   const buildTierFormat = (target) => {
@@ -231,6 +303,15 @@ export function streamVideoDownload(url, formatPreset, res) {
       }
     });
   };
+
+  // 1. FAST-PATH: Instant Zero-Disk Cache Stream (< 1 second response)
+  if (targetDirectUrl && !isHeavyMuxNeeded && cachedStream?.hasAudio !== false) {
+    console.log(`[Zero-Disk Stream] 🚀 Instant Cache Hit! Directly piping CDN stream for: ${url} (${formatPreset})`);
+    return pipeDirectCdnStream(targetDirectUrl, url, isAudio, res, () => {
+      console.warn('[Zero-Disk Stream] Direct pipe failed, falling back to temp pipeline.');
+      runTempDownload();
+    });
+  }
 
   // Zero-Disk Direct Proxy Streaming for Social Platforms (Facebook, TikTok, Pinterest, Instagram, X, Threads)
   if (!isYt && !isAudio) {

@@ -358,6 +358,7 @@ export async function buildResolutionPresets({
   // 4. Calculate exact sizes for all matched tiers in parallel
   const matchedTiers = await Promise.all(tierCandidates.map(async ({ tier, bestFmt }) => {
     const exactSize = await calculateExactFormatSize(bestFmt, tier, duration, audioSize, referer);
+    const hasAudio = Boolean(bestFmt?.acodec && bestFmt.acodec !== 'none');
     return {
       id: tier.id,
       label: tier.label,
@@ -367,7 +368,9 @@ export async function buildResolutionPresets({
       ext: 'mp4',
       type: 'video',
       filesize: exactSize,
-      filesizeFormatted: formatBytes(exactSize)
+      filesizeFormatted: formatBytes(exactSize),
+      directUrl: bestFmt?.url || null,
+      hasAudio
     };
   }));
 
@@ -383,7 +386,9 @@ export async function buildResolutionPresets({
     type: 'video',
     filesize: topTier.filesize,
     filesizeFormatted: topTier.filesizeFormatted,
-    isRecommended: true
+    isRecommended: true,
+    directUrl: topTier.directUrl || null,
+    hasAudio: topTier.hasAudio
   };
 
   const audioPreset = {
@@ -393,7 +398,9 @@ export async function buildResolutionPresets({
     ext: 'mp3',
     type: 'audio',
     filesize: audioSize,
-    filesizeFormatted: formatBytes(audioSize)
+    filesizeFormatted: formatBytes(audioSize),
+    directUrl: bestAudio?.url || null,
+    hasAudio: true
   };
 
   const presets = [bestPreset, ...matchedTiers, audioPreset];

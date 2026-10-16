@@ -213,7 +213,7 @@ app.get('/api/info', searchLimiter, async (req, res) => {
 
 // 3. Full Video Download Stream Endpoint
 app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (req, res) => {
-  const { url, format = 'best', title = 'video' } = req.query;
+  const { url, format = 'best', title = 'video', directUrl } = req.query;
   try {
     const safeUrl = await assertSafeUrl(url);
     const isAudio = format === 'audio_best' || format === 'mp3';
@@ -224,7 +224,7 @@ app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', mimeType);
 
-    streamVideoDownload(safeUrl, format, res);
+    streamVideoDownload(safeUrl, format, res, directUrl);
   } catch (err) {
     console.error('[API /api/download Error]:', err.message);
     if (!res.headersSent) {

@@ -494,15 +494,15 @@ export default function App() {
     const isSlowMux = isHighRes || isYt;
 
     // Smooth, realistic progress animation:
-    // Takes ~16-20s for high-res muxing (2K/4K/1080p), or ~4-6s for direct streams
-    const intervalMs = isSlowMux ? 280 : 160;
+    // Takes ~16-18s for YouTube high-res muxing (2K/4K/1080p), or ~1.5-2.5s for instant cache direct streams
+    const intervalMs = isSlowMux ? 280 : 75;
     const maxHoldProgress = 92;
 
     if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
     downloadProgressTimerRef.current = setInterval(() => {
       setDownloadProgress((prev) => {
         if (prev >= maxHoldProgress) return prev;
-        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 6) + 3);
+        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 8) + 5);
         return Math.min(maxHoldProgress, prev + jump);
       });
     }, intervalMs);
@@ -528,23 +528,24 @@ export default function App() {
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
-      const downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
+      let downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
+      if (preset?.directUrl) {
+        downloadUrl += `&directUrl=${encodeURIComponent(preset.directUrl)}`;
+      }
 
-      // Trigger Native Chrome Download directly into Downloads folder
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
+      // Trigger download via invisible iframe to prevent main tab reload / spinning animation
+      let downloadIframe = document.getElementById('vidsave_download_iframe');
+      if (!downloadIframe) {
+        downloadIframe = document.createElement('iframe');
+        downloadIframe.id = 'vidsave_download_iframe';
+        downloadIframe.style.display = 'none';
+        document.body.appendChild(downloadIframe);
+      }
+      downloadIframe.src = downloadUrl;
 
-      setTimeout(() => {
-        try {
-          if (link.parentNode) link.parentNode.removeChild(link);
-        } catch (_) {}
-      }, 5000);
-
-      // Calibrate completion trigger
-      const waitTime = isSlowMux ? 18000 : 7000;
+      // Calibrate completion trigger:
+      // Instant cache streams take ~2.5s; slow YouTube HD mux takes ~18s
+      const waitTime = isSlowMux ? 18000 : 2500;
       setTimeout(() => {
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
