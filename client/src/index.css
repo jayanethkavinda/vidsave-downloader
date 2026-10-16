@@ -940,40 +940,48 @@ button {
   box-shadow: 0 4px 16px rgba(6, 182, 212, 0.35);
 }
 
-/* 🎵 MP3 Action Button Styling */
+/* 🎵 MP3 Action Button Styling (Electric Violet Theme - No Pink/Red) */
 [data-theme='light'] .btn-quick-mp3-action,
 [data-theme='light'] .btn-quick-mp3-mobile {
   background: #ffffff;
-  color: #be185d;
-  border: 1.5px solid #f472b6;
-  box-shadow: 0 2px 10px rgba(219, 39, 119, 0.08);
+  color: #7c3aed;
+  border: 1.5px solid #a78bfa;
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.08);
 }
 
 [data-theme='dark'] .btn-quick-mp3-action,
 [data-theme='dark'] .btn-quick-mp3-mobile {
-  background: rgba(236, 72, 153, 0.1);
-  color: #f472b6;
-  border: 1.5px solid rgba(244, 114, 182, 0.4);
-  box-shadow: 0 3px 12px rgba(236, 72, 153, 0.15);
+  background: rgba(139, 92, 246, 0.12);
+  color: #c4b5fd;
+  border: 1.5px solid rgba(167, 139, 250, 0.4);
+  box-shadow: 0 3px 12px rgba(124, 58, 237, 0.15);
 }
 
 .btn-quick-mp3-action:hover:not(:disabled),
 .btn-quick-mp3-action:active:not(:disabled),
 .btn-quick-mp3-mobile:hover:not(:disabled),
 .btn-quick-mp3-mobile:active:not(:disabled) {
-  background: linear-gradient(135deg, #ec4899 0%, #d946ef 100%) !important;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%) !important;
   color: #ffffff !important;
   border-color: transparent !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35) !important;
 }
 
+.btn-quick-mp3-action:hover:not(:disabled) .mp3-download-icon,
+.btn-quick-mp3-action:hover:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-action:hover:not(:disabled) .mp3-icon,
 .btn-quick-mp3-action:hover:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-action:active:not(:disabled) .mp3-download-icon,
+.btn-quick-mp3-action:active:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-icon,
 .btn-quick-mp3-action:active:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-mobile:hover:not(:disabled) .mp3-download-icon,
+.btn-quick-mp3-mobile:hover:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-icon,
 .btn-quick-mp3-mobile:hover:not(:disabled) .mp3-size-tag,
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-download-icon,
+.btn-quick-mp3-mobile:active:not(:disabled) .mp3-headset-icon,
 .btn-quick-mp3-mobile:active:not(:disabled) .mp3-icon,
 .btn-quick-mp3-mobile:active:not(:disabled) .mp3-size-tag {
   color: #ffffff !important;
@@ -997,17 +1005,28 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.35rem;
   width: 100%;
 }
 
+.mp3-download-icon,
+.mp3-headset-icon,
 .mp3-icon {
   flex-shrink: 0;
   transition: transform 0.2s ease;
+  color: inherit;
 }
 
-.btn-quick-mp3-mobile:active .mp3-icon {
+.btn-quick-mp3-mobile:active .mp3-icon,
+.btn-quick-mp3-mobile:active .mp3-headset-icon {
   transform: scale(1.15);
+}
+
+.mp3-title-bold {
+  font-weight: 800;
+  font-size: 0.94rem;
+  letter-spacing: 0.04em;
+  color: inherit;
 }
 
 .mp3-title {
@@ -1016,25 +1035,30 @@ button {
 }
 
 .mp3-size-tag {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  padding: 0.15rem 0.5rem;
+  padding: 0.12rem 0.42rem;
   border-radius: 6px;
-  line-height: 1.3;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 [data-theme='light'] .mp3-size-tag {
-  background: rgba(219, 39, 119, 0.1);
-  color: #be185d;
+  background: rgba(124, 58, 237, 0.1);
+  color: #6d28d9;
 }
 
 [data-theme='dark'] .mp3-size-tag {
-  background: rgba(244, 114, 182, 0.2);
-  color: #f9a8d4;
+  background: rgba(167, 139, 250, 0.22);
+  color: #ddd6fe;
+}
+
+.text-violet {
+  color: #7c3aed;
 }
 
 .text-pink {
-  color: #ec4899;
+  color: #7c3aed;
 }
 
 .featured-left {
@@ -3842,6 +3866,16 @@ button {
   .btn-manual-step {
     padding: 0.4rem 0.75rem;
     font-size: 0.78rem;
+  }
+
+  .action-secondary-row {
+    gap: 0.4rem;
+  }
+
+  .btn-launch-trimmer-clean,
+  .btn-quick-mp3-action {
+    padding: 0.6rem 0.45rem !important;
+    font-size: 0.82rem;
   }
 
   .btn-split-action {

@@ -28,7 +28,8 @@ import {
   Subtitles,
   Search,
   Scissors,
-  Clock
+  Clock,
+  Headphones
 } from 'lucide-react';
 import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 import VideoTrimmer from './VideoTrimmer.jsx';
@@ -1201,8 +1202,8 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           title={`Audio exceeds ${maxLimitLabel} limit`}
                         >
                           <div className="btn-mp3-content">
-                            <Clock size={16} style={{ color: '#eab308', flexShrink: 0 }} />
-                            <span className="mp3-title">Waiting MP3</span>
+                            <Clock size={15} style={{ color: '#eab308', flexShrink: 0 }} />
+                            <span className="mp3-title-bold">MP3</span>
                             <span className="mp3-size-tag">(Soon)</span>
                           </div>
                         </button>
@@ -1228,21 +1229,22 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           <div className="btn-mp3-content">
                             {downloadSuccess ? (
                               <>
-                                <CheckCircle size={16} style={{ color: '#10b981' }} />
-                                <span className="mp3-title" style={{ color: '#10b981' }}>Saved!</span>
+                                <CheckCircle size={15} style={{ color: '#10b981' }} />
+                                <span className="mp3-title-bold" style={{ color: '#10b981' }}>Saved!</span>
                               </>
                             ) : (
                               <>
-                                <Zap size={16} className="spin text-pink" />
-                                <span className="mp3-title">MP3...</span>
+                                <Zap size={15} className="spin text-violet" />
+                                <span className="mp3-title-bold">MP3...</span>
                                 <span className="mp3-size-tag">{downloadProgress}%</span>
                               </>
                             )}
                           </div>
                         ) : (
                           <div className="btn-mp3-content">
-                            <Music size={16} className="mp3-icon" />
-                            <span className="mp3-title">Download MP3</span>
+                            <Download size={15} className="mp3-download-icon" />
+                            <span className="mp3-title-bold">MP3</span>
+                            <Headphones size={15} className="mp3-headset-icon" />
                             {audioSize && (
                               <span className="mp3-size-tag">({audioSize})</span>
                             )}
