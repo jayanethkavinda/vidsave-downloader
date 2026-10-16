@@ -9,10 +9,10 @@ import {
 import { 
   getVideoInfo, 
   streamVideoDownload, 
+  streamTrimmedDownload,
   convertVttToSrt,
   isYouTubeUrl 
 } from './services/downloader.js';
-import { streamTrimmedDownload } from './services/trimmer.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
