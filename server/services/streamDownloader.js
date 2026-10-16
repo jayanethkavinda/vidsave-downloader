@@ -15,6 +15,7 @@ import {
   killProcessTree 
 } from './security.js';
 import { getCachedDirectStream } from './mediaCache.js';
+import { markDownloadStarted, markDownloadError } from './tokenManager.js';
 
 /**
  * Direct Stream Cloud Scraper Fallback for downloads (Instagram, Facebook, TikTok, Twitter)
@@ -104,7 +105,7 @@ export async function streamDirectCloudFallback(url, formatPreset, res, cleanupO
 /**
  * Direct Stream Pipe from CDN to Client Browser (Zero Disk, Zero Memory)
  */
-export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, onFail) {
+export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, onFail, token = null) {
   try {
     const { default: https } = await import('https');
     const { default: http } = await import('http');
@@ -131,11 +132,12 @@ export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, 
 
     const upstreamReq = client.get(directUrl, { headers }, (upstreamRes) => {
       if ([301, 302, 307, 308].includes(upstreamRes.statusCode) && upstreamRes.headers.location) {
-        return pipeDirectCdnStream(upstreamRes.headers.location, originalUrl, isAudio, res, onFail);
+        return pipeDirectCdnStream(upstreamRes.headers.location, originalUrl, isAudio, res, onFail, token);
       }
       if (upstreamRes.statusCode >= 400) {
         console.warn(`[Direct CDN Pipe] Upstream status ${upstreamRes.statusCode}, invoking fallback.`);
         if (onFail) return onFail();
+        if (token) markDownloadError(token, 'Direct CDN stream unreachable');
         if (!res.headersSent) res.status(502).json({ error: 'Direct CDN stream unreachable' });
         return;
       }
@@ -145,12 +147,14 @@ export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, 
       if (!res.headersSent) {
         res.setHeader('Content-Type', isAudio ? 'audio/mpeg' : 'video/mp4');
       }
+      if (token) markDownloadStarted(token);
       upstreamRes.pipe(res);
     });
 
     upstreamReq.on('error', (err) => {
       console.warn('[Direct CDN Pipe Error]:', err.message);
       if (onFail) return onFail();
+      if (token) markDownloadError(token, err.message);
       if (!res.headersSent) res.status(500).json({ error: 'Direct stream pipe failed: ' + err.message });
     });
 
@@ -160,6 +164,7 @@ export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, 
   } catch (err) {
     console.error('[pipeDirectCdnStream Error]:', err.message);
     if (onFail) return onFail();
+    if (token) markDownloadError(token, err.message);
     if (!res.headersSent) res.status(500).json({ error: 'Stream error: ' + err.message });
   }
 }
@@ -168,7 +173,7 @@ export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, 
  * Universal Streaming Downloader Engine
  * Uses Zero-Disk Direct CDN Pipe for social platforms, and single-thread muxing for YouTube
  */
-export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = null) {
+export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = null, token = null) {
   const isYt = isYouTubeUrl(url);
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3';
 
@@ -285,6 +290,7 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
           console.log(`[Download Stream] Falling back to direct cloud stream: ${url}`);
           return streamDirectCloudFallback(url, formatPreset, res, cleanup);
         }
+        if (token) markDownloadError(token, 'Download processing failed');
         if (!res.headersSent) {
           res.status(500).json({ error: 'Download processing failed. Please check the video link.' });
         }
@@ -296,9 +302,11 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
         const stat = fs.statSync(actualFile);
         if (!res.headersSent) res.setHeader('Content-Length', stat.size);
         const stream = fs.createReadStream(actualFile);
+        if (token) markDownloadStarted(token);
         stream.pipe(res);
         stream.on('close', cleanup);
       } catch (err) {
+        if (token) markDownloadError(token, err.message);
         cleanup();
       }
     });
@@ -310,7 +318,7 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
     return pipeDirectCdnStream(targetDirectUrl, url, isAudio, res, () => {
       console.warn('[Zero-Disk Stream] Direct pipe failed, falling back to temp pipeline.');
       runTempDownload();
-    });
+    }, token);
   }
 
   // Zero-Disk Direct Proxy Streaming for Social Platforms (Facebook, TikTok, Pinterest, Instagram, X, Threads)

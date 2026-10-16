@@ -472,15 +472,15 @@ export default function App() {
     const isSlowMux = isHighRes || isYt;
 
     // Smooth, realistic progress animation:
-    // Takes ~16-18s for YouTube high-res muxing (2K/4K/1080p), or ~1.5-2.5s for instant cache direct streams
-    const intervalMs = isSlowMux ? 280 : 75;
-    const maxHoldProgress = 92;
+    // Moves smoothly up to 90% while waiting for the server stream
+    const intervalMs = isSlowMux ? 280 : 120;
+    const maxHoldProgress = 90;
 
     if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
     downloadProgressTimerRef.current = setInterval(() => {
       setDownloadProgress((prev) => {
         if (prev >= maxHoldProgress) return prev;
-        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 8) + 5);
+        const jump = isSlowMux ? (Math.floor(Math.random() * 3) + 1) : (Math.floor(Math.random() * 6) + 3);
         return Math.min(maxHoldProgress, prev + jump);
       });
     }, intervalMs);
@@ -500,7 +500,8 @@ export default function App() {
     try {
       const cleanUrl = videoInfo.webpageUrl || url;
       const cleanTitle = (videoInfo.title || 'video').replace(/[^\w\s-]/gi, '').trim() || 'media';
-      let downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}`;
+      const token = 'dl_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now();
+      let downloadUrl = `${BACKEND_URL}/api/download?url=${encodeURIComponent(cleanUrl)}&format=${encodeURIComponent(presetId)}&title=${encodeURIComponent(cleanTitle)}&token=${encodeURIComponent(token)}`;
       if (preset?.directUrl) {
         downloadUrl += `&directUrl=${encodeURIComponent(preset.directUrl)}`;
       }
@@ -515,10 +516,14 @@ export default function App() {
       }
       downloadIframe.src = downloadUrl;
 
-      // Calibrate completion trigger:
-      // Instant cache streams take ~2.5s; slow YouTube HD mux takes ~18s
-      const waitTime = isSlowMux ? 18000 : 2500;
-      setTimeout(() => {
+      // Real-time Handshake: waits until server actually begins streaming to browser
+      let pollCount = 0;
+      const maxPolls = 150; // max 60 seconds
+      let pollActive = true;
+
+      const finishDownload = () => {
+        if (!pollActive) return;
+        pollActive = false;
         if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
         setDownloadProgress(100);
         setDownloadSuccess(true);
@@ -527,7 +532,39 @@ export default function App() {
           setDownloadProgress(0);
           setDownloadSuccess(false);
         }, 3500);
-      }, waitTime);
+      };
+
+      const pollInterval = setInterval(async () => {
+        if (!pollActive) {
+          clearInterval(pollInterval);
+          return;
+        }
+        pollCount++;
+        if (pollCount > maxPolls) {
+          clearInterval(pollInterval);
+          finishDownload();
+          return;
+        }
+
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/download-status?token=${encodeURIComponent(token)}`);
+          if (res.ok) {
+            const statusData = await res.json();
+            if (statusData.status === 'started') {
+              clearInterval(pollInterval);
+              finishDownload();
+            } else if (statusData.status === 'error') {
+              clearInterval(pollInterval);
+              pollActive = false;
+              if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
+              setDownloadError(statusData.error || 'Download failed on server. Please try again.');
+              setDownloadingFormat(null);
+              setDownloadProgress(0);
+            }
+          }
+        } catch (_) {}
+      }, 400);
+
     } catch (err) {
       if (downloadProgressTimerRef.current) clearInterval(downloadProgressTimerRef.current);
       console.error('Download trigger error:', err);
@@ -1092,11 +1129,9 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                                     </span>
                                   </div>
                                   <div className="btn-split-line2">
-                                    {downloadProgress >= 80
-                                      ? 'Transferring to browser...'
-                                      : (downloadProgress >= 35 && ['4320', '2160', '1440', '1080'].includes(String(selectedPreset?.id))
-                                          ? 'Merging Video & Audio...'
-                                          : `${downloadProgress}% processed`)}
+                                    {['4320', '2160', '1440', '1080'].includes(String(selectedPreset?.id))
+                                      ? 'Merging Video & Audio...'
+                                      : 'Preparing Video...'}
                                   </div>
                                 </>
                               )}

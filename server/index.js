@@ -12,6 +12,12 @@ import { streamTrimmedDownload } from './services/trimService.js';
 import { convertVttToSrt } from './services/subtitleService.js';
 import { streamVideoPreview } from './services/previewService.js';
 import { isYouTubeUrl } from './services/coreEngine.js';
+import { 
+  registerDownloadToken, 
+  markDownloadStarted, 
+  markDownloadError, 
+  getDownloadStatus 
+} from './services/tokenManager.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -213,7 +219,9 @@ app.get('/api/info', searchLimiter, async (req, res) => {
 
 // 3. Full Video Download Stream Endpoint
 app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (req, res) => {
-  const { url, format = 'best', title = 'video', directUrl } = req.query;
+  const { url, format = 'best', title = 'video', directUrl, token } = req.query;
+  if (token) registerDownloadToken(token);
+
   try {
     const safeUrl = await assertSafeUrl(url);
     const isAudio = format === 'audio_best' || format === 'mp3';
@@ -224,13 +232,21 @@ app.get('/api/download', downloadLimiter, smartDownloadConcurrencyGuard, async (
     res.setHeader('Content-Disposition', contentDisposition);
     res.setHeader('Content-Type', mimeType);
 
-    streamVideoDownload(safeUrl, format, res, directUrl);
+    streamVideoDownload(safeUrl, format, res, directUrl, token);
   } catch (err) {
+    if (token) markDownloadError(token, err.message);
     console.error('[API /api/download Error]:', err.message);
     if (!res.headersSent) {
       res.status(400).json({ error: err.message });
     }
   }
+});
+
+// 3.1 Download Handshake Status Endpoint (Zero-overhead, cross-origin)
+app.get('/api/download-status', (req, res) => {
+  const { token } = req.query;
+  const status = getDownloadStatus(token);
+  res.json(status);
 });
 
 // 4. Video & Audio Segment Trimmer Download Stream Endpoint
