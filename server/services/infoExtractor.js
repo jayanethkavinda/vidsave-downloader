@@ -331,10 +331,15 @@ export async function getVideoInfo(url) {
 
   const subtitles = extractSubtitles(rawInfo);
 
-  // Dedicated lightweight 240p/360p progressive preview stream with sound (Video + Audio)
+  // Dedicated lightweight progressive preview stream with sound (Video + Audio)
   let previewStreamUrl = null;
   if (!isYt) {
-    previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
+    const cdnUrl = bestPreset?.directUrl || presets?.find(p => p.directUrl)?.directUrl;
+    if (cdnUrl && cdnUrl.startsWith('http') && !cdnUrl.includes('.m3u8')) {
+      previewStreamUrl = `/api/proxy-stream?url=${encodeURIComponent(cdnUrl)}&origin=${encodeURIComponent(rawInfo.webpage_url || url)}`;
+    } else {
+      previewStreamUrl = `/api/preview?url=${encodeURIComponent(rawInfo.webpage_url || url)}`;
+    }
   }
 
   const result = {
