@@ -146,7 +146,7 @@ app.get('/api/trim', downloadLimiter, heavyConcurrencyGuard, async (req, res) =>
     }
 
     // Format parameter allowlist
-    const validFormats = ['best', '1080', '720', '480', '360', 'audio', 'mp3'];
+    const validFormats = ['best', '4320', '2160', '1440', '1080', '720', '480', '360', 'audio', 'mp3'];
     const safeFormat = validFormats.includes(format) ? format : 'best';
 
     const isAudio = type === 'audio' || type === 'mp3' || safeFormat === 'audio' || safeFormat === 'mp3';

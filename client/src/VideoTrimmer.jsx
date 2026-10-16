@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
   Play,
@@ -43,8 +43,10 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
 
-  // Default quality: 720p (as requested)
-  const [selectedQuality, setSelectedQuality] = useState('720'); // 'best' | '1080' | '720' | '480'
+  // Default quality: 'best' (100% original upload quality)
+  const [selectedQuality, setSelectedQuality] = useState('best');
+  const [isQualityDropdownOpen, setIsQualityDropdownOpen] = useState(false);
+  const trimmerDropdownRef = useRef(null);
 
   const timelineRef = useRef(null);
   const draggingHandle = useRef(null); // 'left' | 'right' | null
@@ -52,6 +54,17 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const ytPlayerRef = useRef(null);
   const ytIntervalRef = useRef(null);
   const progressTimerRef = useRef(null);
+
+  // Close custom dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (trimmerDropdownRef.current && !trimmerDropdownRef.current.contains(e.target)) {
+        setIsQualityDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Sync state if initialVideoInfo changes from outside
   useEffect(() => {
@@ -62,6 +75,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       setStartTime(0);
       setEndTime(Math.min(10, d));
       setCurrentTime(0);
+      setSelectedQuality('best');
       setIsPlaying(true);
     }
   }, [initialVideoInfo]);
@@ -121,6 +135,7 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
       setStartTime(0);
       setEndTime(Math.min(10, newDuration));
       setCurrentTime(0);
+      setSelectedQuality('best');
       setIsPlaying(true); // Automatically play on load!
       setUseFallbackPreview(false);
       setStreamError(false);
@@ -324,19 +339,22 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
   const cropProgress = Math.max(0, Math.min(1, (currentTime - startTime) / clipDuration));
 
   // Dynamic File Size calculation: Prioritize real video filesize probed by sizeCalculator
-  const getEstimatedClipSize = (format) => {
+  const getEstimatedClipSize = (formatId) => {
     const totalDur = Math.max(1, duration || videoInfo?.duration || 60);
     const ratio = Math.min(1, clipDuration / totalDur);
 
     // 1. Try matching with real probed preset size from backend sizeCalculator
     const matchedPreset = videoInfo?.presets?.find(p => 
-      p.resolution === format || 
-      (format === 'best' && p === videoInfo?.bestPreset) ||
-      p.label?.toLowerCase().includes(format)
+      String(p.id) === String(formatId) || 
+      (formatId === 'best' && (p.id === 'best_with_audio' || p === videoInfo?.bestPreset)) ||
+      p.resolution === formatId || 
+      p.shortLabel?.toLowerCase().includes(String(formatId).toLowerCase()) ||
+      p.label?.toLowerCase().includes(String(formatId).toLowerCase())
     );
 
-    if (matchedPreset?.filesizeBytes && matchedPreset.filesizeBytes > 0) {
-      const bytes = Math.round(matchedPreset.filesizeBytes * ratio);
+    const presetBytes = matchedPreset?.filesize || matchedPreset?.filesizeBytes;
+    if (presetBytes && presetBytes > 0) {
+      const bytes = Math.round(presetBytes * ratio);
       if (bytes < 1024 * 1024) {
         return `~${Math.round(bytes / 1024)} KB`;
       }
@@ -345,20 +363,82 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
 
     // 2. Fallback to calibrated bitrate calculation
     const bitrates = {
-      '1080': 2000,
+      '4320': 20000,
+      '2160': 10000,
+      '1440': 5000,
+      '1080': 2200,
       '720': 1200,
-      '480': 700,
-      '360': 400,
-      'best': 2000,
+      '480': 650,
+      '360': 380,
+      'best': (videoInfo?.maxHeight >= 2000 ? 10000 : (videoInfo?.maxHeight >= 1000 ? 2200 : 1200)),
       'audio': 192,
       'mp3': 192
     };
-    const kbps = bitrates[format] || 1500;
+    const kbps = bitrates[formatId] || 1500;
     const bytes = Math.round((kbps * 1000 * clipDuration) / 8);
     if (bytes < 1024 * 1024) {
       return `~${Math.round(bytes / 1024)} KB`;
     }
     return `~${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  // Dynamic available resolutions list for the trimmer floating menu (Matches Photo 1 & 3)
+  const availableVideoOptions = useMemo(() => {
+    const rawPresets = videoInfo?.presets || [];
+    const seen = new Set();
+    const options = [];
+
+    // 1. Always offer Original Upload Quality at the top
+    options.push({
+      id: 'best',
+      badge: 'Original',
+      label: videoInfo?.maxQualityLabel ? `Original (${videoInfo.maxQualityLabel})` : 'Original Upload Quality',
+      shortLabel: 'Original'
+    });
+    seen.add('best');
+
+    // 2. Add each available tier from videoInfo.presets (excluding audio)
+    for (const p of rawPresets) {
+      if (p.type === 'audio' || p.id === 'best_with_audio' || p.id === 'audio_best') continue;
+      const qId = String(p.id);
+      if (!seen.has(qId)) {
+        seen.add(qId);
+        options.push({
+          id: qId,
+          badge: p.shortLabel || (qId + 'p'),
+          label: p.label || (qId + 'p'),
+          shortLabel: p.shortLabel || (qId + 'p'),
+          exceedsLimit: p.exceedsLimit
+        });
+      }
+    }
+
+    // 3. Fallback standard tiers if no tiers found
+    if (options.length === 1) {
+      ['1080', '720', '480', '360'].forEach(id => {
+        if (!seen.has(id)) {
+          options.push({
+            id,
+            badge: `${id}p`,
+            label: `${id}p`,
+            shortLabel: `${id}p`
+          });
+        }
+      });
+    }
+
+    return options;
+  }, [videoInfo]);
+
+  const getTrimButtonLabel = () => {
+    if (selectedQuality === 'best') {
+      return videoInfo?.maxQualityLabel ? `Download ${videoInfo.maxQualityLabel}` : 'Download Original HD';
+    }
+    const found = availableVideoOptions.find(o => o.id === selectedQuality);
+    if (found) {
+      return `Download ${found.shortLabel || (found.id + 'p')}`;
+    }
+    return `Download ${selectedQuality}p`;
   };
 
   const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(videoInfo?.webpageUrl || '');
@@ -833,61 +913,82 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
             </div>
           </div>
 
-          {/* 📥 Split Dropdown Download Button (White Box) + Right [Download MP3] Button */}
+          {/* 📥 Split Dropdown Download Button Container + Right [Download MP3] Button */}
           <div className="trimmer-export-container">
             <div className="trimmer-split-download-group">
-              {/* White Dropdown Split Button */}
-              <div className="trimmer-split-btn">
-                {/* Left Side: Click to Download Selected Quality */}
-                <button
-                  type="button"
-                  onClick={() => handleDownloadTrim('video', selectedQuality)}
-                  disabled={downloadingType !== null}
-                  className="btn-split-action"
-                  title={`Download trimmed clip in ${selectedQuality === 'best' ? (videoInfo?.maxQualityLabel || 'Original Quality') : selectedQuality + 'p'}`}
-                >
-                  {downloadingType === 'video' ? (
-                    <>
-                      <Zap size={18} className="spin text-cyan" />
-                      <span>Downloading... {downloadProgress}%</span>
-                    </>
-                  ) : (
-                    <>
-                      <Film size={18} className="split-action-icon" />
-                      <span className="split-action-text">
-                        {selectedQuality === 'best'
-                          ? `Download Clip (${getEstimatedClipSize('best')})`
-                          : selectedQuality === '1080'
-                          ? `1080p Full HD (${getEstimatedClipSize('1080')})`
-                          : selectedQuality === '720'
-                          ? `720p HD (${getEstimatedClipSize('720')})`
-                          : `${selectedQuality}p SD (${getEstimatedClipSize(selectedQuality)})`}
-                      </span>
-                    </>
-                  )}
-                </button>
-
-                {/* Right Side: Down Arrow Dropdown Trigger */}
-                <div className="split-dropdown-trigger" title="Select Video Quality">
-                  <select
-                    value={selectedQuality}
-                    onChange={(e) => setSelectedQuality(e.target.value)}
-                    className="split-select-native"
-                    aria-label="Select Video Quality"
+              {/* White Dropdown Split Button Container with Floating Dropdown */}
+              <div className="split-btn-container trimmer-split-btn-wrap" ref={trimmerDropdownRef} style={{ position: 'relative', margin: 0, maxWidth: 'none', width: 'auto' }}>
+                <div className="trimmer-split-btn full-video-split-btn">
+                  {/* Left Side: Click to Download Selected Quality */}
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadTrim('video', selectedQuality)}
+                    disabled={downloadingType !== null}
+                    className="btn-split-action btn-full-split-action"
+                    title={`Download trimmed clip`}
                   >
-                    <option value="best">Original Upload Quality ({getEstimatedClipSize('best')})</option>
-                    <option value="1080" disabled={isOverQuota('1080')}>
-                      1080p Full HD ({getEstimatedClipSize('1080')}) {isOverQuota('1080') ? '— Exceeds Limit' : ''}
-                    </option>
-                    <option value="720" disabled={isOverQuota('720')}>
-                      720p HD ({getEstimatedClipSize('720')}) {isOverQuota('720') ? '— Exceeds Limit' : ''}
-                    </option>
-                    <option value="480" disabled={isOverQuota('480')}>
-                      480p SD ({getEstimatedClipSize('480')})
-                    </option>
-                  </select>
-                  <ChevronDown size={16} className="split-chevron-icon" />
+                    {downloadingType === 'video' ? (
+                      <>
+                        <Zap size={18} className="spin text-cyan" />
+                        <span>Downloading... {downloadProgress}%</span>
+                      </>
+                    ) : (
+                      <div className="btn-split-content">
+                        <div className="btn-split-line1">
+                          <Film size={18} className="split-action-icon" />
+                          <span>{getTrimButtonLabel()}</span>
+                        </div>
+                        <div className="btn-split-line2">
+                          ({getEstimatedClipSize(selectedQuality)})
+                        </div>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Right Side: Down Arrow Dropdown Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setIsQualityDropdownOpen(prev => !prev)}
+                    className="split-dropdown-trigger btn-split-arrow"
+                    title="Select Video Quality"
+                    aria-expanded={isQualityDropdownOpen}
+                  >
+                    <ChevronDown size={18} className={`split-chevron-icon ${isQualityDropdownOpen ? 'open' : ''}`} style={{ transform: isQualityDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                  </button>
                 </div>
+
+                {/* 🌟 Custom Themed Floating Dropdown Menu (Matches Photo 1 & 3 Exactly) */}
+                {isQualityDropdownOpen && (
+                  <div className="custom-quality-menu" style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, minWidth: '300px', zIndex: 100 }}>
+                    <div className="custom-quality-menu-header">Available Resolutions</div>
+                    {availableVideoOptions.map((opt) => {
+                      const isSelected = selectedQuality === opt.id;
+                      const optClipSize = getEstimatedClipSize(opt.id);
+
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className={`custom-quality-option ${isSelected ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedQuality(opt.id);
+                            setIsQualityDropdownOpen(false);
+                          }}
+                        >
+                          <div className="quality-opt-left">
+                            <span className="quality-opt-badge">{opt.badge}</span>
+                            {isSelected && (
+                              <span className="quality-opt-active-check">✓ Active</span>
+                            )}
+                          </div>
+                          {optClipSize && (
+                            <span className="quality-opt-size">{optClipSize}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Right Side: Download MP3 Button (Clean, only this name!) */}

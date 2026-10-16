@@ -993,7 +993,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                       textAlign: 'left'
                     }}>
                       <Clock size={16} style={{ flexShrink: 0 }} />
-                      <span>This quality exceeds <strong>{maxLimitLabel}</strong> limit. High-capacity downloads will be available soon (Waiting)! Please select 1080p or lower below.</span>
+                      <span>This quality exceeds <strong>{maxLimitLabel}</strong> limit. High-capacity downloads will be available soon (Coming Soon)! Please select 1080p or lower below.</span>
                     </div>
                   );
                 })()}
@@ -1021,12 +1021,12 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                               background: 'rgba(234, 179, 8, 0.12)',
                               color: '#eab308'
                             }}
-                            title={`Option waiting: Exceeds ${maxLimitLabel} limit`}
+                            title={`Option coming soon: Exceeds ${maxLimitLabel} limit`}
                           >
                             <div className="btn-split-content">
                               <div className="btn-split-line1" style={{ color: '#eab308' }}>
                                 <Clock size={17} style={{ color: '#eab308', flexShrink: 0 }} />
-                                <span>Waiting {qTag}</span>
+                                <span>Coming Soon {qTag}</span>
                               </div>
                               <div className="btn-split-line2" style={{ color: '#eab308', opacity: 0.9 }}>
                                 {sTag ? `(${sTag} — Coming Soon)` : '(Coming Soon)'}
@@ -1155,7 +1155,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                               <div className="quality-opt-left">
                                 <span className="quality-opt-badge">{optQ}</span>
                                 {isOptOver && (
-                                  <span className="quality-opt-waiting">⏳ Waiting (&gt; {maxLimitLabel})</span>
+                                  <span className="quality-opt-waiting">⏳ Coming Soon (&gt; {maxLimitLabel})</span>
                                 )}
                                 {isSelected && !isOptOver && (
                                   <span className="quality-opt-active-check">✓ Active</span>

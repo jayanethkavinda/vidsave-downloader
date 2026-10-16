@@ -114,22 +114,38 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
   let formatArg;
   if (isAudio) {
     formatArg = 'bestaudio/best';
-  } else if (format === '480') {
+  } else if (format === '4320') {
     formatArg = isYt
-      ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
-      : 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio/best';
-  } else if (format === '720') {
+      ? 'bestvideo[height<=4320][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=4320]+bestaudio/best[height<=4320]/best'
+      : 'best[height<=4320][ext=mp4]/best[width<=4320][ext=mp4]/best[height<=4320]/bestvideo[height<=4320]+bestaudio/best';
+  } else if (format === '2160') {
     formatArg = isYt
-      ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
-      : 'best[height<=720][ext=mp4]/best[width<=720][ext=mp4]/best[height<=720]/bestvideo[height<=720]+bestaudio/best';
+      ? 'bestvideo[height<=2160][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=2160]+bestaudio/best[height<=2160]/best'
+      : 'best[height<=2160][ext=mp4]/best[width<=2160][ext=mp4]/best[height<=2160]/bestvideo[height<=2160]+bestaudio/best';
+  } else if (format === '1440') {
+    formatArg = isYt
+      ? 'bestvideo[height<=1440][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1440]+bestaudio/best[height<=1440]/best'
+      : 'best[height<=1440][ext=mp4]/best[width<=1440][ext=mp4]/best[height<=1440]/bestvideo[height<=1440]+bestaudio/best';
   } else if (format === '1080') {
     formatArg = isYt
       ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
       : 'best[height<=1080][ext=mp4]/best[width<=1080][ext=mp4]/best[height<=1080]/bestvideo[height<=1080]+bestaudio/best';
-  } else {
-    // 'best' - Original creator upload quality
+  } else if (format === '720') {
     formatArg = isYt
-      ? 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best'
+      ? 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]/best'
+      : 'best[height<=720][ext=mp4]/best[width<=720][ext=mp4]/best[height<=720]/bestvideo[height<=720]+bestaudio/best';
+  } else if (format === '480') {
+    formatArg = isYt
+      ? 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=480]+bestaudio/best[height<=480]/best'
+      : 'best[height<=480][ext=mp4]/best[width<=480][ext=mp4]/best[height<=480]/bestvideo[height<=480]+bestaudio/best';
+  } else if (format === '360') {
+    formatArg = isYt
+      ? 'bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=360]+bestaudio/best[height<=360]/best'
+      : 'best[height<=360][ext=mp4]/best[width<=360][ext=mp4]/best[height<=360]/best';
+  } else {
+    // 'best' - 100% Original creator upload quality
+    formatArg = isYt
+      ? 'bestvideo+bestaudio/best'
       : 'best[ext=mp4]/best/bestvideo+bestaudio';
   }
 
