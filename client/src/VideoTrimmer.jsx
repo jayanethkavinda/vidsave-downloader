@@ -1094,8 +1094,9 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
                     ) : (
                       <div className="btn-split-content">
                         <div className="btn-split-line1">
-                          <Film size={15} className="split-action-icon" />
-                          <span>Download MP4 · {getCleanQualityTag(selectedQuality)}</span>
+                          <Download size={20} className="split-action-dl-icon" strokeWidth={2.4} />
+                          <span>MP4 · {getCleanQualityTag(selectedQuality)}</span>
+                          <Film size={16} className="split-action-film-icon" />
                         </div>
                         <div className="btn-split-line2">
                           {getCleanClipSizeMb(selectedQuality)}

@@ -1130,12 +1130,13 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                           ) : (
                             <div className="btn-split-content">
                               <div className="btn-split-line1">
-                                <Download size={18} className="split-action-icon" />
-                                <span>Download {qTag}</span>
+                                <Download size={20} className="split-action-dl-icon" strokeWidth={2.4} />
+                                <span>MP4 · {qTag}</span>
+                                <Film size={16} className="split-action-film-icon" />
                               </div>
                               {sTag && (
                                 <div className="btn-split-line2">
-                                  ({sTag})
+                                  {sTag}
                                 </div>
                               )}
                             </div>
@@ -1298,7 +1299,7 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                               <Headphones size={14} className="mp3-headset-icon" />
                             </div>
                             {audioSize && (
-                              <span className="mp3-sub-size">({audioSize})</span>
+                              <span className="mp3-sub-size">{audioSize}</span>
                             )}
                           </div>
                         )}
@@ -1309,13 +1310,12 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               </div>
 
               {/* 📑 Dedicated Subtitles & Closed Captions Section */}
-              {/* 📑 Dedicated Subtitles & Closed Captions Section */}
               <div id="subtitles-section" className="subtitles-section" style={{ textAlign: 'left', marginTop: '1.25rem' }}>
                 <div className="subtitles-box-header">
                   <div className="subtitles-header-left">
-                    <Subtitles size={18} className="sub-header-icon" />
+                    <Subtitles size={19} className="sub-header-icon" />
                     <span className="sub-header-title">Subtitles</span>
-                    <span className="sub-header-counter">{filteredSubtitles.length}</span>
+                    <span className="sub-header-counter">({filteredSubtitles.length})</span>
                   </div>
                 </div>
 
@@ -1363,10 +1363,9 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
                         aria-expanded={isGuideOpen}
                       >
                         <div className="sub-guide-header-title">
-                          <Subtitles size={16} color="#06b6d4" />
                           <span>Which Subtitle Format Should You Choose?</span>
                         </div>
-                        <ChevronDown size={17} className={`sub-guide-chevron ${isGuideOpen ? 'rotate' : ''}`} />
+                        <ChevronDown size={13} className={`sub-guide-chevron ${isGuideOpen ? 'rotate' : ''}`} />
                       </button>
                       {isGuideOpen && (
                         <div className="sub-guide-list">
