@@ -797,16 +797,19 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
       {/* Fixed Sticky Navigation Bar */}
       <header className="navbar-wrapper">
         <div className="navbar container">
-          <Link to="/" className="logo" onClick={() => setViewMode('main')}>
-            <img 
-              src="/videoDownloader.jpg" 
-              alt="VidSave Logo" 
-              className="logo-img" 
-            />
-            <div className="logo-text">
-              Vid<span>Save</span>
-            </div>
-          </Link>
+          {/* Brand Logo inside nav-left container */}
+          <div className="nav-left">
+            <Link to="/" className="logo" onClick={() => setViewMode('main')}>
+              <img 
+                src="/videoDownloader.jpg" 
+                alt="VidSave Logo" 
+                className="logo-img" 
+              />
+              <div className="logo-text">
+                Vid<span>Save</span>
+              </div>
+            </Link>
+          </div>
 
           {/* Mode Switcher Nav Buttons (Tailored for US Audience) */}
           <nav className="nav-mode-switcher">

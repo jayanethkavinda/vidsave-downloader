@@ -727,10 +727,6 @@ export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVi
           <ArrowLeft size={18} />
           <span>Full Downloader</span>
         </button>
-        <div className="trimmer-media-title" title={videoInfo?.title}>
-          <Scissors size={15} color="#06b6d4" style={{ flexShrink: 0 }} />
-          <span>{videoInfo?.title ? videoInfo.title : 'Clip & Trim Video'}</span>
-        </div>
       </div>
 
       {/* 🔗 Dedicated URL Input Bar at the Top of Trimmer (Auto-extracts on paste!) */}
