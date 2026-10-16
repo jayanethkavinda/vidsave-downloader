@@ -208,7 +208,8 @@ button {
   box-shadow: 0 4px 14px rgba(6, 182, 212, 0.42);
 }
 
-.nav-btn-text-short {
+.nav-btn-text-short,
+.nav-btn-text-tiny {
   display: none;
 }
 
@@ -221,6 +222,7 @@ button {
   letter-spacing: -0.03em;
   text-decoration: none;
   color: var(--text-main);
+  flex-shrink: 0;
 }
 
 .logo-icon {
@@ -256,6 +258,7 @@ button {
   display: flex;
   align-items: center;
   gap: 0.85rem;
+  flex-shrink: 0 !important;
 }
 
 .nav-badge {
@@ -3921,6 +3924,21 @@ button {
    📱 Mobile Responsiveness (Flawless UX on screens down to 360px)
    ========================================================================== */
 
+
+@media (max-width: 960px) {
+  .nav-btn-text-full {
+    display: none !important;
+  }
+
+  .nav-btn-text-short {
+    display: inline !important;
+  }
+
+  .nav-btn-text-tiny {
+    display: none !important;
+  }
+}
+
 @media (max-width: 840px) {
   .trimmer-split-download-group {
     flex-direction: column !important;
@@ -3946,14 +3964,6 @@ button {
     min-height: 50px !important;
   }
 
-  .nav-btn-text-full {
-    display: none;
-  }
-
-  .nav-btn-text-short {
-    display: inline;
-  }
-
   .navbar-wrapper {
     min-height: 66px;
   }
@@ -3963,6 +3973,11 @@ button {
     flex-wrap: nowrap;
     padding: 0.65rem 0;
     gap: 0.65rem;
+  }
+
+  .navbar.container {
+    padding-left: 0.85rem !important;
+    padding-right: 0.85rem !important;
   }
 
   .logo {
@@ -3981,6 +3996,7 @@ button {
     gap: 0.28rem;
     padding: 0.25rem 0.3rem;
     flex-shrink: 1;
+    min-width: 0;
   }
 
   .nav-mode-btn {
@@ -3991,10 +4007,15 @@ button {
     gap: 0.4rem;
   }
 
+  .nav-actions {
+    flex-shrink: 0 !important;
+    margin-left: auto;
+  }
+
   .btn-theme-toggle {
     width: 42px;
     height: 42px;
-    flex-shrink: 0;
+    flex-shrink: 0 !important;
   }
 
   .trimmer-url-form {
@@ -4011,6 +4032,20 @@ button {
   }
 }
 
+@media (max-width: 560px) {
+  .nav-btn-text-full {
+    display: none !important;
+  }
+
+  .nav-btn-text-short {
+    display: none !important;
+  }
+
+  .nav-btn-text-tiny {
+    display: inline !important;
+  }
+}
+
 @media (max-width: 480px) {
   .navbar-wrapper {
     min-height: 62px;
@@ -4019,12 +4054,18 @@ button {
   .navbar {
     min-height: 62px;
     padding: 0.55rem 0;
-    gap: 0.5rem;
+    gap: 0.45rem;
+  }
+
+  .navbar.container {
+    padding-left: 0.55rem !important;
+    padding-right: 0.55rem !important;
   }
 
   .logo {
-    gap: 0.45rem;
+    gap: 0.4rem;
     font-size: 1.25rem;
+    flex-shrink: 0;
   }
 
   .logo-img {
@@ -4034,20 +4075,22 @@ button {
   }
 
   .logo-text {
-    font-size: 1.2rem;
+    font-size: 1.18rem;
   }
 
   .nav-mode-switcher {
-    gap: 0.22rem;
-    padding: 0.2rem 0.24rem;
+    gap: 0.18rem;
+    padding: 0.18rem 0.22rem;
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   .nav-mode-btn {
-    padding: 0.4rem 0.75rem;
+    padding: 0.4rem 0.7rem;
     min-height: 38px;
     font-size: 0.82rem;
     font-weight: 700;
-    gap: 0.32rem;
+    gap: 0.3rem;
   }
 
   .nav-mode-btn svg {
@@ -4055,9 +4098,15 @@ button {
     height: 16px;
   }
 
+  .nav-actions {
+    flex-shrink: 0 !important;
+    margin-left: auto;
+  }
+
   .btn-theme-toggle {
     width: 40px;
     height: 40px;
+    flex-shrink: 0 !important;
   }
 
   .manual-cut-display {
@@ -4188,28 +4237,53 @@ button {
     gap: 0.35rem;
   }
 
+  .navbar.container {
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+  }
+
+  .logo {
+    gap: 0.3rem;
+    flex-shrink: 0 !important;
+  }
+
   .logo-img {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
   }
 
   .logo-text {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
   }
 
   .logo-text span {
     display: none;
   }
 
+  .nav-mode-switcher {
+    padding: 0.14rem 0.18rem;
+    gap: 0.15rem;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
   .nav-mode-btn {
-    padding: 0.35rem 0.6rem;
-    min-height: 36px;
-    font-size: 0.76rem;
+    padding: 0.32rem 0.48rem;
+    min-height: 34px;
+    font-size: 0.74rem;
+    gap: 0.2rem;
+  }
+
+  .nav-actions {
+    flex-shrink: 0 !important;
+    margin-left: auto;
   }
 
   .btn-theme-toggle {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0 !important;
   }
 
   .trimmer-time-display {

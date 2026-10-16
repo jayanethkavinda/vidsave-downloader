@@ -816,9 +816,10 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               className={`nav-mode-btn ${viewMode === 'main' ? 'active' : ''}`}
               title="Download Full HD Videos from any platform"
             >
-              <Film size={18} />
+              <Film size={18} className="nav-mode-icon" />
               <span className="nav-btn-text-full">Full Video Downloader</span>
               <span className="nav-btn-text-short">Full Video</span>
+              <span className="nav-btn-text-tiny">Full</span>
             </button>
             <button
               type="button"
@@ -826,9 +827,10 @@ QUICK CREDIT (For YouTube Description / TikTok / Instagram):
               className={`nav-mode-btn ${viewMode === 'trim' ? 'active trim-active' : ''}`}
               title="Trim, Cut & Crop Video Clips"
             >
-              <Scissors size={18} />
+              <Scissors size={18} className="nav-mode-icon" />
               <span className="nav-btn-text-full">Clip & Trim Video</span>
               <span className="nav-btn-text-short">Clip & Trim</span>
+              <span className="nav-btn-text-tiny">Trim</span>
             </button>
           </nav>
 
