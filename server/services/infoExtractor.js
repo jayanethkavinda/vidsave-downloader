@@ -171,6 +171,7 @@ export async function getVideoInfo(url) {
 
   // Filter video & audio formats
   const videoFormats = rawFormats.filter(f => f.vcodec && f.vcodec !== 'none');
+  const audioFormats = rawFormats.filter(f => f.acodec && f.acodec !== 'none');
   const maxAllowedSize = isYt ? MAX_FILESIZE_BYTES_YOUTUBE : MAX_FILESIZE_BYTES_OTHER;
   const maxLimitLabel = isYt ? '1.5 GB' : '3.0 GB';
 
@@ -182,6 +183,9 @@ export async function getVideoInfo(url) {
     maxHeight
   } = await buildResolutionPresets({
     rawFormats,
+    videoFormats,
+    audioFormats,
+    rawInfo,
     duration,
     isYt,
     referer: url,

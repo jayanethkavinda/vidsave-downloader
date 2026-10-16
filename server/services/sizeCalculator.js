@@ -281,6 +281,7 @@ export async function calculateExactFormatSize(format, tier, duration = 0, audio
  * Universal Presets Builder with 100% Accurate Sizes
  */
 export async function buildResolutionPresets({
+  rawFormats = [],
   videoFormats = [],
   audioFormats = [],
   duration = 0,
@@ -290,15 +291,27 @@ export async function buildResolutionPresets({
   maxAllowedSize = 1.5 * 1024 * 1024 * 1024,
   maxLimitLabel = '1.5 GB'
 }) {
-  // 1. Calculate Audio Size first
-  const { audioSize } = await calculateAudioSize(audioFormats, duration, referer);
+  const allFormats = (rawFormats && rawFormats.length) ? rawFormats : (rawInfo.formats || []);
+  const vFormats = (videoFormats && videoFormats.length) 
+    ? videoFormats 
+    : allFormats.filter(f => f.vcodec && f.vcodec !== 'none');
+  const aFormats = (audioFormats && audioFormats.length) 
+    ? audioFormats 
+    : allFormats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'));
 
-  // 2. Determine Max Quality Height
+  // 1. Calculate Audio Size first
+  const { audioSize } = await calculateAudioSize(aFormats, duration, referer);
+
+  // 2. Determine Max Quality Height (support both horizontal & vertical videos)
   let maxHeight = 0;
-  for (const f of videoFormats) {
+  for (const f of vFormats) {
     const rawH = f.height || (f.format_note && parseInt(f.format_note, 10)) || 0;
     const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
     if (h > maxHeight) maxHeight = h;
+  }
+  if (rawInfo && rawInfo.height) {
+    const rawRes = (rawInfo.width && rawInfo.height) ? Math.min(rawInfo.width, rawInfo.height) : rawInfo.height;
+    if (rawRes > maxHeight) maxHeight = rawRes;
   }
   if (maxHeight === 0) maxHeight = 720;
 
@@ -308,7 +321,7 @@ export async function buildResolutionPresets({
     const tier = RESOLUTION_TIERS[i];
     const upperTier = i > 0 ? RESOLUTION_TIERS[i - 1] : null;
 
-    const hasTier = videoFormats.some(f => {
+    const hasTier = vFormats.some(f => {
       const rawH = f.height || (f.format_note && parseInt(f.format_note, 10)) || 0;
       const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
       if (upperTier) return h >= tier.minHeight && h < upperTier.minHeight;
@@ -316,7 +329,7 @@ export async function buildResolutionPresets({
     }) || (tierCandidates.length === 0 && maxHeight >= tier.minHeight);
 
     if (hasTier) {
-      const matchingFormats = videoFormats.filter(f => {
+      const matchingFormats = vFormats.filter(f => {
         const rawH = f.height || (f.format_note && parseInt(f.format_note, 10)) || 0;
         const h = (f.width && f.height) ? Math.min(f.width, f.height) : rawH;
         if (upperTier) return h >= tier.minHeight && h < upperTier.minHeight;
@@ -339,7 +352,7 @@ export async function buildResolutionPresets({
   // Fallback tier if no candidates matched
   if (tierCandidates.length === 0) {
     const fallbackTier = maxHeight >= 720 ? RESOLUTION_TIERS[4] : RESOLUTION_TIERS[5];
-    tierCandidates.push({ tier: fallbackTier, bestFmt: videoFormats[0] || null });
+    tierCandidates.push({ tier: fallbackTier, bestFmt: vFormats[0] || null });
   }
 
   // 4. Calculate exact sizes for all matched tiers in parallel
