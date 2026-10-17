@@ -228,13 +228,13 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
       '-m', 'yt_dlp',
       '-f', formatArg,
       '--max-filesize', maxLimitArg,
-      '--downloader-args', 'ffmpeg:-threads 1',
+      '--downloader-args', 'ffmpeg:-threads 2',
     ];
 
     if (isAudio) {
       args.push('-x', '--audio-format', 'mp3', '--audio-quality', '0');
     } else {
-      args.push('--merge-output-format', 'mp4', '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac -threads 1');
+      args.push('--merge-output-format', 'mp4', '--postprocessor-args', 'ffmpeg:-c:v copy -c:a aac -threads 2');
     }
 
     args.push('-o', tempFile, ...buildYtdlpArgs(url), '--', url);

@@ -153,7 +153,7 @@ export function streamTrimmedDownload(url, startTime, endTime, type = 'video', f
     '-m', 'yt_dlp',
     '-f', formatArg,
     '--download-sections', sectionArg,
-    '--downloader-args', 'ffmpeg:-threads 1',
+    '--downloader-args', 'ffmpeg:-threads 2',
   ];
 
   if (isAudio) {
