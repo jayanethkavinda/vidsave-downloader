@@ -35,7 +35,7 @@ import { PAGES_CONFIG, QUICK_LINKS } from './pagesConfig.js';
 import VideoTrimmer from './VideoTrimmer.jsx';
 import TaslAttributionCard from './TaslAttributionCard.jsx';
 
-const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
+const BACKEND_URL = 'https://162.35.187.196.sslip.io';
 
 export default function App() {
   const location = useLocation();

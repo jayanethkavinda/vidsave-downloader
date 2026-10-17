@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import TaslAttributionCard from './TaslAttributionCard.jsx';
 
-const BACKEND_URL = 'https://vidsave-downloader.onrender.com';
+const BACKEND_URL = 'https://162.35.187.196.sslip.io';
 
 export default function VideoTrimmer({ videoInfo: initialVideoInfo, onBack, onVideoExtracted }) {
   const [videoInfo, setVideoInfo] = useState(initialVideoInfo || null);
