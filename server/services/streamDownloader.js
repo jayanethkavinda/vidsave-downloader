@@ -7,6 +7,7 @@ import {
   ffmpegPath, 
   buildYtdlpArgs, 
   isYouTubeUrl, 
+  isFacebookUrl,
   isScraperSupportedUrl 
 } from './coreEngine.js';
 import { 
@@ -171,10 +172,11 @@ export async function pipeDirectCdnStream(directUrl, originalUrl, isAudio, res, 
 
 /**
  * Universal Streaming Downloader Engine
- * Uses Zero-Disk Direct CDN Pipe for social platforms, and single-thread muxing for YouTube
+ * Uses Zero-Disk Direct CDN Pipe for social platforms, and single-thread muxing for YouTube / Facebook 2K
  */
 export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = null, token = null) {
   const isYt = isYouTubeUrl(url);
+  const isFb = isFacebookUrl(url);
   const isAudio = formatPreset === 'audio_best' || formatPreset === 'mp3';
 
   // 1. FAST-PATH: In-Memory Media Cache (20-Minute TTL) or explicitly passed directUrl
@@ -183,7 +185,7 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
     ? passedDirectUrl 
     : cachedStream?.directUrl;
 
-  const isHeavyMuxNeeded = isYt && ['4320', '2160', '1440', '1080'].includes(String(formatPreset));
+  const isHeavyMuxNeeded = (isYt || isFb) && ['4320', '2160', '1440', '1080'].includes(String(formatPreset));
 
   // Build strict tier format selector
   const buildTierFormat = (target) => {
@@ -319,6 +321,12 @@ export function streamVideoDownload(url, formatPreset, res, passedDirectUrl = nu
       console.warn('[Zero-Disk Stream] Direct pipe failed, falling back to temp pipeline.');
       runTempDownload();
     }, token);
+  }
+
+  // 2. Heavy separate streams (YouTube or Facebook 1080p/2K/4K) require high-quality muxing
+  if (isHeavyMuxNeeded) {
+    console.log(`[Mux Pipeline] Running dedicated mux pipeline for: ${url} (${formatPreset})`);
+    return runTempDownload();
   }
 
   // Zero-Disk Direct Proxy Streaming for Social Platforms (Facebook, TikTok, Pinterest, Instagram, X, Threads)

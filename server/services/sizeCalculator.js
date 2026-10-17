@@ -369,7 +369,7 @@ export async function buildResolutionPresets({
       type: 'video',
       filesize: exactSize,
       filesizeFormatted: formatBytes(exactSize),
-      directUrl: bestFmt?.url || null,
+      directUrl: hasAudio ? (bestFmt?.url || null) : null,
       hasAudio
     };
   }));
@@ -387,7 +387,7 @@ export async function buildResolutionPresets({
     filesize: topTier.filesize,
     filesizeFormatted: topTier.filesizeFormatted,
     isRecommended: true,
-    directUrl: topTier.directUrl || null,
+    directUrl: topTier.hasAudio ? (topTier.directUrl || null) : null,
     hasAudio: topTier.hasAudio
   };
 

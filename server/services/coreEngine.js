@@ -104,6 +104,11 @@ export function isYouTubeUrl(rawUrl) {
   return /(?:youtube\.com|youtu\.be)/i.test(rawUrl);
 }
 
+export function isFacebookUrl(rawUrl) {
+  if (!rawUrl) return false;
+  return /(?:facebook\.com|fb\.watch|fb\.com|fb\.gg)/i.test(rawUrl);
+}
+
 export function isScraperSupportedUrl(rawUrl) {
   if (!rawUrl) return false;
   return /(?:instagram\.com|instagr\.am|facebook\.com|fb\.watch|tiktok\.com|twitter\.com|x\.com)/i.test(rawUrl);
