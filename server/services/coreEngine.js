@@ -44,10 +44,25 @@ export const COOKIE_FILE = path.resolve(__dirname, '../ytdlp_session_cookies.txt
 
 export function syncCookiesFromEnv() {
   const envCookies = process.env.YTDLP_COOKIES;
+  
+  // If a valid cookies file already exists (> 200 bytes) and no substantial env override is provided, preserve it
+  if (fs.existsSync(COOKIE_FILE)) {
+    try {
+      const stats = fs.statSync(COOKIE_FILE);
+      if (stats.size > 200 && (!envCookies || envCookies.trim().length < 200)) {
+        console.log(`[Core Engine] Preserved existing cookie file: ${COOKIE_FILE} (${stats.size} bytes)`);
+        return;
+      }
+    } catch (_) {}
+  }
+
   if (!envCookies) return;
 
   try {
     let content = envCookies.trim();
+    if (content.startsWith('base64:')) {
+      content = Buffer.from(content.slice(7), 'base64').toString('utf8');
+    }
     if (content.includes('\\n')) {
       content = content.replace(/\\n/g, '\n').replace(/\\t/g, '\t');
     }
