@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
@@ -94,7 +95,7 @@ export function isScraperSupportedUrl(rawUrl) {
 }
 
 // 5. Common Anti-Bot yt-dlp arguments
-export function buildYtdlpArgs(url = '', useCookies = true) {
+export function buildYtdlpArgs(url = '', useCookies = true, allowProxy = false) {
   const args = [
     '--ignore-config',
     '--no-exec',
@@ -116,8 +117,8 @@ export function buildYtdlpArgs(url = '', useCookies = true) {
     args.push('--cookies', COOKIE_FILE);
   }
 
-  // Proxy routing strictly for YouTube
-  if (process.env.YTDLP_PROXY && isYouTubeUrl(url)) {
+  // Proxy routing strictly when allowProxy is requested (e.g. smart fallback on block)
+  if (allowProxy && process.env.YTDLP_PROXY && isYouTubeUrl(url)) {
     args.push('--proxy', process.env.YTDLP_PROXY);
   }
 

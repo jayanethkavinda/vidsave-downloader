@@ -305,10 +305,18 @@ export async function getVideoInfo(url) {
     try {
       rawInfo = await runDump(['--extractor-args', 'youtube:player_client=android,web']);
     } catch (err2) {
-      if (!isYt) {
+      if (isYt && process.env.YTDLP_PROXY) {
+        try {
+          console.log(`[YouTube Engine] Direct extraction failed, attempting smart proxy fallback for: ${url}`);
+          rawInfo = await runDump(['--proxy', process.env.YTDLP_PROXY]);
+        } catch (err3) {
+          throw err1;
+        }
+      } else if (!isYt) {
         return await resolveCloudScraperFallback(url);
+      } else {
+        throw err1;
       }
-      throw err1;
     }
   }
 
