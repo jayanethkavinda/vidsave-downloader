@@ -55,12 +55,12 @@ app.use(cors({
 
 app.use(express.json());
 
-// Smart Multi-Tier Concurrency Controller (Optimized for 0.1 vCPU & 512MB RAM)
+// Smart Multi-Tier Concurrency Controller (Optimized for 1.0 vCPU & 2GB RAM VPS)
 let activeSocialDownloads = 0;
-const MAX_CONCURRENT_SOCIAL = 15; // TikTok, Instagram, Twitter/X, Facebook, Pinterest, Threads, Reddit
+const MAX_CONCURRENT_SOCIAL = 50; // TikTok, Instagram, Twitter/X, Facebook, Pinterest, Threads, Reddit
 
 let activeYtHeavyDownloads = 0;
-const MAX_CONCURRENT_YT_HEAVY = 1; // YouTube > 720p: 1080p, 1440p, 4K, 8K (Heavy FFmpeg muxing)
+const MAX_CONCURRENT_YT_HEAVY = 5; // YouTube > 720p: 1080p, 1440p, 4K, 8K (Heavy FFmpeg muxing)
 
 let activeYtLightDownloads = 0;
 const MAX_CONCURRENT_YT_LIGHT = 4; // YouTube <= 720p: 720p, 480p, 360p, MP3 Audio (Lightweight streams)
